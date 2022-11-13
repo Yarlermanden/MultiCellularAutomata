@@ -1,2 +1,4 @@
 */data
 */models/*
+*.npy
+*/__cache__/*
