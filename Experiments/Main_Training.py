@@ -59,6 +59,9 @@ print(device)
 # In[3]:
 
 
+seed = 2
+torch.manual_seed(seed)
+np.random.seed(seed)
 model, losses = trainer.train()
 
 
@@ -73,4 +76,10 @@ torch.save(model.state_dict(), 'models/complex_ca4.pth')
 #save graph
 print(losses.shape)
 np.save('losses', losses)
+
+
+# In[ ]:
+
+
+
 
