@@ -40,12 +40,9 @@ class Generator():
 
     def generate_stationary_state(self):
         zeros = torch.zeros(self.width, self.width)
-        #center_ca = self.get_centered_CA()
-        #cell = zeros
-        #cell[6:11, 6:11] = center_ca
         cell = self.get_centered_CA()
         state = torch.stack([cell, zeros, zeros, zeros])
-        return State(state, state, zeros)
+        return State(state, cell, zeros)
 
     def get_centered_CA(self):
         zeros = torch.zeros(self.width, self.width)
@@ -65,8 +62,10 @@ class Generator():
 
     def random_food_noncentered(self):
         def random_outer_num(middle):
-            lower = random.randint(0, middle-5)
-            upper = random.randint(middle+5, self.width-1)
+            #lower = random.randint(0, middle-5)
+            #upper = random.randint(middle+5, self.width-1)
+            lower = random.randint(1, middle-5)
+            upper = random.randint(middle+5, self.width-2)
             coin_flip = random.randint(0, 1)
             return lower*coin_flip + upper*(1-coin_flip) #returns lower or upper
 

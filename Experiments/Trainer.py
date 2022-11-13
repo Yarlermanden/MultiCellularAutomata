@@ -14,8 +14,10 @@ class Trainer():
         self.model = model
         self.device = device
         self.lr = 0.0001
-        self.epochs = 11
-        self.epochs2 = 6
+        #self.epochs = 11
+        #self.epochs2 = 6
+        self.epochs = 2
+        self.epochs2 = 1
         self.iterations = 20000 # pr epoch
         self.iterations_per_sample = 2000
         self.random_states = False
@@ -45,6 +47,7 @@ class Trainer():
             elif epoch < 12:
                 lr = self.lr/40
                 timesteps = np.random.randint(40, 60)
+            self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
             for i in range(self.iterations):
                 if i % self.iterations_per_sample == 0:
@@ -56,6 +59,7 @@ class Trainer():
                     if i % 1000 == 0:
                         print(loss_item)
                     losses_list[(epoch*self.iterations + i)//10] = loss_item
+        torch.save(self.model.state_dict(), 'models/complex_ca4_stationary.pth')
 
         #train to understand moving towards the rewards
         #for epoch in tqdm(range(self.epochs)):
@@ -68,6 +72,7 @@ class Trainer():
             elif epoch < 6:
                 lr = self.lr/40
                 timesteps = np.random.randint(15, 30)
+            self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
 
             for i in range(self.iterations):
                 state = self.generator.generate_moving_state(timesteps)
@@ -77,7 +82,7 @@ class Trainer():
                 if i % 10 == 0:
                     if i % 1000 == 0:
                         print(loss_item)
-                    losses_list[(epoch*self.iterations + i)//10] = loss_item
+                    losses_list[((self.epochs + epoch)*self.iterations + i)//10] = loss_item
 
         return self.model, losses_list
 
