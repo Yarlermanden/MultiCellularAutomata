@@ -27,9 +27,7 @@ class Trainer():
         losses_list = np.zeros(self.iterations * (self.epochs+self.epochs2) // 10)
         lr = self.lr
 
-        #train to be stationary in one step
-        #train to be stationary after many steps
-        for epoch in tqdm(range(self.epochs)):
+        for epoch in tqdm(range(self.epochs)): #Train stationary
             if epoch < 2:
                 timesteps = 1
             elif epoch < 4:
@@ -57,11 +55,11 @@ class Trainer():
                     if i % 1000 == 0:
                         print(loss_item)
                     losses_list[(epoch*self.iterations + i)//10] = loss_item
+            name = 'models/complex_ca_stationary_temp' + str(epoch) + '.pth'
+            torch.save(self.model.state_dict(), name)
         torch.save(self.model.state_dict(), 'models/complex_ca5_stationary.pth')
 
-        #train to understand moving towards the rewards
-        #for epoch in tqdm(range(self.epochs)):
-        for epoch in tqdm(range(self.epochs2)):
+        for epoch in tqdm(range(self.epochs2)): #Train moving
             if epoch < 2:
                 lr = self.lr/5
                 timesteps = 5

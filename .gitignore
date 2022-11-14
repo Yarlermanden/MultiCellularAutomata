@@ -2,3 +2,4 @@
 */models/*
 *.npy
 */__cache__/*
+*/__pycache__/*

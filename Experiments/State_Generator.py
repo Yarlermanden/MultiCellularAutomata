@@ -18,10 +18,8 @@ class Generator():
         #Generate initial CA
         zeros = torch.zeros(self.width, self.width)
 
-
         state = self.get_centered_CA()
         state = torch.stack([state, zeros, zeros, zeros])
-
 
         #Generate food map
         food_coord = self.random_food_noncentered()
@@ -32,9 +30,7 @@ class Generator():
         target_ca = state[0]
         for _ in range(timesteps):
             target_ca = self.move_towards_food(target_ca, food_coord)
-        
 
-        #TODO make method to do it iteratively - that way we can simulate how it would look....
         return State(state, target_ca, food)
 
 
@@ -62,8 +58,6 @@ class Generator():
 
     def random_food_noncentered(self):
         def random_outer_num(middle):
-            #lower = random.randint(0, middle-5)
-            #upper = random.randint(middle+5, self.width-1)
             lower = random.randint(1, middle-5)
             upper = random.randint(middle+5, self.width-2)
             coin_flip = random.randint(0, 1)
@@ -75,8 +69,8 @@ class Generator():
         return x,y
 
     def move_towards_food(self, ca, food):
-        #TODO fix the out of range
-        #TODO fix the wraparound failure...
+        #TODO fix the out of range - due to out of range
+        #TODO fix the wraparound failure... - is due to -1
 
         #could try without ordering, but to order:
         #for indices, ca in enumerate(ca): - both dimensions at once?!
@@ -137,7 +131,7 @@ class Generator():
                     #move to the corners available
                     else:
                         if new_ca[i+delta_y][j+delta_x] == 0: #direct corner
-                            new_ca[i+delta_y][j+delta_x] =1
+                            new_ca[i+delta_y][j+delta_x] = 1
                         elif new_ca[i][j+delta_x] == 0: #priotize moving in x over y
                             new_ca[i][j+delta_x] = 1
                         elif new_ca[i+delta_y][j] == 0:

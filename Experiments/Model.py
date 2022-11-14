@@ -1,6 +1,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class Complex_CA(nn.Module):
     def __init__(self):
@@ -18,11 +19,22 @@ class Complex_CA(nn.Module):
 
         self.alive = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
 
-    def perceive_smell(self, food, smell): #smell spread from food
-        smell += food #smell source is food
-        smell = smell*0.8 #decay smell
-        smell = torch.relu(self.conv1(torch.stack([smell]))) #smell spread
-        return smell[0]
+    #def perceive_smell(self, food, smell): #smell spread from food
+    #    smell += food #smell source is food
+    #    smell = smell*0.8 #decay smell
+    #    smell = torch.relu(self.conv1(torch.stack([smell]))) #smell spread
+    #    return smell[0]
+
+    def perceive_scent(self, food):
+        conv_weights = torch.tensor([[[
+            [0.25, 0.5, 0.25],
+            [0.5, 1, 0.5],
+            [0.25, 0.5, 0.25]
+        ]]])
+        food = torch.stack([food])
+        food = torch.stack([food])
+        x = F.conv2d(food, conv_weights, padding=1)[0][0]
+        return x
 
     def alive_filter(self, x):
         #only look at cell state - could be changed to also consider smell
@@ -30,14 +42,17 @@ class Complex_CA(nn.Module):
         return self.alive(x[0:1]) > 0.1
 
     def perceive_cell_surrounding(self, x):
-        return ...
+        x = torch.relu(self.conv2(x)) #perceive neighbor cell state
+        return x
 
     def update(self, cell, food):
         x = cell
 
-        x[3] = self.perceive_smell(x[3], food) #update smell
+        #x[3] = self.perceive_smell(x[3], food) #update smell
+        x[3] = self.perceive_scent(food) #update scent 
+
         pre_life_mask = self.alive_filter(x)
-        x = torch.relu(self.conv2(x)) #perceive neighbor cell states
+        x = self.perceive_cell_surrounding(x) #perceive neighbor cell states
         x = torch.relu(self.conv3(x)) #single cell 
         x = self.conv4(x) #single cell
 
