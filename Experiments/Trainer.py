@@ -16,7 +16,7 @@ class Trainer():
         self.lr = 0.0001
         self.epochs = 11
         self.epochs2 = 6
-        self.iterations = 20000 # pr epoch
+        self.iterations = 30000 # pr epoch
         self.iterations_per_sample = 2000
         self.random_states = False
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
@@ -62,17 +62,17 @@ class Trainer():
         for epoch in tqdm(range(self.epochs2)): #Train moving
             if epoch < 2:
                 lr = self.lr/5
-                timesteps = 5
+                timesteps = 2
             elif epoch < 4:
                 lr = self.lr/10
-                timesteps = 10
+                timesteps = 5
             elif epoch < 6:
                 lr = self.lr/40
-                timesteps = np.random.randint(15, 30)
+                timesteps = np.random.randint(10, 15)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):
-                state = self.generator.generate_moving_state(timesteps)
+                state = self.generator.generate_moving_state(timesteps//2)
 
                 loss_item = self.train_step(state, timesteps)
 
@@ -80,6 +80,8 @@ class Trainer():
                     if i % 1000 == 0:
                         print(loss_item)
                     losses_list[((self.epochs + epoch)*self.iterations + i)//10] = loss_item
+            name = 'models/complex_ca_moving_temp' + str(epoch) + '.pth'
+            torch.save(self.model.state_dict(), name)
 
         return self.model, losses_list
 
@@ -89,7 +91,7 @@ class Trainer():
 
         loss = self.criterion(x_hat[0], state.y)
         loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
-        loss2 = loss2/20
+        loss2 = loss2/10
         loss = loss+loss2
         loss_item = loss.item()
 

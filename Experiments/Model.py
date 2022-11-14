@@ -18,12 +18,6 @@ class Complex_CA(nn.Module):
             self.apply(init_weights)
         self.alive = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
 
-    #def perceive_smell(self, food, smell): #smell spread from food
-    #    smell += food #smell source is food
-    #    smell = smell*0.8 #decay smell
-    #    smell = torch.relu(self.conv1(torch.stack([smell]))) #smell spread
-    #    return smell[0]
-
     def perceive_scent(self, food):
         conv_weights = torch.tensor([[[
             [0.25, 0.5, 0.25],
@@ -35,8 +29,6 @@ class Complex_CA(nn.Module):
         return x
 
     def alive_filter(self, x):
-        #only look at cell state - could be changed to also consider smell
-        #return self.alive(x[0, :, :]) > 0.1 #only 
         return self.alive(x[0:1]) > 0.1
 
     def alive_count(self, x):
@@ -49,13 +41,14 @@ class Complex_CA(nn.Module):
         return live_count
 
     def perceive_cell_surrounding(self, x):
+        #TODO could do this with no trained weights - to ease the model
         x = torch.relu(self.conv2(x)) #perceive neighbor cell state
         return x
 
     def update(self, cell, food):
+        #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size
         x = cell
 
-        #x[3] = self.perceive_smell(x[3], food) #update smell
         x[3] = self.perceive_scent(food) #update scent 
 
         pre_life_mask = self.alive_filter(x)
@@ -92,6 +85,6 @@ class Complex_CA(nn.Module):
         for _ in range(steps):
             cell, food = self.update(cell, food)
 
-        #TODO could maybe even add count of cells above some threshold e.g. 0.9 
+        #TODO could maybe even add count of cells above some threshold e.g. 0.9 - force completely living cells
         living_count = self.alive_count(cell[0:1])
         return cell, food, living_count

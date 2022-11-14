@@ -2,4 +2,8 @@
 */models/*
 *.npy
 */__cache__/*
+Experiments/__pycache__/*
 */__pycache__/*
+Experiments/__pycache__/Model.cpython-310.pyc
+*/Experiments/__pycache__/Model.cpython-310.pyc
+*.cpython-310*
