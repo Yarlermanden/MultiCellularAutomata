@@ -16,7 +16,6 @@ class Complex_CA(nn.Module):
                 torch.nn.init.zeros_(m.bias)
         with torch.no_grad():
             self.apply(init_weights)
-
         self.alive = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
 
     #def perceive_smell(self, food, smell): #smell spread from food
@@ -31,8 +30,7 @@ class Complex_CA(nn.Module):
             [0.5, 1, 0.5],
             [0.25, 0.5, 0.25]
         ]]])
-        food = torch.stack([food])
-        food = torch.stack([food])
+        food = torch.stack([torch.stack([food])])
         x = F.conv2d(food, conv_weights, padding=1)[0][0]
         return x
 
@@ -40,6 +38,15 @@ class Complex_CA(nn.Module):
         #only look at cell state - could be changed to also consider smell
         #return self.alive(x[0, :, :]) > 0.1 #only 
         return self.alive(x[0:1]) > 0.1
+
+    def alive_count(self, x):
+        #TODO maybe best to only look at nearest x neighbors and not total count in case we make a big world
+        #x = torch.stack([x])
+        #conv_weights = torch.ones_like(x)
+        #live_count = F.conv2d(x, conv_weights)[0][0]
+        
+        live_count = torch.sum(x)
+        return live_count
 
     def perceive_cell_surrounding(self, x):
         x = torch.relu(self.conv2(x)) #perceive neighbor cell state
@@ -77,10 +84,14 @@ class Complex_CA(nn.Module):
         #TODO definely need some better way of measuring loss...
         #amount of living cells...
         #placement of living cells...
+
         return x, food
         
 
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
         for _ in range(steps):
             cell, food = self.update(cell, food)
-        return cell, food
+
+        #TODO could maybe even add count of cells above some threshold e.g. 0.9 
+        living_count = self.alive_count(cell[0:1])
+        return cell, food, living_count

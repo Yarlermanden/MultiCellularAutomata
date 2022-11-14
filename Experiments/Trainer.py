@@ -85,9 +85,12 @@ class Trainer():
 
     def train_step(self, state, steps): #timesteps to iterate
         self.optimizer.zero_grad()
-        x_hat, food = self.model(state.x.clone(), state.food.clone(), steps)
+        x_hat, food, live_count = self.model(state.x.clone(), state.food.clone(), steps)
 
         loss = self.criterion(x_hat[0], state.y)
+        loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
+        loss2 = loss2/20
+        loss = loss+loss2
         loss_item = loss.item()
 
         loss.backward()
