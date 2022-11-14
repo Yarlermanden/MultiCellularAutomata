@@ -59,6 +59,8 @@ class Trainer():
             torch.save(self.model.state_dict(), name)
         torch.save(self.model.state_dict(), 'models/complex_ca6_stationary.pth')
 
+        #TODO: need to look more into the curriculum and how the model does. When doing badly ensure it still works on simpler stuff
+
         for epoch in tqdm(range(self.epochs2)): #Train moving
             if epoch < 2:
                 lr = self.lr/5

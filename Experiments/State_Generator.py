@@ -92,8 +92,8 @@ class Generator():
             for j, val in enumerate(row):
                 if val > 0 and move_mask[i][j] > 0: #allowed to move
                     #find direction to move in - almost always 3 neighboring cells closer than current
-                    delta_x = food[0] - j #TODO check whether j and i are correct here
-                    delta_y = food[1] - i
+                    delta_x = food[1] - j #TODO why should this be flipped?
+                    delta_y = food[0] - i
 
                     moved_val = 0.2
                     current_val = new_ca[i][j]
