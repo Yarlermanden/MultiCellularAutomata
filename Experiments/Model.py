@@ -1,15 +1,19 @@
-
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 class Complex_CA(nn.Module):
-    def __init__(self):
+    def __init__(self, device):
         super(Complex_CA, self).__init__()
-        self.conv1 = nn.Conv2d(1, 1, 3, padding=1) # food spread smell
-        self.conv2 = nn.Conv2d(4, 8, 3, padding=1) # CA perceive world
-        self.conv3 = nn.Conv2d(8, 8, 1, padding=0) # use hidden parameters
-        self.conv4 = nn.Conv2d(8, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
+        #self.conv1 = nn.Conv2d(1, 1, 3, padding=1) # food spread smell
+        #self.conv2 = nn.Conv2d(4, 8, 3, padding=1) # CA perceive world
+        #self.conv3 = nn.Conv2d(8, 8, 1, padding=0) # use hidden parameters
+        #self.conv4 = nn.Conv2d(8, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
+        self.device = device
+
+        self.conv3 = nn.Conv2d(12, 16, 1, padding=0) # use hidden parameters
+        self.conv4 = nn.Conv2d(16, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
 
         def init_weights(m):
             if isinstance(m, torch.nn.Conv2d):
@@ -40,6 +44,25 @@ class Complex_CA(nn.Module):
         return live_count
 
     def perceive_cell_surrounding(self, x):
+        def _perceive_with(x, weight):
+            #conv_weights = torch.from_numpy(weight.astype(np.float32)).to(self.device)
+            #conv_weights = torch.stack([torch.stack([conv_weights])])
+
+            conv_weights = torch.from_numpy(weight.astype(np.float32)).to(self.device)
+            #conv_weights = conv_weights.view(1,1,3,3).repeat(self.channel_n, 1, 1, 1)
+            #return F.conv2d(x, conv_weights, padding=1, groups=self.channel_n)
+            #conv_weights = conv_weights.view(1,1,3,3).repeat(1, 4, 1, 1)
+            conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
+            return F.conv2d(x.view(1,4, 17, 17), conv_weights, padding=1, groups=4)
+
+        dx = np.outer([1,2,1], [-1, 0, 1]) / 8.0 # Sobel filter
+        dy = dx.T
+
+        y1 = _perceive_with(x, dx)
+        y2 = _perceive_with(x, dy)
+        y = torch.cat((x,y1[0],y2[0]),0)
+        return y
+
         #TODO could do this with no trained weights - to ease the model
         x = torch.relu(self.conv2(x)) #perceive neighbor cell state
         return x

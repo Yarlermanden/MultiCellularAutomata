@@ -9,7 +9,7 @@ class State():
 
 class Generator():
     def __init__(self, device, random_states):
-        self.width = 16
+        self.width = 17
         self.depth = 4
         self.device = device
         self.random_states = random_states
@@ -25,15 +25,16 @@ class Generator():
         state = torch.stack([state, zeros, zeros, zeros])
 
         #Generate food map
+        #TODO: use complete random food instead
         food_coord = self.random_food_noncentered()
         food = zeros
         food[food_coord[0], food_coord[1]] = 1
 
         #Generate target CA
         target_ca = state[0]
-        for _ in range(timesteps):
-            target_ca = self.move_towards_food(target_ca, food_coord)
-
+        for i in range(timesteps):
+            if i > 1:
+                target_ca = self.move_towards_food(target_ca, food_coord)
         return State(state, target_ca, food)
 
 
@@ -61,6 +62,9 @@ class Generator():
         ca[6:11, 6:11] = center_ca
         return ca
 
+    def random_food(self): #food can be centered or not
+        ...
+
     def random_food_noncentered(self):
         def random_outer_num(middle):
             lower = random.randint(1, middle-5)
@@ -74,7 +78,7 @@ class Generator():
         return x,y
 
     def move_towards_food(self, ca, food):
-        #TODO: Fix bug where food is located wrong - probably mix between i and j
+        #TODO: fix bug: total CA value slowly decreases
         #TODO: in case it reaches food, remove food and instead increase cells
 
         #TODO fix the out of range - due to out of range
@@ -90,7 +94,7 @@ class Generator():
         #generate random map of entire world with values 0 or 1 for whether to move or not
         move_mask = (torch.rand_like(ca) > 0.1).to(torch.float)
 
-        #TODO: ensure no values are negative
+        #TODO: ensure no values are negative and none gets over 1
         for i, row in enumerate(ca):
             for j, val in enumerate(row):
                 if val > 0.1 and move_mask[i][j] == 1: #allowed to move
@@ -99,7 +103,6 @@ class Generator():
                     delta_y = food[0] - i
 
                     moved_val = 0.2
-                    current_val = new_ca[i][j]
 
                     #fix deltas to be -1, 0 or 1
                     if delta_x > 0:
@@ -114,36 +117,36 @@ class Generator():
 
                     new_ca[i][j] -= moved_val #assume it can move
                     if delta_x == 0: #line up in column
-                        if new_ca[i+delta_y][j] < 1: #available
+                        if new_ca[i+delta_y][j] < 0.9: #available
                             new_ca[i+delta_y][j] += moved_val
-                        elif new_ca[i+delta_y][j+1] < 1: #priotize right over left...
+                        elif new_ca[i+delta_y][j+1] < 0.9: #priotize right over left...
                             new_ca[i+delta_y][j+1] += moved_val
-                        elif new_ca[i+delta_y][j-1] < 1:
+                        elif new_ca[i+delta_y][j-1] < 0.9:
                             new_ca[i+delta_y][j-1] += moved_val
                         else:
-                            new_ca[i][j] = current_val #couldn't move
+                            new_ca[i][j] = val #couldn't move
 
                     elif delta_y == 0: #line up in row
-                        if new_ca[i][j+delta_x] < 1: #most direct way
+                        if new_ca[i][j+delta_x] < 0.9: #most direct way
                             new_ca[i][j+delta_x] += moved_val
-                        elif new_ca[i+1][j+delta_x] < 1: #priotize down over up
+                        elif new_ca[i+1][j+delta_x] < 0.9: #priotize down over up
                             new_ca[i+1][j+delta_x] += moved_val
-                        elif new_ca[i-1][j+delta_x] < 1:
+                        elif new_ca[i-1][j+delta_x] < 0.9:
                             new_ca[i-1][j+delta_x] += moved_val
                         else:
-                            new_ca[i][j] = current_val #couldn't move
+                            new_ca[i][j] = val #couldn't move
 
                     #neither lines up
                     #move to the corners available
                     else:
-                        if new_ca[i+delta_y][j+delta_x] < 1: #direct corner
+                        if new_ca[i+delta_y][j+delta_x] < 0.9: #direct corner
                             new_ca[i+delta_y][j+delta_x] += moved_val
-                        elif new_ca[i][j+delta_x] < 1: #priotize moving in x over y
+                        elif new_ca[i][j+delta_x] < 0.9: #priotize moving in x over y
                             new_ca[i][j+delta_x] += moved_val
-                        elif new_ca[i+delta_y][j] < 1:
+                        elif new_ca[i+delta_y][j] < 0.9:
                             new_ca[i+delta_y][j] += moved_val
                         else:
-                            new_ca[i][j] = current_val #couldn't move
+                            new_ca[i][j] = val #couldn't move
 
                 #else: #cell is dead or cell isn't allowed to move due to mask
         return new_ca
