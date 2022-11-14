@@ -41,7 +41,9 @@ class Generator():
         zeros = torch.zeros(self.width, self.width)
         cell = self.get_centered_CA()
         state = torch.stack([cell, zeros, zeros, zeros])
-        return State(state, cell, zeros)
+        food = zeros
+        food[self.width//2, self.width//2] #not entirely centered
+        return State(state, cell, food)
 
     def get_centered_CA(self):
         zeros = torch.zeros(self.width, self.width)
@@ -88,9 +90,10 @@ class Generator():
         #generate random map of entire world with values 0 or 1 for whether to move or not
         move_mask = (torch.rand_like(ca) > 0.1).to(torch.float)
 
+        #TODO: ensure no values are negative
         for i, row in enumerate(ca):
             for j, val in enumerate(row):
-                if val > 0 and move_mask[i][j] > 0: #allowed to move
+                if val > 0.1 and move_mask[i][j] == 1: #allowed to move
                     #find direction to move in - almost always 3 neighboring cells closer than current
                     delta_x = food[1] - j #TODO why should this be flipped?
                     delta_y = food[0] - i
@@ -144,13 +147,6 @@ class Generator():
 
                 #else: #cell is dead or cell isn't allowed to move due to mask
         return new_ca
-
-        #One approach
-        #Get an ordered index tuple of indicies closest to the food source
-        #iterate through them and stochastically determine whether each moves
-        #if they move, pick one of the 3 cells closer to the food source and move to one of them
-        #else stay
-        #if blocked pick another one or stay
 
     #def update_cell(ca, i, j, delta_x, delta_y):
         

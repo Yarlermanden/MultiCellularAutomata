@@ -62,6 +62,7 @@ class Complex_CA(nn.Module):
         x = x*life_mask
         x[3] = cell[3] #ensure smell stay consistent #TODO does this break the chain?
         x = torch.clamp(x, -10.0, 10.0)
+        #x[0] = torch.clamp(x[0], 0.0, 1.0) #TODO ensure values are between 0 and 1
 
         #TODO hidden states and especially smell will grow incontrollable if we don't optimize on it
         #TODO some way of forcing higher loss from counting wrong? - some way of counting and backpropagating?

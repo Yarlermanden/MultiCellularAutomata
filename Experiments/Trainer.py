@@ -14,9 +14,9 @@ class Trainer():
         self.model = model
         self.device = device
         self.lr = 0.0001
-        self.epochs = 8 #11
+        self.epochs = 4 #11
         self.epochs2 = 6
-        self.iterations = 30000 # pr epoch
+        self.iterations = 40000 # pr epoch
         self.iterations_per_sample = 2000
         self.random_states = False
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
@@ -28,16 +28,16 @@ class Trainer():
         lr = self.lr
 
         for epoch in tqdm(range(self.epochs)): #Train stationary
-            if epoch < 2:
+            if epoch < 1:
                 timesteps = 1
-            elif epoch < 4:
+            elif epoch < 2:
                 timesteps = 2
-            elif epoch < 6:
+            elif epoch < 3:
                 timesteps = 4
-            elif epoch < 8:
+            elif epoch < 4:
                 lr = self.lr/10
                 timesteps = np.random.randint(5, 15) #random between...
-            elif epoch < 10:
+            elif epoch < 8:
                 lr = self.lr/30
                 timesteps = np.random.randint(15, 40)
             elif epoch < 12:
@@ -71,6 +71,8 @@ class Trainer():
             elif epoch < 6:
                 lr = self.lr/40
                 timesteps = np.random.randint(10, 15)
+            elif epoch < 8:
+                timesteps = np.random.randint(25, 40)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):
@@ -93,7 +95,7 @@ class Trainer():
 
         loss = self.criterion(x_hat[0], state.y)
         loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
-        loss2 = loss2
+        loss2 = loss2/4
         loss = loss+loss2
         loss_item = loss.item()
 
