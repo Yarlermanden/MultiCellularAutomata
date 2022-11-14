@@ -36,7 +36,6 @@ class Complex_CA(nn.Module):
         #x = torch.stack([x])
         #conv_weights = torch.ones_like(x)
         #live_count = F.conv2d(x, conv_weights)[0][0]
-        
         live_count = torch.sum(x)
         return live_count
 

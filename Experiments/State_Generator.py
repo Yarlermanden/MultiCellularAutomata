@@ -72,6 +72,7 @@ class Generator():
         return x,y
 
     def move_towards_food(self, ca, food):
+        #TODO: Fix bug where food is located wrong - probably mix between i and j
         #TODO: in case it reaches food, remove food and instead increase cells
 
         #TODO fix the out of range - due to out of range

@@ -57,7 +57,7 @@ class Trainer():
                     losses_list[(epoch*self.iterations + i)//10] = loss_item
             name = 'models/complex_ca_stationary_temp' + str(epoch) + '.pth'
             torch.save(self.model.state_dict(), name)
-        torch.save(self.model.state_dict(), 'models/complex_ca5_stationary.pth')
+        torch.save(self.model.state_dict(), 'models/complex_ca6_stationary.pth')
 
         for epoch in tqdm(range(self.epochs2)): #Train moving
             if epoch < 2:
@@ -91,7 +91,7 @@ class Trainer():
 
         loss = self.criterion(x_hat[0], state.y)
         loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
-        loss2 = loss2/10
+        loss2 = loss2
         loss = loss+loss2
         loss_item = loss.item()
 
