@@ -42,7 +42,7 @@ class Generator():
         cell = self.get_centered_CA()
         state = torch.stack([cell, zeros, zeros, zeros])
         food = zeros
-        food[self.width//2, self.width//2] #not entirely centered
+        food[self.width//2, self.width//2] = 1 #not entirely centered
         return State(state, cell, food)
 
     def get_centered_CA(self):
