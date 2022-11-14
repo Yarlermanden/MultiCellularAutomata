@@ -71,7 +71,7 @@ model, losses = trainer.train()
 
 
 #save model
-torch.save(model.state_dict(), 'models/complex_ca4.pth')
+torch.save(model.state_dict(), 'models/complex_ca5.pth')
 
 #save graph
 print(losses.shape)
