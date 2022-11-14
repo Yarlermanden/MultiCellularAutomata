@@ -14,7 +14,7 @@ class Trainer():
         self.model = model
         self.device = device
         self.lr = 0.0001
-        self.epochs = 11
+        self.epochs = 8 #11
         self.epochs2 = 6
         self.iterations = 30000 # pr epoch
         self.iterations_per_sample = 2000
