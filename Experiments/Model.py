@@ -30,7 +30,8 @@ class Complex_CA(nn.Module):
             [0.125, 0.25, 0.5, 0.25, 0.125],
             [0.0, 0.125, 0.25, 0.125, 0.0]
         ]]])
-        food = torch.stack([torch.stack([food])])
+        #food = torch.stack([torch.stack([food])])
+        food = food.view(1,1,17,17)
         x = F.conv2d(food, conv_weights, padding=2)[0][0]
         return x
 
@@ -46,30 +47,21 @@ class Complex_CA(nn.Module):
         return live_count
 
     def perceive_cell_surrounding(self, x):
-        def _perceive_with(x, weight):
-            #conv_weights = torch.from_numpy(weight.astype(np.float32)).to(self.device)
-            #conv_weights = torch.stack([torch.stack([conv_weights])])
-
-            conv_weights = torch.from_numpy(weight.astype(np.float32)).to(self.device)
-            #conv_weights = conv_weights.view(1,1,3,3).repeat(self.channel_n, 1, 1, 1)
-            #return F.conv2d(x, conv_weights, padding=1, groups=self.channel_n)
-            #conv_weights = conv_weights.view(1,1,3,3).repeat(1, 4, 1, 1)
-
+        def _perceive_with(x, conv_weights):
             #TODO understand this and see if it's possible to do without group - what's the effect
             #TODO also see what the effect of doing 2 instead of 4 in kernel is...
-            conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
-            return F.conv2d(x.view(1,4, 17, 17), conv_weights, padding=1, groups=4)
 
-        dx = np.outer([1,2,1], [-1, 0, 1]) / 8.0 # Sobel filter
-        dy = dx.T
+            conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
+            return F.conv2d(x.view(1,4, 17, 17), conv_weights, padding=1, groups=4)[0]
+
+        dx = torch.outer(torch.tensor([1,2,1]), torch.tensor([-1, 0, 1])) / 8.0 # Sobel filter
+        dy = torch.transpose(dx, 0, 1)
 
         y1 = _perceive_with(x, dx)
         y2 = _perceive_with(x, dy)
-        y = torch.cat((x,y1[0],y2[0]),0)
+        y = torch.cat((x,y1,y2),0) #what does the last 0 do?
+        #y = torch.relu(self.conv2(x)) #perceive neighbor cell state
         return y
-
-        #x = torch.relu(self.conv2(x)) #perceive neighbor cell state
-        #return x
 
     def update(self, cell, food):
         #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size

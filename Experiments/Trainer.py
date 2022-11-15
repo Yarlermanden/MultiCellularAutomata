@@ -38,7 +38,7 @@ class Trainer():
                 lr = self.lr/10
                 timesteps = np.random.randint(5, 15) #random between...
             elif epoch < 8:
-                lr = self.lr/30
+                lr = self.lr/20
                 timesteps = np.random.randint(15, 40)
             elif epoch < 12:
                 lr = self.lr/40

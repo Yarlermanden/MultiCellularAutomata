@@ -83,6 +83,7 @@ class Generator():
         return x,y
 
     def move_towards_food(self, ca, food):
+        #TODO: Could compute from current settings whether it should be possible to register the food as of now. If not then train the model to not do anything!
         #TODO: fix bug: total CA value slowly decreases
         #TODO: in case it reaches food, remove food and instead increase cells
 
