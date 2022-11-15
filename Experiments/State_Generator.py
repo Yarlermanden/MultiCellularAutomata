@@ -64,7 +64,7 @@ class Generator():
 
     def random_food(self): #food can be centered or not
         def random_num():
-            from_edge = 3
+            from_edge = 4
             return random.randint(from_edge, self.width-1-from_edge)
         x = random_num()
         y = random_num()
@@ -105,7 +105,7 @@ class Generator():
             for j, val in enumerate(row):
                 if val > 0.1 and move_mask[i][j] == 1: #allowed to move
                     #find direction to move in - almost always 3 neighboring cells closer than current
-                    delta_x = food[1] - j #TODO why should this be flipped?
+                    delta_x = food[1] - j 
                     delta_y = food[0] - i
 
                     moved_val = 0.2
