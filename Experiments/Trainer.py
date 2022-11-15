@@ -15,7 +15,7 @@ class Trainer():
         self.device = device
         self.lr = 0.0001
         self.epochs = 0 #11
-        self.epochs2 = 20
+        self.epochs2 = 50
         self.iterations = 40000 # pr epoch
         self.iterations_per_sample = 2000
         self.random_states = False
@@ -42,7 +42,7 @@ class Trainer():
                 timesteps = np.random.randint(15, 40)
             elif epoch < 12:
                 lr = self.lr/40
-                timesteps = np.random.randint(40, 60)
+                timesteps = np.random.randint(20, 60)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):

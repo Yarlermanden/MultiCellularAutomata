@@ -66,9 +66,8 @@ class Complex_CA(nn.Module):
         y = torch.cat((x,y1[0],y2[0]),0)
         return y
 
-        #TODO could do this with no trained weights - to ease the model
-        x = torch.relu(self.conv2(x)) #perceive neighbor cell state
-        return x
+        #x = torch.relu(self.conv2(x)) #perceive neighbor cell state
+        #return x
 
     def update(self, cell, food):
         #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size
