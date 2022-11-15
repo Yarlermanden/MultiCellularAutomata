@@ -25,8 +25,8 @@ class Generator():
         state = torch.stack([state, zeros, zeros, zeros])
 
         #Generate food map
-        #TODO: use complete random food instead
-        food_coord = self.random_food_noncentered()
+        #food_coord = self.random_food_noncentered()
+        food_coord = self.random_food()
         food = zeros
         food[food_coord[0], food_coord[1]] = 1
 
@@ -63,7 +63,11 @@ class Generator():
         return ca
 
     def random_food(self): #food can be centered or not
-        ...
+        def random_num():
+            return random.randint(1, self.width-2)
+        x = random_num()
+        y = random_num()
+        return x,y
 
     def random_food_noncentered(self):
         def random_outer_num(middle):

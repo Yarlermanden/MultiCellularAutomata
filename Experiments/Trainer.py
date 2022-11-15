@@ -15,7 +15,7 @@ class Trainer():
         self.device = device
         self.lr = 0.0001
         self.epochs = 0 #11
-        self.epochs2 = 6
+        self.epochs2 = 20
         self.iterations = 40000 # pr epoch
         self.iterations_per_sample = 2000
         self.random_states = False
@@ -67,20 +67,22 @@ class Trainer():
                 timesteps = 2
             elif epoch < 4:
                 lr = self.lr/10
-                timesteps = 3
+                timesteps = 4
             elif epoch < 6:
-                timesteps = 5
+                timesteps = 6
             elif epoch < 8:
-                lr = self.lr/20
+                #lr = self.lr/20
                 timesteps = np.random.randint(5, 10)
-            elif epoch < 10:
+            elif epoch < 15:
                 timesteps = np.random.randint(10, 20)
-            elif epoch < 20:
+            elif epoch < 30:
                 timesteps = np.random.randint(25, 40)
+            else:
+                timesteps = np.random.randint(30, 50)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):
-                if i % 5 == 0:
+                if i % 100 == 0:
                     state = self.generator.generate_moving_state(timesteps//2)
                 loss_item = self.train_step(state, timesteps)
 

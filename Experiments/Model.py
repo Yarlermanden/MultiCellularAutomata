@@ -52,6 +52,9 @@ class Complex_CA(nn.Module):
             #conv_weights = conv_weights.view(1,1,3,3).repeat(self.channel_n, 1, 1, 1)
             #return F.conv2d(x, conv_weights, padding=1, groups=self.channel_n)
             #conv_weights = conv_weights.view(1,1,3,3).repeat(1, 4, 1, 1)
+
+            #TODO understand this and see if it's possible to do without group - what's the effect
+            #TODO also see what the effect of doing 2 instead of 4 in kernel is...
             conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
             return F.conv2d(x.view(1,4, 17, 17), conv_weights, padding=1, groups=4)
 
