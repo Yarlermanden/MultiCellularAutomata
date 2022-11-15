@@ -64,7 +64,8 @@ class Generator():
 
     def random_food(self): #food can be centered or not
         def random_num():
-            return random.randint(1, self.width-2)
+            from_edge = 3
+            return random.randint(from_edge, self.width-1-from_edge)
         x = random_num()
         y = random_num()
         return x,y

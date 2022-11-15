@@ -24,12 +24,14 @@ class Complex_CA(nn.Module):
 
     def perceive_scent(self, food):
         conv_weights = torch.tensor([[[
-            [0.25, 0.5, 0.25],
-            [0.5, 1, 0.5],
-            [0.25, 0.5, 0.25]
+            [0.0, 0.125, 0.25, 0.125, 0.0],
+            [0.125, 0.25, 0.5, 0.25, 0.125],
+            [0.25, 0.5, 1, 0.5, 0.25],
+            [0.125, 0.25, 0.5, 0.25, 0.125],
+            [0.0, 0.125, 0.25, 0.125, 0.0]
         ]]])
         food = torch.stack([torch.stack([food])])
-        x = F.conv2d(food, conv_weights, padding=1)[0][0]
+        x = F.conv2d(food, conv_weights, padding=2)[0][0]
         return x
 
     def alive_filter(self, x):
