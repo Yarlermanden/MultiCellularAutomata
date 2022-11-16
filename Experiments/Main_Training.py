@@ -49,7 +49,7 @@ from Model import Complex_CA
 
 #device = torch.device('cuda:0' if torch.cuda.is_available else 'cpu')
 device = torch.device('mps:0' if torch.backends.mps.is_available else 'cpu')
-model = Complex_CA()
+model = Complex_CA(device)
 trainer = Trainer(model, device)
 print(device)
 
