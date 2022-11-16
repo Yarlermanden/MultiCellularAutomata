@@ -90,18 +90,10 @@ class Generator():
     def move_towards_food(self, ca, food):
         #TODO: if no food, should stay stationary
         #TODO: if food but not detectable, stay stationary
-
-
-        #TODO: Could compute from current settings whether it should be possible to register the food as of now. If not then train the model to not do anything!
         #TODO: in case it reaches food, remove food and instead increase cells
 
         #TODO fix the out of range - due to out of range
         #TODO fix the wraparound failure... - is due to -1
-
-        #for indices, ca in enumerate(ca): - both dimensions at once?!
-        #delta_x = food.x - indices.x
-        #delta_y = food.y - indices.y
-        #order by pythagoras: sqrt(delta_x^2 _ delta_y^2)
 
         new_ca = ca.clone()
 
@@ -137,7 +129,8 @@ class Generator():
                             elif new_ca[b][i+delta_y][j-1] < 0.9:
                                 new_ca[b][i+delta_y][j-1] += moved_val
                             else:
-                                new_ca[b][i][j] = val #couldn't move
+                                #new_ca[b][i][j] = val #couldn't move
+                                new_ca[b][i][j] += moved_val #couldn't move
 
                         elif delta_y == 0: #line up in row
                             if new_ca[b][i][j+delta_x] < 0.9: #most direct way
@@ -147,7 +140,8 @@ class Generator():
                             elif new_ca[b][i-1][j+delta_x] < 0.9:
                                 new_ca[b][i-1][j+delta_x] += moved_val
                             else:
-                                new_ca[b][i][j] = val #couldn't move
+                                #new_ca[b][i][j] = val #couldn't move
+                                new_ca[b][i][j] += moved_val #couldn't move
 
                         #neither lines up
                         #move to the corners available
@@ -159,7 +153,8 @@ class Generator():
                             elif new_ca[b][i+delta_y][j] < 0.9:
                                 new_ca[b][i+delta_y][j] += moved_val
                             else:
-                                new_ca[b][i][j] = val #couldn't move
+                                #new_ca[b][i][j] = val #couldn't move
+                                new_ca[b][i][j] += moved_val #couldn't move
 
                     #else: #cell is dead or cell isn't allowed to move due to mask
         return new_ca

@@ -16,7 +16,7 @@ class Trainer():
         self.lr = 0.0001
         self.epochs = 0 #11
         self.epochs2 = 100
-        self.iterations = 5000 # pr epoch - reduced from 40000 due to 8 pr batch
+        self.iterations = 2000
         self.iterations_per_sample = 250
         self.batch_size = model.batch_size
         self.random_states = False
@@ -53,7 +53,7 @@ class Trainer():
                 loss_item = self.train_step(state, timesteps)
                 
                 if i % 10 == 0:
-                    if i % 125 == 0:
+                    if i % 100 == 0:
                         print(loss_item)
                     losses_list[(epoch*self.iterations + i)//10] = loss_item
             name = 'models/complex_ca_stationary_temp' + str(epoch) + '.pth'
@@ -90,7 +90,7 @@ class Trainer():
                 loss_item = self.train_step(state, timesteps)
 
                 if i % 10 == 0:
-                    if i % 125 == 0:
+                    if i % 100 == 0:
                         print(loss_item)
                     losses_list[((self.epochs + epoch)*self.iterations + i)//10] = loss_item
             name = 'models/complex_ca_moving_temp' + str(epoch) + '.pth'
@@ -104,7 +104,6 @@ class Trainer():
 
         #loss = F.mse_loss(x_hat[0], state.y) 
         loss = self.criterion(x_hat[:, 0], state.y)
-        #loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
         loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) #TODO ensure same count as for live_count
         #TODO ensure that loss2 works as expected
         loss2 = loss2/4
