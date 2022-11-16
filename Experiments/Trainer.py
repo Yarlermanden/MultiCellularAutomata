@@ -16,8 +16,9 @@ class Trainer():
         self.lr = 0.0001
         self.epochs = 0 #11
         self.epochs2 = 100
-        self.iterations = 40000 # pr epoch
-        self.iterations_per_sample = 2000
+        self.iterations = 5000 # pr epoch - reduced from 40000 due to 8 pr batch
+        self.iterations_per_sample = 250
+        self.batch_size = model.batch_size
         self.random_states = False
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
@@ -47,12 +48,12 @@ class Trainer():
 
             for i in range(self.iterations):
                 if i % self.iterations_per_sample == 0:
-                    state = self.generator.generate_stationary_state()
+                    state = self.generator.generate_stationary_state(self.batch_size)
 
                 loss_item = self.train_step(state, timesteps)
                 
                 if i % 10 == 0:
-                    if i % 1000 == 0:
+                    if i % 125 == 0:
                         print(loss_item)
                     losses_list[(epoch*self.iterations + i)//10] = loss_item
             name = 'models/complex_ca_stationary_temp' + str(epoch) + '.pth'
@@ -85,11 +86,11 @@ class Trainer():
 
             for i in range(self.iterations):
                 if i % 100 == 0:
-                    state = self.generator.generate_moving_state(timesteps//2)
+                    state = self.generator.generate_moving_state(timesteps//2, self.batch_size)
                 loss_item = self.train_step(state, timesteps)
 
                 if i % 10 == 0:
-                    if i % 1000 == 0:
+                    if i % 125 == 0:
                         print(loss_item)
                     losses_list[((self.epochs + epoch)*self.iterations + i)//10] = loss_item
             name = 'models/complex_ca_moving_temp' + str(epoch) + '.pth'
@@ -102,8 +103,10 @@ class Trainer():
         x_hat, food, live_count = self.model(state.x.clone(), state.food.clone(), steps)
 
         #loss = F.mse_loss(x_hat[0], state.y) 
-        loss = self.criterion(x_hat[0], state.y)
-        loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
+        loss = self.criterion(x_hat[:, 0], state.y)
+        #loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
+        loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) #TODO ensure same count as for live_count
+        #TODO ensure that loss2 works as expected
         loss2 = loss2/4
         loss = loss+loss2
         loss_item = loss.item()

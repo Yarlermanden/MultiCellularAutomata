@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class Complex_CA(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device, batch_size):
         super(Complex_CA, self).__init__()
         #self.conv1 = nn.Conv2d(1, 1, 3, padding=1) # food spread smell
         #self.conv2 = nn.Conv2d(4, 8, 3, padding=1) # CA perceive world
@@ -14,6 +14,7 @@ class Complex_CA(nn.Module):
 
         self.conv3 = nn.Conv2d(12, 16, 1, padding=0) # use hidden parameters
         self.conv4 = nn.Conv2d(16, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
+        self.batch_size = batch_size
 
         self.scent_conv_weights = torch.tensor([[[
             [0.0, 0.125, 0.25, 0.125, 0.0],
@@ -35,32 +36,30 @@ class Complex_CA(nn.Module):
 
     def perceive_scent(self, food):
         #food = torch.stack([torch.stack([food])])
-        food = food.view(1,1,17,17)
-        x = F.conv2d(food, self.scent_conv_weights, padding=2)[0][0]
+        food = food.view(self.batch_size,1,17,17)
+        x = F.conv2d(food, self.scent_conv_weights, padding=2)[:, 0]
         return x
 
     def alive_filter(self, x):
-        return self.alive(x[0:1]) > 0.1
+        return self.alive(x[:, 0:1]) > 0.1
 
     def alive_count(self, x):
         #TODO maybe best to only look at nearest x neighbors and not total count in case we make a big world
         #x = torch.stack([x])
         #conv_weights = torch.ones_like(x)
         #live_count = F.conv2d(x, conv_weights)[0][0]
-        live_count = torch.sum(x)
+
+        live_count = x.sum(dim=(1,2,3))
         return live_count
 
     def perceive_cell_surrounding(self, x):
         def _perceive_with(x, conv_weights):
-            #TODO understand this and see if it's possible to do without group - what's the effect
-            #TODO also see what the effect of doing 2 instead of 4 in kernel is...
-
             conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
-            return F.conv2d(x.view(1,4, 17, 17), conv_weights, padding=1, groups=4)[0]
+            return F.conv2d(x.view(self.batch_size,4, 17, 17), conv_weights, padding=1, groups=4)
 
         y1 = _perceive_with(x, self.dx)
         y2 = _perceive_with(x, self.dy)
-        y = torch.cat((x,y1,y2),0) #what does the last 0 do?
+        y = torch.cat((x,y1,y2), dim=1) 
         #y = torch.relu(self.conv2(x)) #perceive neighbor cell state
         return y
 
@@ -69,7 +68,7 @@ class Complex_CA(nn.Module):
         #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size
         x = cell
 
-        x[3] = self.perceive_scent(food) #update scent 
+        x[:, 3] = self.perceive_scent(food) #update scent 
 
         pre_life_mask = self.alive_filter(x)
         x = self.perceive_cell_surrounding(x) #perceive neighbor cell states
@@ -79,13 +78,13 @@ class Complex_CA(nn.Module):
         x = cell + x
 
         #TODO: force harder boundaries
-        threshold_mask = (x[0] > 0.24).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
-        x[0] = x[0]*threshold_mask
+        threshold_mask = (x[:, 0] > 0.24).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
+        x[:, 0] = x[:, 0]*threshold_mask
 
         post_life_mask = self.alive_filter(x) #only do this on cell state
         life_mask = torch.bitwise_and(pre_life_mask, post_life_mask).to(torch.float)
         x = x*life_mask
-        x[3] = cell[3] #ensure smell stay consistent #TODO does this break the chain?
+        x[:, 3] = cell[:, 3] #ensure smell stay consistent #TODO does this break the chain?
         x = torch.clamp(x, -10.0, 10.0)
         #x[0] = torch.clamp(x[0], 0.0, 1.0) #TODO ensure values are between 0 and 1
         
@@ -112,5 +111,5 @@ class Complex_CA(nn.Module):
             cell, food = self.update(cell, food)
 
         #TODO could maybe even add count of cells above some threshold e.g. 0.9 - force completely living cells
-        living_count = self.alive_count(cell[0:1])
+        living_count = self.alive_count(cell[:, 0:1])
         return cell, food, living_count
