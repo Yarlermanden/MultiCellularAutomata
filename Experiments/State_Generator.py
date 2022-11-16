@@ -19,7 +19,7 @@ class Generator():
         #TODO should try to make it less spread out - ensure one entity
 
         #Generate initial CA
-        zeros = torch.zeros(self.width, self.width)
+        zeros = torch.zeros(self.width, self.width, device=self.device)
 
         state = self.get_centered_CA()
         state = torch.stack([state, zeros, zeros, zeros])
@@ -39,7 +39,7 @@ class Generator():
 
 
     def generate_stationary_state(self):
-        zeros = torch.zeros(self.width, self.width)
+        zeros = torch.zeros(self.width, self.width, device=self.device)
         cell = self.get_centered_CA()
         state = torch.stack([cell, zeros, zeros, zeros])
         food = zeros
@@ -47,7 +47,7 @@ class Generator():
         return State(state, cell, food)
 
     def get_centered_CA(self):
-        zeros = torch.zeros(self.width, self.width)
+        zeros = torch.zeros(self.width, self.width, device=self.device)
         if self.random_states:
             center_ca = torch.rand(5, 5, device=self.device) > 0.7
         else:
@@ -57,7 +57,7 @@ class Generator():
                 [1, 1, 1, 1, 1],
                 [0, 1, 1, 1, 0],
                 [0, 0, 1, 0, 0]
-            ])
+            ], device=self.device)
         ca = zeros
         ca[6:11, 6:11] = center_ca
         return ca

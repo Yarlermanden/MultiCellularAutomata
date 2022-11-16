@@ -29,7 +29,7 @@ class Complex_CA(nn.Module):
             [0.25, 0.5, 1, 0.5, 0.25],
             [0.125, 0.25, 0.5, 0.25, 0.125],
             [0.0, 0.125, 0.25, 0.125, 0.0]
-        ]]])
+        ]]], device=self.device)
         #food = torch.stack([torch.stack([food])])
         food = food.view(1,1,17,17)
         x = F.conv2d(food, conv_weights, padding=2)[0][0]
@@ -54,7 +54,7 @@ class Complex_CA(nn.Module):
             conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
             return F.conv2d(x.view(1,4, 17, 17), conv_weights, padding=1, groups=4)[0]
 
-        dx = torch.outer(torch.tensor([1,2,1]), torch.tensor([-1, 0, 1])) / 8.0 # Sobel filter
+        dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
         dy = torch.transpose(dx, 0, 1)
 
         y1 = _perceive_with(x, dx)
