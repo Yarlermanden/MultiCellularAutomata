@@ -16,6 +16,8 @@ class Generator():
         self.random_states = random_states
 
     def generate_moving_state(self, timesteps, batch_size):
+        #TODO: make faster... - try having it all in numpy until as late as possible
+
         #TODO some cells should register the food quicker than others - some should wait even longer before starting to move
         #TODO should try to make it less spread out - ensure one entity
 
@@ -64,7 +66,7 @@ class Generator():
         ca[:, 6:11, 6:11] = center_ca
         return ca
 
-    def random_food(self, batch_size=1): #food can be centered or not
+    def random_food(self, batch_size): #food can be centered or not
         def random_num():
             from_edge = 4
             return np.random.randint(from_edge, self.width-1-from_edge, batch_size)
@@ -73,7 +75,7 @@ class Generator():
         food = np.stack([x, y], 1)
         return food
 
-    def random_food_noncentered(self):
+    def random_food_noncentered(self, batch_size):
         def random_outer_num(middle):
             lower = random.randint(1, middle-5)
             upper = random.randint(middle+5, self.width-2)
@@ -111,9 +113,8 @@ class Generator():
                 for j, val in enumerate(row):
                     if val > 0.1 and move_mask[b, i, j] == 1: #allowed to move
                         #find direction to move in - almost always 3 neighboring cells closer than current
-                        delta_x = food[b][1] - j 
-                        delta_y = food[b][0] - i
-
+                        delta_x = food[b, 1] - j 
+                        delta_y = food[b, 0] - i
                         moved_val = 0.25
 
                         #fix deltas to be -1, 0 or 1
