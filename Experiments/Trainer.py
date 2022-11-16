@@ -101,6 +101,7 @@ class Trainer():
         self.optimizer.zero_grad()
         x_hat, food, live_count = self.model(state.x.clone(), state.food.clone(), steps)
 
+        #loss = F.mse_loss(x_hat[0], state.y) 
         loss = self.criterion(x_hat[0], state.y)
         loss2 = self.criterion(live_count, torch.sum(state.x[0:1])) #TODO ensure same count as for live_count
         loss2 = loss2/4

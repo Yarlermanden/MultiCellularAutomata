@@ -15,6 +15,17 @@ class Complex_CA(nn.Module):
         self.conv3 = nn.Conv2d(12, 16, 1, padding=0) # use hidden parameters
         self.conv4 = nn.Conv2d(16, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
 
+        self.scent_conv_weights = torch.tensor([[[
+            [0.0, 0.125, 0.25, 0.125, 0.0],
+            [0.125, 0.25, 0.5, 0.25, 0.125],
+            [0.25, 0.5, 1, 0.5, 0.25],
+            [0.125, 0.25, 0.5, 0.25, 0.125],
+            [0.0, 0.125, 0.25, 0.125, 0.0]
+        ]]], device=self.device)
+
+        self.dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
+        self.dy = torch.transpose(self.dx, 0, 1)
+
         def init_weights(m):
             if isinstance(m, torch.nn.Conv2d):
                 torch.nn.init.zeros_(m.bias)
@@ -23,16 +34,9 @@ class Complex_CA(nn.Module):
         self.alive = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
 
     def perceive_scent(self, food):
-        conv_weights = torch.tensor([[[
-            [0.0, 0.125, 0.25, 0.125, 0.0],
-            [0.125, 0.25, 0.5, 0.25, 0.125],
-            [0.25, 0.5, 1, 0.5, 0.25],
-            [0.125, 0.25, 0.5, 0.25, 0.125],
-            [0.0, 0.125, 0.25, 0.125, 0.0]
-        ]]], device=self.device)
         #food = torch.stack([torch.stack([food])])
         food = food.view(1,1,17,17)
-        x = F.conv2d(food, conv_weights, padding=2)[0][0]
+        x = F.conv2d(food, self.scent_conv_weights, padding=2)[0][0]
         return x
 
     def alive_filter(self, x):
@@ -54,11 +58,8 @@ class Complex_CA(nn.Module):
             conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
             return F.conv2d(x.view(1,4, 17, 17), conv_weights, padding=1, groups=4)[0]
 
-        dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
-        dy = torch.transpose(dx, 0, 1)
-
-        y1 = _perceive_with(x, dx)
-        y2 = _perceive_with(x, dy)
+        y1 = _perceive_with(x, self.dx)
+        y2 = _perceive_with(x, self.dy)
         y = torch.cat((x,y1,y2),0) #what does the last 0 do?
         #y = torch.relu(self.conv2(x)) #perceive neighbor cell state
         return y
