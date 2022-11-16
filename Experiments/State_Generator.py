@@ -83,8 +83,11 @@ class Generator():
         return x,y
 
     def move_towards_food(self, ca, food):
+        #TODO: if no food, should stay stationary
+        #TODO: if food but not detectable, stay stationary
+
+
         #TODO: Could compute from current settings whether it should be possible to register the food as of now. If not then train the model to not do anything!
-        #TODO: fix bug: total CA value slowly decreases
         #TODO: in case it reaches food, remove food and instead increase cells
 
         #TODO fix the out of range - due to out of range
@@ -108,7 +111,7 @@ class Generator():
                     delta_x = food[1] - j 
                     delta_y = food[0] - i
 
-                    moved_val = 0.2
+                    moved_val = 0.25
 
                     #fix deltas to be -1, 0 or 1
                     if delta_x > 0:
@@ -159,3 +162,4 @@ class Generator():
 
     #def update_cell(ca, i, j, delta_x, delta_y):
         
+#TODO: Make a way of generating starting positions, which are part of previous sequences seen - like the article

@@ -78,9 +78,9 @@ class Trainer():
             elif epoch < 30:
                 timesteps = np.random.randint(15, 25)
             elif epoch < 50:
-                timesteps = np.random.randint(20, 40)
+                timesteps = np.random.randint(10, 40)
             else:
-                timesteps = np.random.randint(30, 60)
+                timesteps = np.random.randint(20, 60)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):

@@ -64,6 +64,7 @@ class Complex_CA(nn.Module):
         return y
 
     def update(self, cell, food):
+        #TODO: force validations through out the updates...
         #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size
         x = cell
 
@@ -76,12 +77,17 @@ class Complex_CA(nn.Module):
 
         x = cell + x
 
+        #TODO: force harder boundaries
+        threshold_mask = (x[0] > 0.24).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
+        x[0] = x[0]*threshold_mask
+
         post_life_mask = self.alive_filter(x) #only do this on cell state
         life_mask = torch.bitwise_and(pre_life_mask, post_life_mask).to(torch.float)
         x = x*life_mask
         x[3] = cell[3] #ensure smell stay consistent #TODO does this break the chain?
         x = torch.clamp(x, -10.0, 10.0)
         #x[0] = torch.clamp(x[0], 0.0, 1.0) #TODO ensure values are between 0 and 1
+        
 
         #TODO hidden states and especially smell will grow incontrollable if we don't optimize on it
         #TODO some way of forcing higher loss from counting wrong? - some way of counting and backpropagating?
