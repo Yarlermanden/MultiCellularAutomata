@@ -35,7 +35,6 @@ class Complex_CA(nn.Module):
         self.alive = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
 
     def perceive_scent(self, food):
-        #food = torch.stack([torch.stack([food])])
         food = food.view(self.batch_size,1,17,17)
         x = F.conv2d(food, self.scent_conv_weights, padding=2)[:, 0]
         return x
@@ -76,30 +75,21 @@ class Complex_CA(nn.Module):
 
         x = cell + x
 
-        #force harder boundaries
-        threshold_mask = (x[:, 0] > 0.24).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
+        #force harder boundaries - is this necessary when the other two masks almost do the same?
+        threshold_mask = (x[:, 0] > 0.1).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
         x[:, 0] = x[:, 0]*threshold_mask
 
         post_life_mask = self.alive_filter(x) #only do this on cell state
         life_mask = torch.bitwise_and(pre_life_mask, post_life_mask).to(torch.float)
         x = x*life_mask
 
-        x[0] = torch.relu(x[0]) #force all cells to be between 0 and 1
+        #x[0] = torch.relu(x[0]) #force all cells to be between 0 and 1
         x = torch.clamp(x, -10.0, 10.0)
         
 
-        #TODO some way of forcing higher loss from counting wrong? - some way of counting and backpropagating?
-
-        #TODO could add clamp forcing cells to either be dead or alive - all dead cells need to have reset their hidden states reset exect for smell
-        #Mask cells to either be dead or alive
-        #alive = (x[0] > 0.5).to(torch.float)
-        #x[0] = x[0] * alive
-
-
         #TODO we need some way of ensuring cells close to each other have a much much much lower cost difference than cells far from each other...
         #TODO definely need some better way of measuring loss...
-        #amount of living cells...
-        #placement of living cells...
+        #TODO could we measure loss from the center of the cell aswell - to reward for being close to the actual representation
 
         return x, food
         

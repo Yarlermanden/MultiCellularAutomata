@@ -36,13 +36,12 @@ class Trainer():
             elif epoch < 3:
                 timesteps = 4
             elif epoch < 4:
-                lr = self.lr/10
+                lr = self.lr/4
                 timesteps = np.random.randint(5, 15) #random between...
             elif epoch < 8:
-                lr = self.lr/20
+                lr = self.lr/10
                 timesteps = np.random.randint(15, 40)
             elif epoch < 12:
-                lr = self.lr/40
                 timesteps = np.random.randint(20, 60)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
@@ -72,16 +71,16 @@ class Trainer():
             elif epoch < 6:
                 timesteps = 6
             elif epoch < 8:
-                lr = self.lr/10
                 timesteps = np.random.randint(5, 10)
             elif epoch < 15:
                 timesteps = np.random.randint(5, 20)
             elif epoch < 30:
+                lr = self.lr/10
                 timesteps = np.random.randint(15, 25)
             elif epoch < 50:
                 timesteps = np.random.randint(10, 40)
             else:
-                timesteps = np.random.randint(20, 60)
+                timesteps = np.random.randint(10, 50)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):
