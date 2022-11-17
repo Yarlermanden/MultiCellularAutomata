@@ -17,7 +17,7 @@ class Trainer():
         self.lr = 0.0001
         self.epochs = 0 #11
         self.epochs2 = 100
-        self.iterations = 2000
+        self.iterations = 4000
         self.iterations_per_sample = 250
         self.batch_size = model.batch_size
         self.random_states = False
@@ -32,7 +32,7 @@ class Trainer():
         timesteps = 4
         #pool = SamplePool(x=self.generator.generate_moving_state(timesteps//2, self.batch_size))
         batch = self.generator.generate_ca_and_food(self.batch_size)
-        pool = SamplePool(x=batch.detach().cpu().numpy()) #pool contains x and food
+        pool = SamplePool(x=np.repeat(batch.detach().cpu().numpy(), self.pool_size, 0)) #pool contains x and food
 
         #TODO: need to look more into the curriculum and how the model does. When doing badly ensure it still works on simpler stuff
 
