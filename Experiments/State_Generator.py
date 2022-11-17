@@ -28,7 +28,7 @@ class Generator():
         state = torch.stack([state, zeros, zeros, zeros], 1)
 
         #Generate food map
-        food_coord = self.random_food(batch_size)
+        food_coord = self.get_random_food_coord(batch_size)
         food = zeros
         for i in range(len(food)):
             food[i, food_coord[i, 0], food_coord[i, 1]] = 1
@@ -40,6 +40,12 @@ class Generator():
                 target_ca = self.move_towards_food(target_ca, food_coord)
         return State(state, target_ca, food)
 
+    def generate_ca_and_food(self, batch_size):
+        zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
+        food = self.get_random_food(batch_size)
+        ca = self.get_centered_CA(batch_size)
+        ca = torch.stack([ca, zeros, zeros, food], 1)
+        return ca
 
     def generate_stationary_state(self, batch_size):
         zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
@@ -66,7 +72,15 @@ class Generator():
         ca[:, 6:11, 6:11] = center_ca
         return ca
 
-    def random_food(self, batch_size): #food can be centered or not
+    def get_random_food(self, batch_size):
+        zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
+        food_coord = self.get_random_food_coord(batch_size)
+        food = zeros
+        for i in range(len(food)):
+            food[i, food_coord[i, 0], food_coord[i, 1]] = 1
+        return food
+
+    def get_random_food_coord(self, batch_size): #food can be centered or not
         def random_num():
             from_edge = 4
             return np.random.randint(from_edge, self.width-1-from_edge, batch_size)
@@ -74,6 +88,9 @@ class Generator():
         y = random_num()
         food = np.stack([x, y], 1)
         return food
+
+    def get_food_coord_from_food(self, food):
+        return (food==torch.max(food)).nonzero()[:, 1:]
 
     def random_food_noncentered(self, batch_size):
         def random_outer_num(middle):

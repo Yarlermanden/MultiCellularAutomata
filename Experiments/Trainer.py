@@ -4,6 +4,7 @@ import torch.optim as optim
 import numpy as np
 from tqdm import tqdm
 from State_Generator import Generator, State
+from SamplePool import SamplePool
 
 class Trainer():
     def __init__(
@@ -23,41 +24,15 @@ class Trainer():
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
         self.generator = Generator(device, self.random_states)
+        self.pool_size = 1024
 
     def train(self):
         losses_list = np.zeros(self.iterations * (self.epochs+self.epochs2) // 10)
         lr = self.lr
-
-        for epoch in tqdm(range(self.epochs)): #Train stationary
-            if epoch < 1:
-                timesteps = 1
-            elif epoch < 2:
-                timesteps = 2
-            elif epoch < 3:
-                timesteps = 4
-            elif epoch < 4:
-                lr = self.lr/4
-                timesteps = np.random.randint(5, 15) #random between...
-            elif epoch < 8:
-                lr = self.lr/10
-                timesteps = np.random.randint(15, 40)
-            elif epoch < 12:
-                timesteps = np.random.randint(20, 60)
-            self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
-
-            for i in range(self.iterations):
-                if i % self.iterations_per_sample == 0:
-                    state = self.generator.generate_stationary_state(self.batch_size)
-
-                loss_item = self.train_step(state, timesteps)
-                
-                if i % 10 == 0:
-                    if i % 100 == 0:
-                        print(loss_item)
-                    losses_list[(epoch*self.iterations + i)//10] = loss_item
-            name = 'models/complex_ca_stationary_temp' + str(epoch) + '.pth'
-            torch.save(self.model.state_dict(), name)
-        torch.save(self.model.state_dict(), 'models/complex_ca6_stationary.pth')
+        timesteps = 4
+        #pool = SamplePool(x=self.generator.generate_moving_state(timesteps//2, self.batch_size))
+        batch = self.generator.generate_ca_and_food(self.batch_size)
+        pool = SamplePool(x=batch.detach().cpu().numpy()) #pool contains x and food
 
         #TODO: need to look more into the curriculum and how the model does. When doing badly ensure it still works on simpler stuff
 
@@ -84,15 +59,34 @@ class Trainer():
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):
-                if i % 100 == 0:
-                    state = self.generator.generate_moving_state(timesteps//2, self.batch_size)
-                loss_item = self.train_step(state, timesteps)
+                #TODO find out if it's better to keep in tensor or np
+                batch = pool.sample(self.batch_size)
+                ca = torch.tensor(batch.x, device=self.device)
+                #batch[:self.batch_size//2] = self.generate_moving_state(timesteps//2, self.batch_size//2) #replace half with original
+                ca[:self.batch_size//2] = self.generator.generate_ca_and_food(self.batch_size//2) #replace half with original
+                #should use timesteps to generate y efter retrieving from pool
+                food = ca[:, 3]
+                food_coord = self.generator.get_food_coord_from_food(food)
+
+                target_ca = ca[:, 0]
+                for i in range(timesteps//2):
+                    if i > 1:
+                        target_ca = self.generator.move_towards_food(target_ca, food_coord)
+
+                #if i % 100 == 0:
+                #    state = self.generator.generate_moving_state(timesteps//2, self.batch_size)
+                #state = State(batch.x, target_ca)
+                state = State(ca, target_ca, food)
+                x_hat, loss_item = self.train_step(state, timesteps)
 
                 if i % 10 == 0:
                     if i % 100 == 0:
                         print(loss_item)
                     losses_list[((self.epochs + epoch)*self.iterations + i)//10] = loss_item
-            name = 'models/complex_ca_moving_temp' + str(epoch) + '.pth'
+                x_hat[:, 3] = food
+                batch.x[:] = x_hat.detach().cpu().numpy()
+                batch.commit()
+            name = 'models/complex_ca_moving1_temp' + str(epoch) + '.pth'
             torch.save(self.model.state_dict(), name)
 
         return self.model, losses_list
@@ -111,4 +105,4 @@ class Trainer():
 
         loss.backward()
         self.optimizer.step()
-        return loss_item
+        return x_hat, loss_item
