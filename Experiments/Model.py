@@ -76,8 +76,8 @@ class Complex_CA(nn.Module):
         x = cell + x
 
         #force harder boundaries - is this necessary when the other two masks almost do the same?
-        threshold_mask = (x[:, 0] > 0.1).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
-        x[:, 0] = x[:, 0]*threshold_mask
+        #threshold_mask = (x[:, 0] > 0.1).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
+        #x[:, 0] = x[:, 0]*threshold_mask
 
         post_life_mask = self.alive_filter(x) #only do this on cell state
         life_mask = torch.bitwise_and(pre_life_mask, post_life_mask).to(torch.float)

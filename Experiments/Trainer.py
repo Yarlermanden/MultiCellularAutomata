@@ -69,8 +69,8 @@ class Trainer():
                 food_coord = self.generator.get_food_coord_from_food(food)
 
                 target_ca = ca[:, 0]
-                for i in range(timesteps//2):
-                    if i > 1:
+                for j in range(timesteps//2):
+                    if j > 1:
                         target_ca = self.generator.move_towards_food(target_ca, food_coord)
 
                 #if i % 100 == 0:
