@@ -31,8 +31,11 @@ class Trainer():
         lr = self.lr
         timesteps = 4
         #pool = SamplePool(x=self.generator.generate_moving_state(timesteps//2, self.batch_size))
-        batch = self.generator.generate_ca_and_food(self.batch_size)
-        pool = SamplePool(x=np.repeat(batch.detach().cpu().numpy(), self.pool_size, 0)) #pool contains x and food
+        batch = self.generator.generate_ca_and_food(self.pool_size)
+        print('initial batch size: ', batch.shape)
+        pool = SamplePool(x=batch.detach().cpu().numpy()) #pool contains x and food
+        #print('before shape: ', np.repeat(self.generator.generate_ca_and_food(self.batch_size).detach().cpu().numpy(), self.pool_size, 0).shape)
+
 
         #TODO: need to look more into the curriculum and how the model does. When doing badly ensure it still works on simpler stuff
 
