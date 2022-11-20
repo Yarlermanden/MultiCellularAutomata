@@ -15,6 +15,9 @@ class Generator():
         self.device = device
         self.random_states = random_states
 
+    def get_zeros(self, batch_size):
+        return np.zeros(shape=[batch_size, self.width, self.width], dtype=np.float32)
+
     def generate_moving_state(self, timesteps, batch_size):
         #TODO: make faster... - try having it all in numpy until as late as possible
 
@@ -22,10 +25,10 @@ class Generator():
         #TODO should try to make it less spread out - ensure one entity
 
         #Generate initial CA
-        zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
+        zeros = self.get_zeros(batch_size)
 
         state = self.get_centered_CA(batch_size)
-        state = torch.stack([state, zeros, zeros, zeros], 1)
+        state = np.stack([state, zeros, zeros, zeros], 1)
 
         #Generate food map
         food_coord = self.get_random_food_coord(batch_size)
@@ -41,39 +44,39 @@ class Generator():
         return State(state, target_ca, food)
 
     def generate_ca_and_food(self, batch_size):
-        zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
+        zeros = self.get_zeros(batch_size)
         food = self.get_random_food(batch_size)
         ca = self.get_centered_CA(batch_size)
-        ca = torch.stack([ca, zeros, zeros, food], 1)
+        ca = np.stack([ca, zeros, zeros, food], 1)
         return ca
 
     def generate_stationary_state(self, batch_size):
-        zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
+        zeros = self.get_zeros(batch_size)
         cell = self.get_centered_CA(batch_size)
-        state = torch.stack([cell, zeros, zeros, zeros], 1)
+        state = np.stack([cell, zeros, zeros, zeros], 1)
         food = zeros
         for i in range(len(food)):
             food[i, self.width//2, self.width//2] = 1
         return State(state, cell, food)
 
     def get_centered_CA(self, batch_size):
-        zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
+        zeros = self.get_zeros(batch_size)
         if self.random_states:
-            center_ca = torch.rand(5, 5, device=self.device) > 0.7
+            center_ca = np.random.rand(5, 5) > 0.7
         else:
-            center_ca = torch.tensor([
+            center_ca = np.array([
                 [0, 0, 1, 0, 0],
                 [0, 1, 1, 1, 0],
                 [1, 1, 1, 1, 1],
                 [0, 1, 1, 1, 0],
                 [0, 0, 1, 0, 0]
-            ], device=self.device)
+            ])
         ca = zeros
         ca[:, 6:11, 6:11] = center_ca
         return ca
 
     def get_random_food(self, batch_size):
-        zeros = torch.zeros(batch_size, self.width, self.width, device=self.device)
+        zeros = self.get_zeros(batch_size)
         food_coord = self.get_random_food_coord(batch_size)
         food = zeros
         for i in range(len(food)):
@@ -90,7 +93,22 @@ class Generator():
         return food
 
     def get_food_coord_from_food(self, food):
-        return (food==torch.max(food)).nonzero()[:, 1:]
+        #TODO: the problem is that it somehow suddenly doesn't have any food set....
+        x = np.where(food[:] == np.max(food[:]))[1:]
+        x = np.transpose(x)
+
+        #max_coord = lambda t: np.where(t == np.max(t))[1:]
+        #max_coord = lambda t: np.where(t == np.max(t))
+        #vfunc = np.vectorize(max_coord)
+        #x = vfunc(food)
+
+        #b = np.zeros((food.shape[0], 2))
+        b = np.zeros((16, 2), dtype=np.int32)
+
+        for i, x in enumerate(food):
+            b[i] = np.where(x == np.max(x))
+
+        return b
 
     def random_food_noncentered(self, batch_size):
         def random_outer_num(middle):
@@ -112,10 +130,11 @@ class Generator():
         #TODO fix the out of range - due to out of range
         #TODO fix the wraparound failure... - is due to -1
 
-        new_ca = ca.clone()
+        new_ca = ca.copy()
 
         #generate random map of entire world with values 0 or 1 for whether to move or not
-        move_mask = (torch.rand_like(ca) > 0.3).to(torch.float)
+        #move_mask = (np.random.randn(ca) > 0.3).to(np.float32)
+        move_mask = np.random.choice([0, 1], size=(ca.shape), p=[0.3, 0.7])
 
         for b, batch in enumerate(ca): #batch
             for i, row in enumerate(batch):

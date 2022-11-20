@@ -32,28 +32,29 @@ class Trainer():
         timesteps = 4
         #pool = SamplePool(x=self.generator.generate_moving_state(timesteps//2, self.batch_size))
         batch = self.generator.generate_ca_and_food(self.pool_size)
-        print('initial batch size: ', batch.shape)
-        pool = SamplePool(x=batch.detach().cpu().numpy()) #pool contains x and food
+        pool = SamplePool(x=batch) #pool contains x and food
         #print('before shape: ', np.repeat(self.generator.generate_ca_and_food(self.batch_size).detach().cpu().numpy(), self.pool_size, 0).shape)
 
 
         #TODO: need to look more into the curriculum and how the model does. When doing badly ensure it still works on simpler stuff
 
         for epoch in tqdm(range(self.epochs2)): #Train moving
-            if epoch < 2:
+            #if epoch < 2:
+            #    lr = self.lr
+            #    timesteps = 2
+            #elif epoch < 4:
+            #    #lr = self.lr/5
+            #    timesteps = 4
+            #elif epoch < 6:
+            if epoch < 6:
                 lr = self.lr
-                timesteps = 2
-            elif epoch < 4:
-                lr = self.lr/5
-                timesteps = 4
-            elif epoch < 6:
                 timesteps = 6
             elif epoch < 8:
                 timesteps = np.random.randint(5, 10)
             elif epoch < 15:
                 timesteps = np.random.randint(5, 20)
             elif epoch < 30:
-                lr = self.lr/10
+                #lr = self.lr
                 timesteps = np.random.randint(15, 25)
             elif epoch < 50:
                 timesteps = np.random.randint(10, 40)
@@ -64,11 +65,11 @@ class Trainer():
             for i in range(self.iterations):
                 #TODO find out if it's better to keep in tensor or np
                 batch = pool.sample(self.batch_size)
-                ca = torch.tensor(batch.x, device=self.device)
+                ca = batch.x
                 #batch[:self.batch_size//2] = self.generate_moving_state(timesteps//2, self.batch_size//2) #replace half with original
                 ca[:self.batch_size//2] = self.generator.generate_ca_and_food(self.batch_size//2) #replace half with original
                 #should use timesteps to generate y efter retrieving from pool
-                food = ca[:, 3]
+                food = ca[:, 3].copy()
                 food_coord = self.generator.get_food_coord_from_food(food)
 
                 target_ca = ca[:, 0]
@@ -79,6 +80,9 @@ class Trainer():
                 #if i % 100 == 0:
                 #    state = self.generator.generate_moving_state(timesteps//2, self.batch_size)
                 #state = State(batch.x, target_ca)
+                ca = torch.tensor(ca, device=self.device)
+                target_ca = torch.tensor(target_ca, device=self.device)
+                food = torch.tensor(food, device=self.device).to(torch.float)
                 state = State(ca, target_ca, food)
                 x_hat, loss_item = self.train_step(state, timesteps)
 
