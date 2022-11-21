@@ -76,8 +76,14 @@ class Complex_CA(nn.Module):
         x = cell + x
 
         #force harder boundaries - is this necessary when the other two masks almost do the same?
-        threshold_mask = (x[:, 0] > 0.1).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
-        x[:, 0] = x[:, 0]*threshold_mask
+        #enabling this will cause the model to never move
+        #threshold_mask = (x[:, 0] > 0.1).to(torch.float) #ensures cells have to be more than a certain amount alive to count - ensures harder boundaries
+        #x[:, 0] = x[:, 0]*threshold_mask
+
+        #Force into range between 0 and 1
+        # Could replace with function that only allows 0 or 1 - argmax
+        x[:, 0] = torch.sigmoid(x[:, 0])
+        #x[:, 0] = F.softmax(x[:, 0], dim=1) #softmax definitely won't work as it needs 2 outputs representing 0 or 1 for each cell to be softmaxed between...
 
         post_life_mask = self.alive_filter(x) #only do this on cell state
         life_mask = torch.bitwise_and(pre_life_mask, post_life_mask).to(torch.float)

@@ -33,7 +33,7 @@
 
 # #### Imports
 
-# In[ ]:
+# In[1]:
 
 
 import torch
@@ -44,7 +44,7 @@ from Model import Complex_CA
 
 # #### Setup
 
-# In[ ]:
+# In[2]:
 
 
 #device = torch.device('cuda:0' if torch.cuda.is_available else 'cpu')
@@ -59,7 +59,7 @@ print(device)
 
 # #### Training
 
-# In[ ]:
+# In[3]:
 
 
 seed = 2
@@ -78,5 +78,5 @@ torch.save(model.state_dict(), 'models/complex_ca7.pth')
 
 #save graph
 print(losses.shape)
-np.save('losses1', losses)
+np.save('losses_sigmoid', losses)
 

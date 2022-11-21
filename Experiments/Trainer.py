@@ -23,6 +23,7 @@ class Trainer():
         self.random_states = False
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
+        #todo could be using nn.BCELoss to use binary cross entropy instead
         self.generator = Generator(device, self.random_states)
         self.pool_size = 1024
 
@@ -95,7 +96,8 @@ class Trainer():
                 x_hat[:, 3] = food
                 batch.x[:] = x_hat.detach().cpu().numpy()
                 batch.commit()
-            name = 'models/complex_ca_moving2_temp' + str(epoch) + '.pth'
+            name = 'models/ca_sigmoid_temp' + str(epoch) + '.pth'
+            #name = 'models/ca_softmax_temp' + str(epoch) + '.pth'
             torch.save(self.model.state_dict(), name)
 
         return self.model, losses_list
@@ -108,7 +110,7 @@ class Trainer():
         loss = self.criterion(x_hat[:, 0], state.y)
         loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) #TODO ensure same count as for live_count
         #TODO ensure that loss2 works as expected
-        loss2 = loss2/4
+        loss2 = loss2*10
         loss = loss+loss2
         loss_item = loss.item()
 
