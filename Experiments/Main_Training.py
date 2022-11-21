@@ -33,7 +33,7 @@
 
 # #### Imports
 
-# In[1]:
+# In[ ]:
 
 
 import torch
@@ -44,12 +44,14 @@ from Model import Complex_CA
 
 # #### Setup
 
-# In[2]:
+# In[ ]:
 
 
 #device = torch.device('cuda:0' if torch.cuda.is_available else 'cpu')
 device = torch.device('mps:0' if torch.backends.mps.is_available else 'cpu')
-model = Complex_CA(device)
+#device = torch.device('cpu')
+batch_size = 16
+model = Complex_CA(device, batch_size)
 model = model.to(device)
 trainer = Trainer(model, device)
 print(device)
@@ -57,12 +59,12 @@ print(device)
 
 # #### Training
 
-# In[3]:
+# In[ ]:
 
 
 seed = 2
-torch.manual_seed(seed)
-np.random.seed(seed)
+#torch.manual_seed(seed)
+#np.random.seed(seed)
 model, losses = trainer.train()
 
 
@@ -72,15 +74,9 @@ model, losses = trainer.train()
 
 
 #save model
-torch.save(model.state_dict(), 'models/complex_ca5.pth')
+torch.save(model.state_dict(), 'models/complex_ca7.pth')
 
 #save graph
 print(losses.shape)
-np.save('losses', losses)
-
-
-# In[ ]:
-
-
-
+np.save('losses1', losses)
 
