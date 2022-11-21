@@ -38,6 +38,8 @@ class Trainer():
 
         #TODO: need to look more into the curriculum and how the model does. When doing badly ensure it still works on simpler stuff
 
+        cell_speed_ratio = 3 #how much slower we expect the model to move compared to the generator
+
         for epoch in tqdm(range(self.epochs2)): #Train moving
             #if epoch < 2:
             #    lr = self.lr
@@ -73,7 +75,7 @@ class Trainer():
                 food_coord = self.generator.get_food_coord_from_food(food)
 
                 target_ca = ca[:, 0]
-                for j in range(timesteps//2):
+                for j in range(timesteps//cell_speed_ratio):
                     if j > 1:
                         target_ca = self.generator.move_towards_food(target_ca, food_coord)
 
@@ -93,7 +95,7 @@ class Trainer():
                 x_hat[:, 3] = food
                 batch.x[:] = x_hat.detach().cpu().numpy()
                 batch.commit()
-            name = 'models/complex_ca_moving1_temp' + str(epoch) + '.pth'
+            name = 'models/complex_ca_moving2_temp' + str(epoch) + '.pth'
             torch.save(self.model.state_dict(), name)
 
         return self.model, losses_list
