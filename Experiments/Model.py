@@ -42,6 +42,9 @@ class Complex_CA(nn.Module):
     def alive_filter(self, x):
         return self.alive(x[:, 0:1, :, :]) > 0.1
 
+    def live_count_above(self, x, threshold):
+        return (x > threshold).to(torch.float).sum(dim=(1,2,3))
+
     def alive_count(self, x):
         #TODO maybe best to only look at nearest x neighbors and not total count in case we make a big world
         #x = torch.stack([x])
@@ -82,7 +85,7 @@ class Complex_CA(nn.Module):
 
         #Force into range between 0 and 1
         # Could replace with function that only allows 0 or 1 - argmax
-        x[:, 0] = torch.sigmoid(x[:, 0])
+        #x[:, 0] = torch.sigmoid(x[:, 0])
         #x[:, 0] = F.softmax(x[:, 0], dim=1) #softmax definitely won't work as it needs 2 outputs representing 0 or 1 for each cell to be softmaxed between...
 
         post_life_mask = self.alive_filter(x) #only do this on cell state
@@ -106,4 +109,7 @@ class Complex_CA(nn.Module):
 
         #TODO could maybe even add count of cells above some threshold e.g. 0.9 - force completely living cells
         living_count = self.alive_count(cell[:, 0:1])
-        return cell, food, living_count
+        #TODO could also try with a much lower threshold 
+        # living_count should force close to equal amount of total pixel values while a low threshold ensures no cells with smaller values as these would quickly add up
+        living_above = self.live_count_above(cell[:, 0:1], 0.8)
+        return cell, food, living_count, living_above
