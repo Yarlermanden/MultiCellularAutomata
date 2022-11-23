@@ -111,5 +111,5 @@ class Complex_CA(nn.Module):
         living_count = self.alive_count(cell[:, 0:1])
         #TODO could also try with a much lower threshold 
         # living_count should force close to equal amount of total pixel values while a low threshold ensures no cells with smaller values as these would quickly add up
-        living_above = self.live_count_above(cell[:, 0:1], 0.8)
+        living_above = self.live_count_above(cell[:, 0:1], 0.1)
         return cell, food, living_count, living_above
