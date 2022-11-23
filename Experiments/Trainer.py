@@ -100,8 +100,8 @@ class Trainer():
         loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) #TODO ensure same count as for live_count
         loss3 = self.criterion(live_above, (state.x[:, 0:1] > 0.1).to(torch.float).sum(dim=(1,2,3)))
         loss2 = loss2/3
-        loss3 = loss3/20
-        #print('loss1 %d loss2 %d loss3 %d' % (loss, loss2, loss3))
+        loss3 = loss3/40
+        #print('loss1 %.2f loss2 %.2f loss3 %.2f' % (loss, loss2, loss3))
         loss = loss+loss2+loss3
         loss_item = loss.item()
 
