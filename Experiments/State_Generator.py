@@ -62,7 +62,7 @@ class Generator():
     def get_centered_CA(self, batch_size):
         zeros = self.get_zeros(batch_size)
         if self.random_states:
-            center_ca = np.random.rand(5, 5) > 0.7
+            center_ca = (np.random.randint(low=0, high=2, size=(5, 5)))
         else:
             center_ca = np.array([
                 [0, 0, 1, 0, 0],

@@ -20,7 +20,7 @@ class Trainer():
         self.iterations = 4000
         self.iterations_per_sample = 250
         self.batch_size = model.batch_size
-        self.random_states = False
+        self.random_states = True
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
         #todo could be using nn.BCELoss to use binary cross entropy instead
@@ -100,7 +100,7 @@ class Trainer():
         loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) #TODO ensure same count as for live_count
         loss3 = self.criterion(live_above, (state.x[:, 0:1] > 0.1).to(torch.float).sum(dim=(1,2,3)))
         loss2 = loss2/3
-        loss3 = loss3/40
+        loss3 = loss3/100
         #print('loss1 %.2f loss2 %.2f loss3 %.2f' % (loss, loss2, loss3))
         loss = loss+loss2+loss3
         loss_item = loss.item()
