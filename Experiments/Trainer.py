@@ -20,7 +20,7 @@ class Trainer():
         self.iterations = 4000
         self.iterations_per_sample = 250
         self.batch_size = model.batch_size
-        self.random_states = True
+        self.random_states = False
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
         #todo could be using nn.BCELoss to use binary cross entropy instead
@@ -86,7 +86,7 @@ class Trainer():
                 x_hat[:, 3] = food
                 batch.x[:] = x_hat.detach().cpu().numpy()
                 batch.commit()
-            name = 'models/ca_live1_random_temp' + str(epoch) + '.pth'
+            name = 'models/ca_live2_temp' + str(epoch) + '.pth'
             torch.save(self.model.state_dict(), name)
 
         return self.model, losses_list
@@ -97,7 +97,7 @@ class Trainer():
 
         #loss = F.mse_loss(x_hat[0], state.y) 
         loss = self.criterion(x_hat[:, 0], state.y)
-        loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) #TODO ensure same count as for live_count
+        loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) 
         loss3 = self.criterion(live_above, (state.x[:, 0:1] > 0.1).to(torch.float).sum(dim=(1,2,3)))
         loss2 = loss2/3
         loss3 = loss3/100

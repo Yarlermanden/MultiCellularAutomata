@@ -12,8 +12,8 @@ class Complex_CA(nn.Module):
         #self.conv4 = nn.Conv2d(8, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
         self.device = device
 
-        self.conv3 = nn.Conv2d(12, 16, 1, padding=0) # use hidden parameters
-        self.conv4 = nn.Conv2d(16, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
+        self.conv3 = nn.Conv2d(12, 64, 1, padding=0) # use hidden parameters
+        self.conv4 = nn.Conv2d(64, 4, 1, padding=0) #TODO could try replacing this to 3 and add on the last layer later
         self.batch_size = batch_size
 
         self.scent_conv_weights = torch.tensor([[[
@@ -67,6 +67,8 @@ class Complex_CA(nn.Module):
 
     def update(self, cell, food):
         #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size
+        #x[:, 0] = x[:, 0]/256 #0-1
+
         x = cell
 
         x[:, 3] = self.perceive_scent(food) #update scent 
@@ -99,6 +101,7 @@ class Complex_CA(nn.Module):
         #TODO we need some way of ensuring cells close to each other have a much much much lower cost difference than cells far from each other...
         #TODO definely need some better way of measuring loss...
         #TODO could we measure loss from the center of the cell aswell - to reward for being close to the actual representation
+        #x[:, 0] = x[:, 0]*256 // 1 #0-256
 
         return x, food
         
