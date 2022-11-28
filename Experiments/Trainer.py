@@ -86,7 +86,7 @@ class Trainer():
                 x_hat[:, 3] = food
                 batch.x[:] = x_hat.detach().cpu().numpy()
                 batch.commit()
-            name = 'models/ca_live2_temp' + str(epoch) + '.pth'
+            name = 'models/ca_mlp' + str(epoch) + '.pth'
             torch.save(self.model.state_dict(), name)
 
         return self.model, losses_list
