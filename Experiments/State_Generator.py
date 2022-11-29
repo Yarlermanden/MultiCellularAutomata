@@ -9,10 +9,9 @@ class State():
         self.food = food #food 
 
 class Generator():
-    def __init__(self, device, random_states):
+    def __init__(self, random_states):
         self.width = 17
         self.depth = 4
-        self.device = device
         self.random_states = random_states
 
     def get_zeros(self, batch_size):

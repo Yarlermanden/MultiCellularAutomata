@@ -24,7 +24,7 @@ class Trainer():
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
         #todo could be using nn.BCELoss to use binary cross entropy instead
-        self.generator = Generator(device, self.random_states)
+        self.generator = Generator(self.random_states)
         self.pool_size = 1024
 
     def train(self):
