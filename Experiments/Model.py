@@ -76,9 +76,17 @@ class Complex_CA(nn.Module):
 
         x = torch.clamp(x, -10.0, 10.0)
 
+        #only for evolution
+        x[:, 0] = torch.clamp(x[:, 0], 0.0, 1.0)
+        #TODO clamp x[:, 0] to be between 0 and 1
+        #TODO: Simulate consumption of food - something like at this point - if some 3x3 kernel on the food result in some value above a threshold, then the cell has consumed the food
+        #In that case remove the food and add 1 to the value of the cell at the exact same location - does it learn to grow from this?
+        #What to do with the missing food now?
+        
+
+
         #TODO we need some way of ensuring cells close to each other have a much much much lower cost difference than cells far from each other...
         #TODO definely need some better way of measuring loss...
-        #TODO could we measure loss from the center of the cell aswell - to reward for being close to the actual representation
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):

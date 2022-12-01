@@ -18,8 +18,6 @@ class Generator():
         return np.zeros(shape=[batch_size, self.width, self.width], dtype=np.float32)
 
     def generate_moving_state(self, timesteps, batch_size):
-        #TODO: make faster... - try having it all in numpy until as late as possible
-
         #TODO some cells should register the food quicker than others - some should wait even longer before starting to move
         #TODO should try to make it less spread out - ensure one entity
 
