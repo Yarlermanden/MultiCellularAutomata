@@ -10,6 +10,7 @@ class Complex_CA(nn.Module):
         self.fc1 = nn.Linear(12, 64)
         self.fc2 = nn.Linear(64, 4)
         self.batch_size = batch_size
+        self.grid_dim = 17
 
         self.scent_conv_weights = torch.tensor([[[
             [0.0, 0.125, 0.25, 0.125, 0.0],
@@ -29,7 +30,7 @@ class Complex_CA(nn.Module):
             self.apply(init_weights)
 
     def perceive_scent(self, food):
-        food = food.view(self.batch_size,1,17,17)
+        food = food.view(self.batch_size,1,self.grid_dim,self.grid_dim)
         x = F.conv2d(food, self.scent_conv_weights, padding=2)[:, 0]
         return x
 
@@ -47,7 +48,7 @@ class Complex_CA(nn.Module):
     def perceive_cell_surrounding(self, x):
         def _perceive_with(x, conv_weights):
             conv_weights = conv_weights.view(1,1,3,3).repeat(4, 1, 1, 1)
-            return F.conv2d(x.view(self.batch_size,4, 17, 17), conv_weights, padding=1, groups=4)
+            return F.conv2d(x.view(self.batch_size, 4, self.grid_dim, self.grid_dim), conv_weights, padding=1, groups=4)
 
         y1 = _perceive_with(x, self.dx)
         y2 = _perceive_with(x, self.dy)
@@ -59,9 +60,9 @@ class Complex_CA(nn.Module):
         input = cell[:, 0:1].view(self.batch_size, -1)
         sorted, _ = torch.sort(input, dim=1, descending=True)
         kths = kths.to(torch.long)-1
-        kth_values = sorted[torch.arange(len(kths)), kths] #(16)
-        masked = (input.transpose(0, 1) >= kth_values[torch.arange(0, len(kth_values))]).transpose(0,1) #(16, 289)
-        cell[:, 0:1] = torch.where(masked, input, torch.zeros(1,1, dtype=torch.float, device=self.device)).view(16, 1, 17, 17)
+        kth_values = sorted[torch.arange(len(kths)), kths] #(batch_size)
+        masked = (input.transpose(0, 1) >= kth_values[torch.arange(0, len(kth_values))]).transpose(0,1) #(batch_size, grid_dim^2)
+        cell[:, 0:1] = torch.where(masked, input, torch.zeros(1,1, dtype=torch.float, device=self.device)).view(self.batch_size, 1, self.grid_dim, self.grid_dim)
         return cell
 
     def kth_smallest(tensor, indices):
@@ -69,8 +70,6 @@ class Complex_CA(nn.Module):
         return tensor_sorted[torch.arange(len(indices)), indices]
 
     def update(self, cell, food):
-        #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size
-
         x = cell
         x[:, 3] = self.perceive_scent(food) #update scent 
 
@@ -92,17 +91,11 @@ class Complex_CA(nn.Module):
 
         #only for evolution
         x[:, 0] = torch.clamp(x[:, 0], 0.0, 1.0)
-        #TODO clamp x[:, 0] to be between 0 and 1
+        
+        #Check if food can be consumed - consume and generate new food - not directly on top of CA
         #TODO: Simulate consumption of food - something like at this point - if some 3x3 kernel on the food result in some value above a threshold, then the cell has consumed the food
         #In that case remove the food and add 1 to the value of the cell at the exact same location - does it learn to grow from this?
         #What to do with the missing food now?
-        
-
-
-        #TODO we need some way of ensuring cells close to each other have a much much much lower cost difference than cells far from each other...
-        #TODO definely need some better way of measuring loss...
-
-        #Check if food can be consumed - consume and generate new food - not directly on top of CA
 
         return x, food
         
