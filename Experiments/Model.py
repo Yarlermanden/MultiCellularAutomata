@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import math
 
 class Complex_CA(nn.Module):
     def __init__(self, device, batch_size):
@@ -10,15 +11,22 @@ class Complex_CA(nn.Module):
         self.fc1 = nn.Linear(12, 64)
         self.fc2 = nn.Linear(64, 4)
         self.batch_size = batch_size
-        self.grid_dim = 17
+        self.grid_dim = 17*2
 
         self.scent_conv_weights = torch.tensor([[[
-            [0.0, 0.125, 0.25, 0.125, 0.0],
-            [0.125, 0.25, 0.5, 0.25, 0.125],
-            [0.25, 0.5, 1, 0.5, 0.25],
-            [0.125, 0.25, 0.5, 0.25, 0.125],
-            [0.0, 0.125, 0.25, 0.125, 0.0]
+            [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02],
+            [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
+            [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
+            [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
+            [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
+            [0.13, 0.28, 0.48, 0.72, 0.91, 0.99, 0.91, 0.72, 0.48, 0.28, 0.13],
+            [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
+            [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
+            [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
+            [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
+            [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02]
         ]]], device=self.device)
+        self.scent_conv_weights = self.generate_scent_conv_weights(19).to(self.device)
 
         self.dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
         self.dy = torch.transpose(self.dx, 0, 1)
@@ -29,9 +37,29 @@ class Complex_CA(nn.Module):
         with torch.no_grad():
             self.apply(init_weights)
 
+    def generate_scent_conv_weights(self, size):
+        h, w = size, size
+        x0, y0 = torch.rand(2, 1)
+        x0, y0 = torch.tensor(([0.5], [0.5]))
+
+        origins = torch.stack((x0*h, y0*w)).T
+
+        def gaussian_2d(x=0, y=0, mx=0, my=0, sx=1, sy=1):
+            return 1 / (2*math.pi*sx*sy) * \
+                torch.exp(-((x - mx)**2 / (2*sx**2) + (y - my)**2 / (2*sy**2)))
+
+        x = torch.linspace(0, h, h)
+        y = torch.linspace(0, w, w)
+        x, y = torch.meshgrid(x, y)
+
+        z = torch.zeros(h, w)
+        for x0, y0 in origins:
+            z += gaussian_2d(x, y, mx=x0, my=y0, sx=h/4, sy=w/4)*80
+        return z.view(1, 1, size, size)
+
     def perceive_scent(self, food):
         food = food.view(self.batch_size,1,self.grid_dim,self.grid_dim)
-        x = F.conv2d(food, self.scent_conv_weights, padding=2)[:, 0]
+        x = F.conv2d(food, self.scent_conv_weights, padding=9)[:, 0]
         return x
 
     def alive_filter(self, x):
@@ -65,13 +93,9 @@ class Complex_CA(nn.Module):
         cell[:, 0:1] = torch.where(masked, input, torch.zeros(1,1, dtype=torch.float, device=self.device)).view(self.batch_size, 1, self.grid_dim, self.grid_dim)
         return cell
 
-    def kth_smallest(tensor, indices):
-        tensor_sorted, _ = torch.sort(tensor)
-        return tensor_sorted[torch.arange(len(indices)), indices]
-
     def update(self, cell, food):
         x = cell
-        x[:, 3] = self.perceive_scent(food) #update scent 
+        #x[:, 3] = self.perceive_scent(food) #update scent 
 
         pre_life_mask = self.alive_filter(x)
         x = self.perceive_cell_surrounding(x) #perceive neighbor cell states
@@ -102,12 +126,14 @@ class Complex_CA(nn.Module):
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
         #min_living = self.living_cells_above(cell[:, 0:1], 0.1)
         #max_living = min_living
-        current_living = self.living_cells_above(cell[:, 0:1], 0.1)
+        current_living = self.living_cells_above(cell[:, 0:1], 0.8)
+        scent = self.perceive_scent(food)
         for _ in range(steps):
+            cell[:, 3] = scent
             cell, food = self.update(cell, food)
             #mask out cells except kth largest - ensure cells can't grow
             cell = self.keep_k_largest(cell, current_living)
-            current_living = self.living_cells_above(cell[:, 0:1], 0.1)
+            current_living = self.living_cells_above(cell[:, 0:1], 0.8)
             #current_living = self.living_cells_above(cell[:, 0:1], 0.1)
             #min_living = torch.minimum(min_living, current_living)
             #max_living = torch.maximum(max_living, current_living)

@@ -10,7 +10,7 @@ class State():
 
 class Generator():
     def __init__(self, random_states):
-        self.width = 17
+        self.width = 17*2
         self.depth = 4
         self.random_states = random_states
 
@@ -69,7 +69,8 @@ class Generator():
                 [0, 0, 1, 0, 0]
             ])
         ca = zeros
-        ca[:, 6:11, 6:11] = center_ca
+        center = self.width//2
+        ca[:, center-2:center+3, center-2:center+3] = center_ca
         return ca
 
     def get_random_food(self, batch_size):
