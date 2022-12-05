@@ -13,19 +13,19 @@ class Complex_CA(nn.Module):
         self.batch_size = batch_size
         self.grid_dim = 17*2
 
-        self.scent_conv_weights = torch.tensor([[[
-            [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02],
-            [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
-            [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
-            [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
-            [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
-            [0.13, 0.28, 0.48, 0.72, 0.91, 0.99, 0.91, 0.72, 0.48, 0.28, 0.13],
-            [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
-            [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
-            [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
-            [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
-            [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02]
-        ]]], device=self.device)
+        #self.scent_conv_weights = torch.tensor([[[
+        #    [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02],
+        #    [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
+        #    [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
+        #    [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
+        #    [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
+        #    [0.13, 0.28, 0.48, 0.72, 0.91, 0.99, 0.91, 0.72, 0.48, 0.28, 0.13],
+        #    [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
+        #    [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
+        #    [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
+        #    [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
+        #    [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02]
+        #]]], device=self.device)
         self.scent_conv_weights = self.generate_scent_conv_weights(19).to(self.device)
 
         self.dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
@@ -89,11 +89,12 @@ class Complex_CA(nn.Module):
         sorted, _ = torch.sort(input, dim=1, descending=True)
         kths = kths.to(torch.long)-1
         kth_values = sorted[torch.arange(len(kths)), kths] #(batch_size)
-        masked = (input.transpose(0, 1) >= kth_values[torch.arange(0, len(kth_values))]).transpose(0,1) #(batch_size, grid_dim^2)
+        masked = (input.transpose(0, 1) > kth_values[torch.arange(0, len(kth_values))]).transpose(0,1) #(batch_size, grid_dim^2)
         cell[:, 0:1] = torch.where(masked, input, torch.zeros(1,1, dtype=torch.float, device=self.device)).view(self.batch_size, 1, self.grid_dim, self.grid_dim)
         return cell
 
     def update(self, cell, food):
+        current_living = self.living_cells_above(cell[:, 0:1], 0.8)
         x = cell
         #x[:, 3] = self.perceive_scent(food) #update scent 
 
@@ -121,19 +122,22 @@ class Complex_CA(nn.Module):
         #In that case remove the food and add 1 to the value of the cell at the exact same location - does it learn to grow from this?
         #What to do with the missing food now?
 
+        x = self.keep_k_largest(x, current_living)
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
         #min_living = self.living_cells_above(cell[:, 0:1], 0.1)
         #max_living = min_living
-        current_living = self.living_cells_above(cell[:, 0:1], 0.8)
+        #current_living = self.living_cells_above(cell[:, 0:1], 0.8)
         scent = self.perceive_scent(food)
         for _ in range(steps):
             cell[:, 3] = scent
             cell, food = self.update(cell, food)
             #mask out cells except kth largest - ensure cells can't grow
-            cell = self.keep_k_largest(cell, current_living)
-            current_living = self.living_cells_above(cell[:, 0:1], 0.8)
+
+            #cell = self.keep_k_largest(cell, current_living)
+            #current_living = self.living_cells_above(cell[:, 0:1], 0.8)
+
             #current_living = self.living_cells_above(cell[:, 0:1], 0.1)
             #min_living = torch.minimum(min_living, current_living)
             #max_living = torch.maximum(max_living, current_living)
