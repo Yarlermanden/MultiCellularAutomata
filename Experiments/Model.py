@@ -54,6 +54,20 @@ class Complex_CA(nn.Module):
         y = torch.cat((x,y1,y2), dim=1) 
         return y
 
+    #For each in batch, only let the kth largest cells in cell layer survive
+    def keep_k_largest(self, cell, kths):
+        input = cell[:, 0:1].view(self.batch_size, -1)
+        sorted, _ = torch.sort(input, dim=1, descending=True)
+        kths = kths.to(torch.long)-1
+        kth_values = sorted[torch.arange(len(kths)), kths] #(16)
+        masked = (input.transpose(0, 1) >= kth_values[torch.arange(0, len(kth_values))]).transpose(0,1) #(16, 289)
+        cell[:, 0:1] = torch.where(masked, input, torch.zeros(1,1, dtype=torch.float, device=self.device)).view(16, 1, 17, 17)
+        return cell
+
+    def kth_smallest(tensor, indices):
+        tensor_sorted, _ = torch.sort(tensor)
+        return tensor_sorted[torch.arange(len(indices)), indices]
+
     def update(self, cell, food):
         #TODO: handle somewhere in some way if food is reached and consumed. Remove food and increase CA size
 
@@ -87,12 +101,24 @@ class Complex_CA(nn.Module):
 
         #TODO we need some way of ensuring cells close to each other have a much much much lower cost difference than cells far from each other...
         #TODO definely need some better way of measuring loss...
+
+        #Check if food can be consumed - consume and generate new food - not directly on top of CA
+
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
+        #min_living = self.living_cells_above(cell[:, 0:1], 0.1)
+        #max_living = min_living
+        current_living = self.living_cells_above(cell[:, 0:1], 0.1)
         for _ in range(steps):
             cell, food = self.update(cell, food)
+            #mask out cells except kth largest - ensure cells can't grow
+            cell = self.keep_k_largest(cell, current_living)
+            current_living = self.living_cells_above(cell[:, 0:1], 0.1)
+            #current_living = self.living_cells_above(cell[:, 0:1], 0.1)
+            #min_living = torch.minimum(min_living, current_living)
+            #max_living = torch.maximum(max_living, current_living)
 
         total_pixel_val = self.total_pixel_val(cell[:, 0:1])
         living_count = self.living_cells_above(cell[:, 0:1], 0.1)
-        return cell, food, total_pixel_val, living_count
+        return cell, food, total_pixel_val, living_count #, min_living, max_living
