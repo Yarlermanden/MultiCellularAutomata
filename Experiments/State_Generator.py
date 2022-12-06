@@ -85,7 +85,7 @@ class Generator():
     def get_random_food_coord(self, batch_size): #food can be centered or not
         def random_num():
             #from_edge = 4
-            from_edge = (self.width-self.scent_spread)//2
+            from_edge = (self.width-self.scent_spread)//2 - 1
             return np.random.randint(from_edge, self.width-1-from_edge, batch_size)
         x = random_num()
         y = random_num()
@@ -93,21 +93,12 @@ class Generator():
         return food
 
     def get_food_coord_from_food(self, food):
-        #TODO: the problem is that it somehow suddenly doesn't have any food set....
         x = np.where(food[:] == np.max(food[:]))[1:]
         x = np.transpose(x)
-
-        #max_coord = lambda t: np.where(t == np.max(t))[1:]
-        #max_coord = lambda t: np.where(t == np.max(t))
-        #vfunc = np.vectorize(max_coord)
-        #x = vfunc(food)
-
-        #b = np.zeros((food.shape[0], 2))
         b = np.zeros((16, 2), dtype=np.int32)
 
         for i, x in enumerate(food):
             b[i] = np.where(x == np.max(x))
-
         return b
 
     def random_food_noncentered(self, batch_size):
@@ -123,13 +114,6 @@ class Generator():
         return x,y
 
     def move_towards_food(self, ca, food):
-        #TODO: if no food, should stay stationary
-        #TODO: if food but not detectable, stay stationary
-        #TODO: in case it reaches food, remove food and instead increase cells
-
-        #TODO fix the out of range - due to out of range
-        #TODO fix the wraparound failure... - is due to -1
-
         new_ca = ca.copy()
 
         #generate random map of entire world with values 0 or 1 for whether to move or not
@@ -194,7 +178,3 @@ class Generator():
 
                     #else: #cell is dead or cell isn't allowed to move due to mask
         return new_ca
-
-    #def update_cell(ca, i, j, delta_x, delta_y):
-        
-#TODO: Make a way of generating starting positions, which are part of previous sequences seen - like the article
