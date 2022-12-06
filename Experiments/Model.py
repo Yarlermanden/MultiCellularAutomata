@@ -12,6 +12,7 @@ class Complex_CA(nn.Module):
         self.fc2 = nn.Linear(64, 4)
         self.batch_size = batch_size
         self.grid_dim = 17*2
+        self.scent_spread = 19
 
         #self.scent_conv_weights = torch.tensor([[[
         #    [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02],
@@ -26,7 +27,7 @@ class Complex_CA(nn.Module):
         #    [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
         #    [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02]
         #]]], device=self.device)
-        self.scent_conv_weights = self.generate_scent_conv_weights(19).to(self.device)
+        self.scent_conv_weights = self.generate_scent_conv_weights(self.scent_spread).to(self.device)
 
         self.dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
         self.dy = torch.transpose(self.dx, 0, 1)

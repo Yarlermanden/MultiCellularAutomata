@@ -13,6 +13,7 @@ class Generator():
         self.width = 17*2
         self.depth = 4
         self.random_states = random_states
+        self.scent_spread = 19
 
     def get_zeros(self, batch_size):
         return np.zeros(shape=[batch_size, self.width, self.width], dtype=np.float32)
@@ -83,7 +84,8 @@ class Generator():
 
     def get_random_food_coord(self, batch_size): #food can be centered or not
         def random_num():
-            from_edge = 4
+            #from_edge = 4
+            from_edge = (self.width-self.scent_spread)//2 - 1
             return np.random.randint(from_edge, self.width-1-from_edge, batch_size)
         x = random_num()
         y = random_num()
