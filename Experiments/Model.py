@@ -86,8 +86,12 @@ class Complex_CA(nn.Module):
     #For each in batch, only let the kth largest cells in cell layer survive
     def keep_k_largest(self, cell, kths):
         input = cell[:, 0:1].view(self.batch_size, -1)
-        sorted, _ = torch.sort(input, dim=1, descending=True)
-        kths = kths.to(torch.long)-1
+        sorted, _ = torch.sort(input, dim=1, descending=False)
+        kths = (torch.full(size=(kths.shape), fill_value=(input.shape[1]-1), device=self.device) - kths).to(torch.long)
+        kths = (input.shape[1]-kths-1).to(torch.long)
+        #sorted, _ = torch.sort(input, dim=1, descending=True)
+        #TODO: should be fixed...
+        #kths = kths.to(torch.long)-1
         kth_values = sorted[torch.arange(len(kths)), kths] #(batch_size)
         masked = (input.transpose(0, 1) > kth_values[torch.arange(0, len(kth_values))]).transpose(0,1) #(batch_size, grid_dim^2)
         cell[:, 0:1] = torch.where(masked, input, torch.zeros(1,1, dtype=torch.float, device=self.device)).view(self.batch_size, 1, self.grid_dim, self.grid_dim)
