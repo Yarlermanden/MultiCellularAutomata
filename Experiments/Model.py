@@ -88,8 +88,10 @@ class Complex_CA(nn.Module):
     def keep_k_largest(self, cell, kths):
         input = cell[:, 0:1].view(self.batch_size, -1)
         sorted, _ = torch.sort(input, dim=1, descending=False)
+        #print('index to remove from: ', kths[0])
         kths = (torch.full(size=(kths.shape), fill_value=(input.shape[1]-1), device=self.device) - kths).to(torch.long)
-        kths = (input.shape[1]-kths-1).to(torch.long)
+        #print('reversed index to remove: ', kths[0])
+        #kths = (input.shape[1]-kths-1).to(torch.long)
         #sorted, _ = torch.sort(input, dim=1, descending=True)
         #TODO: should be fixed...
         #kths = kths.to(torch.long)-1
@@ -99,7 +101,8 @@ class Complex_CA(nn.Module):
         return cell
 
     def update(self, cell, food):
-        current_living = self.living_cells_above(cell[:, 0:1], 0.8)
+        current_living = self.living_cells_above(cell[:, 0:1], 0.1)
+        #print('inside: current alive', current_living[0])
         x = cell
         #x[:, 3] = self.perceive_scent(food) #update scent 
 
@@ -127,7 +130,9 @@ class Complex_CA(nn.Module):
         #In that case remove the food and add 1 to the value of the cell at the exact same location - does it learn to grow from this?
         #What to do with the missing food now?
 
+        #print('inside current alive before: ', self.living_cells_above(x[:, 0:1], 0.8)[0])
         x = self.keep_k_largest(x, current_living)
+        #print('inside current alive after: ', self.living_cells_above(x[:, 0:1], 0.8)[0])
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):

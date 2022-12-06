@@ -85,7 +85,7 @@ class Generator():
     def get_random_food_coord(self, batch_size): #food can be centered or not
         def random_num():
             #from_edge = 4
-            from_edge = (self.width-self.scent_spread)//2 - 1
+            from_edge = (self.width-self.scent_spread)//2
             return np.random.randint(from_edge, self.width-1-from_edge, batch_size)
         x = random_num()
         y = random_num()
