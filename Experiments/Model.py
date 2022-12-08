@@ -14,19 +14,6 @@ class Complex_CA(nn.Module):
         self.grid_dim = 17*2
         self.scent_spread = 19
 
-        #self.scent_conv_weights = torch.tensor([[[
-        #    [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02],
-        #    [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
-        #    [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
-        #    [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
-        #    [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
-        #    [0.13, 0.28, 0.48, 0.72, 0.91, 0.99, 0.91, 0.72, 0.48, 0.28, 0.13],
-        #    [0.12, 0.25, 0.44, 0.66, 0.84, 0.91, 0.84, 0.66, 0.44, 0.25, 0.12],
-        #    [0.10, 0.20, 0.35, 0.52, 0.66, 0.72, 0.66, 0.52, 0.35, 0.20, 0.10],
-        #    [0.07, 0.13, 0.23, 0.35, 0.44, 0.48, 0.44, 0.35, 0.23, 0.13, 0.07],
-        #    [0.04, 0.08, 0.13, 0.20, 0.25, 0.28, 0.25, 0.20, 0.13, 0.08, 0.04],
-        #    [0.02, 0.04, 0.07, 0.10, 0.12, 0.13, 0.12, 0.10, 0.07, 0.04, 0.02]
-        #]]], device=self.device)
         self.scent_conv_weights = self.generate_scent_conv_weights(self.scent_spread).to(self.device)
 
         self.dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
@@ -88,23 +75,32 @@ class Complex_CA(nn.Module):
     def keep_k_largest(self, cell, kths):
         input = cell[:, 0:1].view(self.batch_size, -1)
         sorted, _ = torch.sort(input, dim=1, descending=False)
-        #print('index to remove from: ', kths[0])
         kths = (torch.full(size=(kths.shape), fill_value=(input.shape[1]-1), device=self.device) - kths).to(torch.long)
-        #print('reversed index to remove: ', kths[0])
-        #kths = (input.shape[1]-kths-1).to(torch.long)
-        #sorted, _ = torch.sort(input, dim=1, descending=True)
-        #TODO: should be fixed...
-        #kths = kths.to(torch.long)-1
         kth_values = sorted[torch.arange(len(kths)), kths] #(batch_size)
         masked = (input.transpose(0, 1) > kth_values[torch.arange(0, len(kth_values))]).transpose(0,1) #(batch_size, grid_dim^2)
         cell[:, 0:1] = torch.where(masked, input, torch.zeros(1,1, dtype=torch.float, device=self.device)).view(self.batch_size, 1, self.grid_dim, self.grid_dim)
         return cell
 
+    def detect_rulebreaks(self, cell, x):
+        largePool = nn.AvgPool2d(kernel_size=4, stride=1, padding=2)
+        smallPool = nn.AvgPool2d(kernel_size=2, stride=1, padding=1)
+        new_cell = (cell[:, 0:1] > 0.1).to(torch.float) * 9
+        new_x = (x[:, 0:1] > 0.1).to(torch.float) * 9
+
+        cell_sum_2x2 = smallPool(new_cell[:, 0:1, :, :])
+        cell_sum_4x4 = largePool(new_cell[:, 0:1, :, :])
+        x_sum_2x2 = smallPool(new_x[:, 0:1, :, :])
+        x_sum_4x4 = largePool(new_x[:, 0:1, :, :])
+
+        deaths = (cell_sum_2x2 > x_sum_4x4).sum(dim=(1,2,3))
+        growths = (cell_sum_4x4 < x_sum_2x2).sum(dim=(1,2,3))
+        return deaths + growths
+
+
     def update(self, cell, food):
         current_living = self.living_cells_above(cell[:, 0:1], 0.1)
         #print('inside: current alive', current_living[0])
         x = cell
-        #x[:, 3] = self.perceive_scent(food) #update scent 
 
         pre_life_mask = self.alive_filter(x)
         x = self.perceive_cell_surrounding(x) #perceive neighbor cell states
@@ -133,6 +129,9 @@ class Complex_CA(nn.Module):
         #print('inside current alive before: ', self.living_cells_above(x[:, 0:1], 0.8)[0])
         x = self.keep_k_largest(x, current_living)
         #print('inside current alive after: ', self.living_cells_above(x[:, 0:1], 0.8)[0])
+        
+        rulebreaks = self.detect_rulebreaks(cell, x)
+        x = self.keep_k_largest(x, torch.maximum(current_living-rulebreaks, torch.zeros_like(rulebreaks)))
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
