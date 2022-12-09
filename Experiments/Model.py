@@ -84,13 +84,13 @@ class Complex_CA(nn.Module):
     def detect_rulebreaks(self, cell, x):
         largePool = nn.AvgPool2d(kernel_size=4, stride=1, padding=2)
         smallPool = nn.AvgPool2d(kernel_size=2, stride=1, padding=1)
-        new_cell = (cell[:, 0:1] > 0.1).to(torch.float) * 9
-        new_x = (x[:, 0:1] > 0.1).to(torch.float) * 9
+        new_cell = (cell[:, 0:1] > 0.1).to(torch.float)
+        new_x = (x[:, 0:1] > 0.1).to(torch.float)
 
-        cell_sum_2x2 = smallPool(new_cell[:, 0:1, :, :])
-        cell_sum_4x4 = largePool(new_cell[:, 0:1, :, :])
-        x_sum_2x2 = smallPool(new_x[:, 0:1, :, :])
-        x_sum_4x4 = largePool(new_x[:, 0:1, :, :])
+        cell_sum_2x2 = smallPool(new_cell[:, 0:1, :, :]*4)
+        cell_sum_4x4 = largePool(new_cell[:, 0:1, :, :]*16)
+        x_sum_2x2 = smallPool(new_x[:, 0:1, :, :]*4)
+        x_sum_4x4 = largePool(new_x[:, 0:1, :, :]*16)
 
         deaths = (cell_sum_2x2 > x_sum_4x4).sum(dim=(1,2,3))
         growths = (cell_sum_4x4 < x_sum_2x2).sum(dim=(1,2,3))
