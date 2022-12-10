@@ -82,19 +82,25 @@ class Complex_CA(nn.Module):
         return cell
 
     def detect_rulebreaks(self, cell, x):
-        largePool = nn.AvgPool2d(kernel_size=4, stride=1, padding=2)
-        smallPool = nn.AvgPool2d(kernel_size=2, stride=1, padding=1)
+        largePool = nn.AvgPool2d(kernel_size=5, stride=1, padding=2)
+        smallPool = nn.AvgPool2d(kernel_size=3, stride=1, padding=1)
         new_cell = (cell[:, 0:1] > 0.1).to(torch.float)
         new_x = (x[:, 0:1] > 0.1).to(torch.float)
 
-        cell_sum_2x2 = smallPool(new_cell[:, 0:1, :, :]*4)
-        cell_sum_4x4 = largePool(new_cell[:, 0:1, :, :]*16)
-        x_sum_2x2 = smallPool(new_x[:, 0:1, :, :]*4)
-        x_sum_4x4 = largePool(new_x[:, 0:1, :, :]*16)
+        cell_sum_2x2 = smallPool(new_cell[:, 0:1, :, :])*9
+        cell_sum_4x4 = largePool(new_cell[:, 0:1, :, :])*25
+        x_sum_2x2 = smallPool(new_x[:, 0:1, :, :])*9
+        x_sum_4x4 = largePool(new_x[:, 0:1, :, :])*25
 
-        deaths = (cell_sum_2x2 > x_sum_4x4).sum(dim=(1,2,3))
-        growths = (cell_sum_4x4 < x_sum_2x2).sum(dim=(1,2,3))
-        return deaths + growths
+        #deaths = (cell_sum_2x2 > x_sum_4x4).sum(dim=(1,2,3))
+        #growths = (cell_sum_4x4 < x_sum_2x2).sum(dim=(1,2,3))
+        dead_mask = x_sum_4x4 >= cell_sum_2x2 #if not we have rule break
+        growth_mask = x_sum_2x2 <= cell_sum_4x4
+
+        mask = torch.bitwise_and(dead_mask, growth_mask).to(torch.float)
+        x[:, 0:1] = x[:, 0:1] * mask
+
+        return x
 
 
     def update(self, cell, food):
@@ -130,8 +136,8 @@ class Complex_CA(nn.Module):
         x = self.keep_k_largest(x, current_living)
         #print('inside current alive after: ', self.living_cells_above(x[:, 0:1], 0.8)[0])
         
-        rulebreaks = self.detect_rulebreaks(cell, x)
-        x = self.keep_k_largest(x, torch.maximum(current_living-rulebreaks, torch.zeros_like(rulebreaks)))
+        x = self.detect_rulebreaks(cell, x)
+        #x = self.keep_k_largest(x, torch.maximum(current_living-rulebreaks, torch.zeros_like(rulebreaks)))
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
