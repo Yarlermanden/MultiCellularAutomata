@@ -8,10 +8,11 @@ class Complex_CA(nn.Module):
     def __init__(self, device, batch_size):
         super(Complex_CA, self).__init__()
         self.device = device
-        self.fc1 = nn.Linear(12, 64)
-        self.fc2 = nn.Linear(64, 4)
+        self.conv1 = nn.Conv2d(12, 12, 1, padding=0)
+        self.conv2 = nn.Conv2d(12, 12, 1, padding=0)
+        self.conv3 = nn.Conv2d(12, 4, 1, padding=0)
         self.batch_size = batch_size
-        self.grid_dim = 17*2
+        self.grid_dim = 34
         self.scent_spread = 19
 
         self.scent_conv_weights = self.generate_scent_conv_weights(self.scent_spread).to(self.device)
@@ -48,6 +49,12 @@ class Complex_CA(nn.Module):
     def perceive_scent(self, food):
         food = food.view(self.batch_size,1,self.grid_dim,self.grid_dim)
         x = F.conv2d(food, self.scent_conv_weights, padding=9)[:, 0]
+        return x
+
+    def update_cell(self, x):
+        x = torch.relu(self.conv1(x))
+        x = torch.relu(self.conv2(x))
+        x = self.conv3(x)
         return x
 
     def alive_filter(self, x):
@@ -92,30 +99,22 @@ class Complex_CA(nn.Module):
         x_sum_2x2 = smallPool(new_x[:, 0:1, :, :])*9
         x_sum_4x4 = largePool(new_x[:, 0:1, :, :])*25
 
-        #deaths = (cell_sum_2x2 > x_sum_4x4).sum(dim=(1,2,3))
-        #growths = (cell_sum_4x4 < x_sum_2x2).sum(dim=(1,2,3))
         dead_mask = x_sum_4x4 >= cell_sum_2x2 #if not we have rule break
         growth_mask = x_sum_2x2 <= cell_sum_4x4
 
         mask = torch.bitwise_and(dead_mask, growth_mask).to(torch.float)
         x[:, 0:1] = x[:, 0:1] * mask
-
         return x
 
 
     def update(self, cell, food):
         current_living = self.living_cells_above(cell[:, 0:1], 0.1)
-        #print('inside: current alive', current_living[0])
         x = cell
 
         pre_life_mask = self.alive_filter(x)
         x = self.perceive_cell_surrounding(x) #perceive neighbor cell states
 
-        x = x.transpose(1, 3)
-        x = torch.relu(self.fc1(x))
-        x = self.fc2(x)
-        x = x.transpose(1, 3)
-
+        x = self.update_cell(x) #update cell depending on all hidden states
         x = cell + x
 
         post_life_mask = self.alive_filter(x) #only do this on cell state
@@ -132,12 +131,8 @@ class Complex_CA(nn.Module):
         #In that case remove the food and add 1 to the value of the cell at the exact same location - does it learn to grow from this?
         #What to do with the missing food now?
 
-        #print('inside current alive before: ', self.living_cells_above(x[:, 0:1], 0.8)[0])
         x = self.keep_k_largest(x, current_living)
-        #print('inside current alive after: ', self.living_cells_above(x[:, 0:1], 0.8)[0])
-        
         x = self.detect_rulebreaks(cell, x)
-        #x = self.keep_k_largest(x, torch.maximum(current_living-rulebreaks, torch.zeros_like(rulebreaks)))
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
@@ -154,9 +149,7 @@ class Complex_CA(nn.Module):
             #current_living = self.living_cells_above(cell[:, 0:1], 0.8)
 
             #current_living = self.living_cells_above(cell[:, 0:1], 0.1)
-            #min_living = torch.minimum(min_living, current_living)
-            #max_living = torch.maximum(max_living, current_living)
 
         total_pixel_val = self.total_pixel_val(cell[:, 0:1])
         living_count = self.living_cells_above(cell[:, 0:1], 0.1)
-        return cell, food, total_pixel_val, living_count #, min_living, max_living
+        return cell, food, total_pixel_val, living_count
