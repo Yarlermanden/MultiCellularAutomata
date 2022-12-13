@@ -152,9 +152,13 @@ class Complex_CA(nn.Module):
         else:
             scent = self.perceive_scent(food)
 
+        toxic_cost = 0
+
         for _ in range(steps):
             cell[:, 3] = scent
             cell, food = self.update(cell, food)
+            if self.toxic:
+                toxic_cost += (cell[:, 0] * food).sum()
             #mask out cells except kth largest - ensure cells can't grow
 
             #cell = self.keep_k_largest(cell, current_living)
@@ -164,4 +168,4 @@ class Complex_CA(nn.Module):
 
         total_pixel_val = self.total_pixel_val(cell[:, 0:1])
         living_count = self.living_cells_above(cell[:, 0:1], 0.1)
-        return cell, food, total_pixel_val, living_count
+        return cell, food, total_pixel_val, living_count, toxic_cost

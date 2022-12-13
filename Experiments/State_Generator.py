@@ -9,11 +9,12 @@ class State():
         self.food = food #food 
 
 class Generator():
-    def __init__(self, random_states):
+    def __init__(self, random_states, toxic=False):
         self.width = 17*2
         self.depth = 4
         self.random_states = random_states
         self.scent_spread = 23
+        self.toxic = toxic
 
     def get_zeros(self, batch_size):
         return np.zeros(shape=[batch_size, self.width, self.width], dtype=np.float32)
@@ -84,8 +85,11 @@ class Generator():
 
     def get_random_food_coord(self, batch_size): #food can be centered or not
         def random_num():
-            from_edge = 9
-            #from_edge = (self.width-self.scent_spread)//2 + 11
+            if self.toxic:
+                from_edge = 9
+            else:
+                from_edge = (self.width-self.scent_spread)//2 - 1
+            
             return np.random.randint(from_edge, self.width-1-from_edge, batch_size)
         x = random_num()
         y = random_num()
