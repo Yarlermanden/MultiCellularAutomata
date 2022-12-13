@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import math
 
 class Complex_CA(nn.Module):
-    def __init__(self, device, batch_size):
+    def __init__(self, device, batch_size, toxic=False):
         super(Complex_CA, self).__init__()
         self.device = device
         self.conv1 = nn.Conv2d(12, 12, 1, padding=0)
@@ -14,8 +14,11 @@ class Complex_CA(nn.Module):
         self.batch_size = batch_size
         self.grid_dim = 34
         self.scent_spread = 19
+        self.toxic_spread = 23
+        self.toxic = toxic
 
         self.scent_conv_weights = self.generate_scent_conv_weights(self.scent_spread).to(self.device)
+        self.toxic_conv_weights = self.generate_scent_conv_weights(self.toxic_spread, 200).to(self.device)
 
         self.dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
         self.dy = torch.transpose(self.dx, 0, 1)
@@ -26,7 +29,7 @@ class Complex_CA(nn.Module):
         with torch.no_grad():
             self.apply(init_weights)
 
-    def generate_scent_conv_weights(self, size):
+    def generate_scent_conv_weights(self, size, value=80):
         h, w = size, size
         x0, y0 = torch.rand(2, 1)
         x0, y0 = torch.tensor(([0.5], [0.5]))
@@ -43,12 +46,17 @@ class Complex_CA(nn.Module):
 
         z = torch.zeros(h, w)
         for x0, y0 in origins:
-            z += gaussian_2d(x, y, mx=x0, my=y0, sx=h/4, sy=w/4)*80
+            z += gaussian_2d(x, y, mx=x0, my=y0, sx=h/4, sy=w/4)*value
         return z.view(1, 1, size, size)
 
     def perceive_scent(self, food):
         food = food.view(self.batch_size,1,self.grid_dim,self.grid_dim)
         x = F.conv2d(food, self.scent_conv_weights, padding=9)[:, 0]
+        return x
+
+    def perceive_toxic(self, food):
+        food = food.view(self.batch_size,1,self.grid_dim,self.grid_dim)
+        x = F.conv2d(food, self.toxic_conv_weights, padding=11)[:, 0]
         return x
 
     def update_cell(self, x):
@@ -139,7 +147,11 @@ class Complex_CA(nn.Module):
         #min_living = self.living_cells_above(cell[:, 0:1], 0.1)
         #max_living = min_living
         #current_living = self.living_cells_above(cell[:, 0:1], 0.8)
-        scent = self.perceive_scent(food)
+        if self.toxic:
+            scent = self.perceive_toxic(food)
+        else:
+            scent = self.perceive_scent(food)
+
         for _ in range(steps):
             cell[:, 3] = scent
             cell, food = self.update(cell, food)
