@@ -14,11 +14,11 @@ class Complex_CA(nn.Module):
         self.batch_size = batch_size
         self.grid_dim = 34
         self.scent_spread = 19
-        self.toxic_spread = 23
+        self.toxic_spread = 27
         self.toxic = toxic
 
         self.scent_conv_weights = self.generate_scent_conv_weights(self.scent_spread).to(self.device)
-        self.toxic_conv_weights = self.generate_scent_conv_weights(self.toxic_spread, 200).to(self.device)
+        self.toxic_conv_weights = self.generate_scent_conv_weights(self.toxic_spread, 250).to(self.device)
 
         self.dx = torch.outer(torch.tensor([1,2,1], device=self.device), torch.tensor([-1, 0, 1], device=self.device)) / 8.0 # Sobel filter
         self.dy = torch.transpose(self.dx, 0, 1)
@@ -56,7 +56,7 @@ class Complex_CA(nn.Module):
 
     def perceive_toxic(self, food):
         food = food.view(self.batch_size,1,self.grid_dim,self.grid_dim)
-        x = F.conv2d(food, self.toxic_conv_weights, padding=11)[:, 0]
+        x = F.conv2d(food, self.toxic_conv_weights, padding=13)[:, 0]
         return x
 
     def update_cell(self, x):

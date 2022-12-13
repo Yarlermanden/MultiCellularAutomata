@@ -13,7 +13,7 @@ class Generator():
         self.width = 17*2
         self.depth = 4
         self.random_states = random_states
-        self.scent_spread = 23
+        self.scent_spread = 27
         self.toxic = toxic
 
     def get_zeros(self, batch_size):
