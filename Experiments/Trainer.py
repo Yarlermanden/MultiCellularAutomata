@@ -33,10 +33,10 @@ class Trainer():
         batch = self.generator.generate_ca_and_food(self.pool_size)
         pool = SamplePool(x=batch) #pool contains x and food
 
-        cell_speed_ratio = 3 #how much slower we expect the model to move compared to the generator
+        cell_speed_ratio = 1 #how much slower we expect the model to move compared to the generator
         for epoch in tqdm(range(self.epochs2)): #Train moving
             lr = self.lr
-            timesteps = np.random.randint(10, 30)
+            timesteps = np.random.randint(5, 15)
             self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
 
             for i in range(self.iterations):
@@ -75,7 +75,7 @@ class Trainer():
         x_hat, food, live_count, live_above,_ = self.model(state.x.clone(), state.food.clone(), steps)
 
         #loss = F.mse_loss(x_hat[0], state.y) 
-        loss = self.criterion(x_hat[:, 0], state.y)
+        loss = self.criterion(x_hat[:, 0], state.y)*10
         loss2 = self.criterion(live_count, state.x[:, 0:1].sum(dim=(1,2,3))) 
         loss3 = self.criterion(live_above, (state.x[:, 0:1] > 0.1).to(torch.float).sum(dim=(1,2,3)))
         loss2 = loss2/3

@@ -20,9 +20,6 @@ class Generator():
         return np.zeros(shape=[batch_size, self.width, self.width], dtype=np.float32)
 
     def generate_moving_state(self, timesteps, batch_size):
-        #TODO some cells should register the food quicker than others - some should wait even longer before starting to move
-        #TODO should try to make it less spread out - ensure one entity
-
         #Generate initial CA
         zeros = self.get_zeros(batch_size)
 
@@ -88,7 +85,7 @@ class Generator():
             if self.toxic:
                 from_edge = 9
             else:
-                from_edge = (self.width-self.scent_spread)//2 - 1
+                from_edge = (self.width-self.scent_spread)//2 +1
             
             return np.random.randint(from_edge, self.width-1-from_edge, batch_size)
         x = random_num()
@@ -122,16 +119,17 @@ class Generator():
 
         #generate random map of entire world with values 0 or 1 for whether to move or not
         #move_mask = (np.random.randn(ca) > 0.3).to(np.float32)
-        move_mask = np.random.choice([0, 1], size=(ca.shape), p=[0.3, 0.7])
+        #move_mask = np.random.choice([0, 1], size=(ca.shape), p=[0.3, 0.7])
 
         for b, batch in enumerate(ca): #batch
             for i, row in enumerate(batch):
                 for j, val in enumerate(row):
-                    if val > 0.1 and move_mask[b, i, j] == 1: #allowed to move
+                    #if val > 0.1 and move_mask[b, i, j] == 1: #allowed to move
+                    if val > 0.1: #allowed to move
                         #find direction to move in - almost always 3 neighboring cells closer than current
                         delta_x = food[b, 1] - j 
                         delta_y = food[b, 0] - i
-                        moved_val = 0.25
+                        moved_val = 0.5
 
                         #fix deltas to be -1, 0 or 1
                         if delta_x > 0:

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import math
 
 class Complex_CA(nn.Module):
-    def __init__(self, device, batch_size, toxic=False):
+    def __init__(self, device, batch_size, toxic=False, evolution=True):
         super(Complex_CA, self).__init__()
         self.device = device
         self.conv1 = nn.Conv2d(12, 12, 1, padding=0)
@@ -16,6 +16,7 @@ class Complex_CA(nn.Module):
         self.scent_spread = 19
         self.toxic_spread = 27
         self.toxic = toxic
+        self.evolution  = evolution
 
         self.scent_conv_weights = self.generate_scent_conv_weights(self.scent_spread).to(self.device)
         self.toxic_conv_weights = self.generate_scent_conv_weights(self.toxic_spread, 250).to(self.device)
@@ -116,31 +117,29 @@ class Complex_CA(nn.Module):
 
 
     def update(self, cell, food):
-        current_living = self.living_cells_above(cell[:, 0:1], 0.1)
-        x = cell
+        x = cell.clone()
 
         pre_life_mask = self.alive_filter(x)
         x = self.perceive_cell_surrounding(x) #perceive neighbor cell states
 
         x = self.update_cell(x) #update cell depending on all hidden states
-        x = cell + x
+        x = cell + x #Added as the model should both be able to add and subtract from the previous
 
         post_life_mask = self.alive_filter(x) #only do this on cell state
         life_mask = torch.bitwise_and(pre_life_mask, post_life_mask).to(torch.float)
         x = x*life_mask
 
         x = torch.clamp(x, -10.0, 10.0)
-
-        #only for evolution
-        x[:, 0] = torch.clamp(x[:, 0], 0.0, 1.0)
         
         #Check if food can be consumed - consume and generate new food - not directly on top of CA
         #TODO: Simulate consumption of food - something like at this point - if some 3x3 kernel on the food result in some value above a threshold, then the cell has consumed the food
         #In that case remove the food and add 1 to the value of the cell at the exact same location - does it learn to grow from this?
-        #What to do with the missing food now?
 
-        x = self.keep_k_largest(x, current_living)
-        x = self.detect_rulebreaks(cell, x)
+        if self.evolution: #only for evolution
+            x[:, 0] = torch.clamp(x[:, 0], 0.0, 1.0)
+            current_living = self.living_cells_above(cell[:, 0:1], 0.1)
+            x = self.keep_k_largest(x, current_living)
+            x = self.detect_rulebreaks(cell, x)
         return x, food
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
