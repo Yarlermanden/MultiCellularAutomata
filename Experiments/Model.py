@@ -116,7 +116,7 @@ class Complex_CA(nn.Module):
         return x
 
 
-    def update(self, cell, food):
+    def update(self, cell, scent):
         x = cell.clone()
 
         pre_life_mask = self.alive_filter(x)
@@ -131,16 +131,12 @@ class Complex_CA(nn.Module):
 
         x = torch.clamp(x, -10.0, 10.0)
         
-        #Check if food can be consumed - consume and generate new food - not directly on top of CA
-        #TODO: Simulate consumption of food - something like at this point - if some 3x3 kernel on the food result in some value above a threshold, then the cell has consumed the food
-        #In that case remove the food and add 1 to the value of the cell at the exact same location - does it learn to grow from this?
-
         if self.evolution: #only for evolution
             x[:, 0] = torch.clamp(x[:, 0], 0.0, 1.0)
             current_living = self.living_cells_above(cell[:, 0:1], 0.1)
             x = self.keep_k_largest(x, current_living)
             x = self.detect_rulebreaks(cell, x)
-        return x, food
+        return x, scent
         
     def forward(self, cell: torch.Tensor, food: torch.Tensor, steps: int):
         if self.toxic:
