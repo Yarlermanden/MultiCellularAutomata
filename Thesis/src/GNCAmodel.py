@@ -77,10 +77,8 @@ class GNCA(nn.Module):
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
-
         #optionally compute losses
 
         for i in range(time_steps):
             graph = self.update(graph)
-
         return graph
