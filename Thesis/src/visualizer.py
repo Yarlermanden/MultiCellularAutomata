@@ -33,10 +33,12 @@ class Visualizer():
 
     def animate_organism(self, graph, model):
         self.graph = graph
+        self.plot_organism(graph.clone().detach().cpu())
+
         @torch.no_grad()
         def animate(i):
             self.graph = model(self.graph,1)
-            self.plot_organism(self.graph)
+            self.plot_organism(self.graph.clone().detach().cpu())
 
         anim = animation.FuncAnimation(self.figure, animate, frames=50, interval=150).to_jshtml()
         return anim

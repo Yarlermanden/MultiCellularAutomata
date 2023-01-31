@@ -22,7 +22,7 @@ from graphUtils import add_edges
 
 
 class GNCA(nn.Module):
-    def __init__(self, device, channels):
+    def __init__(self, device, channels=5):
         #batching?
         super(GNCA, self).__init__()
         self.device = device
@@ -45,21 +45,17 @@ class GNCA(nn.Module):
     def update_velocity(self, graph, acceleration):
         velocity = graph.x[:, 2:4] + acceleration #update velocity
         velocity = torch.clamp(velocity, -self.max_velocity, self.max_velocity)
-        #velocity = torch.min(self.max_velocity, velocity)
-        #velocity = torch.max(-self.max_velocity, velocity)
         return velocity
 
     def update_positions(self, graph, velocity):
         positions = graph.x[:, :2] + velocity #update position
         positions = torch.clamp(positions, -self.max_pos, self.max_pos)
-        #positions = torch.min(self.max_pos, positions)
-        #positions = torch.max(-self.max_pos, positions)
         return positions
 
     def update(self, graph):
         '''Update the graph a single time step'''
         #dynamically add all the edges...
-        graph = add_edges(graph, self.radius)
+        graph = add_edges(graph, self.radius, self.device)
 
         #convolve to update the acceleration... + check if legal
         acceleration = self.convolve(graph) * self.acceleration_scale
@@ -72,7 +68,7 @@ class GNCA(nn.Module):
         graph.x[:, :2] = positions
 
         #TODO check for whether food can be consumed
-
+        graph = graph.to(device=self.device)
         return graph
 
     def forward(self, graph, time_steps = 1):

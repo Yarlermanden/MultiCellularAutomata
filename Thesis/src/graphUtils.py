@@ -1,6 +1,6 @@
 import torch
 
-def add_edges(graph, radius):
+def add_edges(graph, radius, device):
     '''Add edges dynamically according to radius. '''
     edges = []
 
@@ -16,7 +16,7 @@ def add_edges(graph, radius):
                 edges.append([i, j])
                 edges.append([j, i])
 
-    graph.edge_index = torch.tensor(edges).T
+    graph.edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
     return graph
 
 #consume food

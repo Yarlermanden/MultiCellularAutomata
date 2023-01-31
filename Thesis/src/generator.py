@@ -3,14 +3,14 @@ from organism import Organism
 import random
 
 #generate random organism
-def generate_organism(n: int):
+def generate_organism(n: int, device):
     cells = []
     for i in range(n):
         x = random.uniform(0, 0.1)
         y = random.uniform(0, 0.1)
         cell = Cell([x,y])
         cells.append(cell)
-    organism = Organism(cells)
+    organism = Organism(cells, device)
     return organism
 
 
