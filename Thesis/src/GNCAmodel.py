@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import math
 import torch_geometric
 from torch_geometric.nn import GCNConv
-from graphUtils import add_edges
+from graphUtils import add_edges, add_random_food
 
 #all of the usual pytorch model stuff + pytorch_geometric stuff
 
@@ -28,7 +28,7 @@ class GNCA(nn.Module):
         self.device = device
 
         self.radius = 0.05
-        self.acceleration_scale = 0.01
+        self.acceleration_scale = 0.02
         self.max_velocity = 0.1
         self.max_pos = 1
 
@@ -58,6 +58,8 @@ class GNCA(nn.Module):
 
         acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
 
+        #TODO mask away acceleration from food sources - such that they can't move ....
+
         #compute the velocity and position + check if legal
         velocity = self.update_velocity(graph, acceleration)
         positions = self.update_positions(graph, velocity)
@@ -84,7 +86,11 @@ class GNCA(nn.Module):
         position_penalty = torch.tensor([0.0,0.0], device=self.device)
         border_costs = 0
 
+        #add_random_food(graph, 2)
+
         for i in range(time_steps):
+            if i % 30 == 0:
+                add_random_food(graph)
             graph, velocity, position, border_cost = self.update(graph)
             velocity_bonus += velocity
             position_penalty += position

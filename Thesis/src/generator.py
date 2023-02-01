@@ -1,6 +1,7 @@
 from cell import Cell
 from organism import Organism
 import random
+import torch
 
 #generate random organism
 def generate_organism(n: int, device):
@@ -16,5 +17,7 @@ def generate_organism(n: int, device):
 
 #generate random food as a node
 def generate_food():
-    ...
-
+    x = random.uniform(0, 1)
+    y = random.uniform(0, 1)
+    food = torch.tensor([[x,y, 0, 0, 0]])
+    return food

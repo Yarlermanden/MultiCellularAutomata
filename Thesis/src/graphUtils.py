@@ -1,4 +1,5 @@
 import torch
+from generator import generate_food
 
 def add_edges(graph, radius, device):
     '''Add edges dynamically according to radius. '''
@@ -19,10 +20,19 @@ def add_edges(graph, radius, device):
     graph.edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
     return graph
 
+def add_food(graph, food):
+    '''Add food source as node to graph'''
+    graph.x = torch.cat((graph.x, food))
+
+def add_random_food(graph, n=1):
+    '''Add n random food sources as nodes to the graph'''
+    for i in range(n):
+        food = generate_food()
+        add_food(graph, food)
+
 #consume food
 def consume_food(graph, food):
-    #convert food to regular cell-node
-    ...
-
+    '''Consumes the food source and convert it to regular cell-node'''
+    food[4] = 1
     #also need to add new food source... - maybe not in here
 
