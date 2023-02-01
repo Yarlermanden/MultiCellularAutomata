@@ -27,7 +27,7 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.device = device
 
-        self.radius = 0.02
+        self.radius = 0.05
         self.acceleration_scale = 0.02
         self.max_velocity = 0.1
         self.max_pos = 1
@@ -78,13 +78,16 @@ class GNCA(nn.Module):
         #node_indices_to_remove = torch.nonzero(mask)
         node_indices_to_keep = torch.nonzero(mask.bitwise_not())
 
-        graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], -1)
+        graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
+        #graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], -1)
         #graph.x = graph.x[node_indices_to_keep, :].squeeze()
         return len(cell_mask) - len(graph.x)
 
     def update(self, graph):
         '''Update the graph a single time step'''
-        add_edges(graph, self.radius, self.device) #dynamically add edges
+        any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
+        if not any_edges:
+            return graph, 0, 0, 0, 0, 0
             
         food_mask = self.mask_food(graph)
 

@@ -44,7 +44,7 @@ class Custom_NEProblem(NEProblem):
         #distance cost
         #velocity bonus
         #position cost
-        return velocity_bonus.sum()*2 - border_cost + food_reward - dead_cost
+        return velocity_bonus.sum()*2 - border_cost + food_reward - dead_cost/2
 
         #return velocity_bonus.sum() - position_penalty.log().sum()
         #return -(velocity_bonus * position_penalty.log()).sum()*100
