@@ -31,7 +31,7 @@ class Visualizer():
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
-    def animate_organism(self, graph, model):
+    def animate_organism(self, graph, model, frames=50, interval=150):
         self.graph = graph
         self.plot_organism(graph.clone().detach().cpu())
 
@@ -40,5 +40,5 @@ class Visualizer():
             self.graph, _, _ = model(self.graph,1)
             self.plot_organism(self.graph.clone().detach().cpu())
 
-        anim = animation.FuncAnimation(self.figure, animate, frames=50, interval=150).to_jshtml()
+        anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval).to_jshtml()
         return anim

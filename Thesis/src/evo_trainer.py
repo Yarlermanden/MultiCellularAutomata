@@ -45,8 +45,8 @@ class Custom_NEProblem(NEProblem):
         #velocity bonus
         #position cost
 
-        #return velocity_bonus.sum() - position_penalty.sum()
-        return -velocity_bonus.sum()*100 * position_penalty.log().sum()
+        #return velocity_bonus.sum() - position_penalty.log().sum()
+        return -(velocity_bonus * position_penalty.log()).sum()*100
 
 class Evo_Trainer():
     def __init__(self, n, device):
@@ -71,12 +71,12 @@ class Evo_Trainer():
         self.logger_df = None
         self.trained_network = None
 
-    def train(self, n=1000):
+    def train(self, n=1000, name='test1'):
         self.searcher.run(n)
         self.logger_df = self.logger.to_dataframe()
-        self.logger_df.to_csv('../logger/evo1.csv')
+        self.logger_df.to_csv('../logger/' + name + '.csv')
         self.trained_network = self.problem.parameterize_net(self.searcher.status['center'])
-        torch.save(self.trained_network.state_dict(), '../models/evo1.pth')
+        torch.save(self.trained_network.state_dict(), '../models/' + name + '.pth')
 
     def visualize_training(self):
         logger_df = self.logger_df.groupby(np.arange(len(logger_df))).mean()
