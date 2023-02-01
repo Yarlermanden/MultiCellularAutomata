@@ -32,7 +32,7 @@ class Visualizer():
                 graph.x[foodIndices, 0],
                 graph.x[foodIndices, 1],
                 marker=".",
-                edgecolor="g",
+                edgecolor="r",
                 lw=0.5,
                 #**kwargs
             )

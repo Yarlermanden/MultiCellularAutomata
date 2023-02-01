@@ -7,20 +7,6 @@ import torch_geometric
 from torch_geometric.nn import GCNConv
 from graphUtils import add_edges, add_random_food, consume_food
 
-#all of the usual pytorch model stuff + pytorch_geometric stuff
-
-
-#forward method with number of time steps
-
-#update method for updating a single timestep
-#add edges dynamically using graphUtils
-
-#method for updating velocity - machine learning - gcn
-
-#method for updating location from velocity
-#check for if food can be consumed
-
-
 class GNCA(nn.Module):
     def __init__(self, device, channels=5):
         #batching?
@@ -61,7 +47,6 @@ class GNCA(nn.Module):
         food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
         edges_pr_node = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0])
 
-        #for (index, count) in [foodIndices, edges_pr_node[foodIndices]]:
         for index in food_indices:
             count = edges_pr_node[index]
             if count > 4:
@@ -72,15 +57,16 @@ class GNCA(nn.Module):
     def remove_island_cells(self, graph):
         '''Remove cells without any edges'''
         cell_mask = graph.x[:, 4] == 1
+        
+        cell_edge_indices = torch.nonzero(graph.edge_attr[:, 1] == 1).flatten()
+
         #zero_edge_mask = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0]) == 0
-        zero_edge_mask = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0]) < 3
+        #zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < 2
+        zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) == 0
         mask = torch.bitwise_and(cell_mask, zero_edge_mask)
-        #node_indices_to_remove = torch.nonzero(mask)
         node_indices_to_keep = torch.nonzero(mask.bitwise_not())
 
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
-        #graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], -1)
-        #graph.x = graph.x[node_indices_to_keep, :].squeeze()
         return len(cell_mask) - len(graph.x)
 
     def update(self, graph):
