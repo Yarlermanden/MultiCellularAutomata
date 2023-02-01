@@ -15,7 +15,7 @@ class GlobalVarActor():
         self.time_steps = self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(25, 50)
+        self.time_steps = np.random.randint(25, 100)
 
     def get_global_var(self):
         return self.time_steps
@@ -38,15 +38,17 @@ class Custom_NEProblem(NEProblem):
         organism = generate_organism(self.n, self.device)
         graph = organism.toGraph()
 
-        graph, velocity_bonus, position_penalty = network(graph, steps)
+        graph, velocity_bonus, position_penalty, border_cost = network(graph, steps)
 
         #compute fitness
         #distance cost
         #velocity bonus
         #position cost
 
+        return velocity_bonus.sum()*2 - border_cost
+
         #return velocity_bonus.sum() - position_penalty.log().sum()
-        return -(velocity_bonus * position_penalty.log()).sum()*100
+        #return -(velocity_bonus * position_penalty.log()).sum()*100
 
 class Evo_Trainer():
     def __init__(self, n, device):

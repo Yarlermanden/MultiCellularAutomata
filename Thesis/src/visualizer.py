@@ -37,7 +37,7 @@ class Visualizer():
 
         @torch.no_grad()
         def animate(i):
-            self.graph, _, _ = model(self.graph,1)
+            self.graph, *_ = model(self.graph,1)
             self.plot_organism(self.graph.clone().detach().cpu())
 
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval).to_jshtml()

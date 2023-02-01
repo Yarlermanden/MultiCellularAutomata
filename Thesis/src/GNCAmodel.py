@@ -49,7 +49,7 @@ class GNCA(nn.Module):
 
     def update_positions(self, graph, velocity):
         positions = graph.x[:, :2] + velocity #update position
-        positions = torch.clamp(positions, -self.max_pos, self.max_pos)
+        #positions = torch.clamp(positions, -self.max_pos, self.max_pos)
         return positions
 
     def update(self, graph):
@@ -65,20 +65,29 @@ class GNCA(nn.Module):
         graph.x[:, 2:4] = velocity
         graph.x[:, :2] = positions
 
+        maskX = graph.x[:, 0].abs() > 1
+        maskY = graph.x[:, 1].abs() > 1
+        border_costX = graph.x[:, 0].abs().log() * maskX.to(torch.float) 
+        border_costY = graph.x[:, 1].abs().log() * maskY.to(torch.float)
+        border_cost = (border_costX.sum() + border_costY.sum())
+        #position_cost = graph.x[:, :2].abs().log()
+
         #TODO check for whether food can be consumed
 
         graph = graph.to(device=self.device)
-        return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0)
+        return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0), border_cost
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
         #optionally compute losses
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device)
         position_penalty = torch.tensor([0.0,0.0], device=self.device)
+        border_costs = 0
 
         for i in range(time_steps):
-            graph, velocity, position = self.update(graph)
+            graph, velocity, position, border_cost = self.update(graph)
             velocity_bonus += velocity
             position_penalty += position
+            border_costs += border_cost
 
-        return graph, velocity_bonus, position_penalty
+        return graph, velocity_bonus, position_penalty, border_costs
