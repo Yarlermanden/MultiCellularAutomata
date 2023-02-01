@@ -27,7 +27,7 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.device = device
 
-        self.radius = 0.05
+        self.radius = 0.02
         self.acceleration_scale = 0.02
         self.max_velocity = 0.1
         self.max_pos = 1
@@ -52,11 +52,18 @@ class GNCA(nn.Module):
         #positions = torch.clamp(positions, -self.max_pos, self.max_pos)
         return positions
 
+    def mask_food(self, graph):
+        '''Used to get mask to only update all cell nodes - aka not food sources'''
+        mask = graph.x[:, 4] == 1
+        return mask.to(torch.float)
+
     def update(self, graph):
         '''Update the graph a single time step'''
         graph = add_edges(graph, self.radius, self.device) #dynamically add edges
+        food_mask = self.mask_food(graph)
 
         acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
+        acceleration = acceleration * torch.stack((food_mask, food_mask), dim=1)
 
         #TODO mask away acceleration from food sources - such that they can't move ....
 

@@ -10,24 +10,35 @@ class Visualizer():
         self.graph = None
         canvas_scale = 1
         self.borders = canvas_scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
-        self.scatter = None
+        self.scatter_cell = None
+        self.scatter_food = None
 
     def plot_organism(self, graph):
+        cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()
+        foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
         if self.figure is None:
             plt.ion()
             self.figure = plt.figure()
             axes = plt.axes(xlim=self.borders[::2], ylim=self.borders[1::2])
-            self.scatter = axes.scatter(
-                graph.x[:, 0],
-                graph.x[:, 1],
+            self.scatter_cell = axes.scatter(
+                graph.x[cellIndices, 0],
+                graph.x[cellIndices, 1],
                 marker=".",
                 edgecolor="k",
                 lw=0.5,
                 #**kwargs
             )
-            # anim = animation.FuncAnimation(figure, animate, frames=50, interval=1)
+            self.scatter_food = axes.scatter(
+                graph.x[foodIndices, 0],
+                graph.x[foodIndices, 1],
+                marker=".",
+                edgecolor="g",
+                lw=0.5,
+                #**kwargs
+            )
             plt.show()
-        self.scatter.set_offsets(graph.x[:, :2])
+        self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
+        self.scatter_food.set_offsets(graph.x[foodIndices, :2])
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 

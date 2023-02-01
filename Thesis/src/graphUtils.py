@@ -3,6 +3,7 @@ from generator import generate_food
 
 def add_edges(graph, radius, device):
     '''Add edges dynamically according to radius. '''
+    #TODO add so the radius is larger if one of them is food source
     edges = []
 
     #maybe just return adjacency matrix of edges
