@@ -54,11 +54,9 @@ class GNCA(nn.Module):
 
     def update(self, graph):
         '''Update the graph a single time step'''
-        #dynamically add all the edges...
-        graph = add_edges(graph, self.radius, self.device)
+        graph = add_edges(graph, self.radius, self.device) #dynamically add edges
 
-        #convolve to update the acceleration... + check if legal
-        acceleration = self.convolve(graph) * self.acceleration_scale
+        acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
 
         #compute the velocity and position + check if legal
         velocity = self.update_velocity(graph, acceleration)
@@ -68,13 +66,19 @@ class GNCA(nn.Module):
         graph.x[:, :2] = positions
 
         #TODO check for whether food can be consumed
+
         graph = graph.to(device=self.device)
-        return graph
+        return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0)
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
         #optionally compute losses
+        velocity_bonus = torch.tensor([0.0,0.0], device=self.device)
+        position_penalty = torch.tensor([0.0,0.0], device=self.device)
 
         for i in range(time_steps):
-            graph = self.update(graph)
-        return graph
+            graph, velocity, position = self.update(graph)
+            velocity_bonus += velocity
+            position_penalty += position
+
+        return graph, velocity_bonus, position_penalty
