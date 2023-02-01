@@ -37,7 +37,7 @@ def add_random_food(graph, n=1):
         add_food(graph, food)
 
 #consume food
-def consume_food(graph, food):
+def consume_food(food):
     '''Consumes the food source and convert it to regular cell-node'''
     food[4] = 1
     #also need to add new food source... - maybe not in here
