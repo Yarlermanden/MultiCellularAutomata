@@ -71,27 +71,21 @@ class GNCA(nn.Module):
 
     def remove_island_cells(self, graph):
         '''Remove cells without any edges'''
-        cell_indices = torch.nonzero(graph.x[:, 4] == 1).flatten()
-        edges_pr_node = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0])
-        print('cell_indices: ', cell_indices)
-        print('edges_pr_node: ', edges_pr_node)
+        cell_mask = graph.x[:, 4] == 1
+        #zero_edge_mask = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0]) == 0
+        zero_edge_mask = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0]) < 3
+        mask = torch.bitwise_and(cell_mask, zero_edge_mask)
+        #node_indices_to_remove = torch.nonzero(mask)
+        node_indices_to_keep = torch.nonzero(mask.bitwise_not())
 
-        #cell_indices_without_edge = edges_pr_node[
-        nodes_indices_without_edges = torch.nonzero(edges_pr_node < 5)
-        print('nodes_indices_without_edges: ', nodes_indices_without_edges)
-
-        mask = torch.zeros(size=(2, graph.x.shape[0]), dtype=torch.bool)
-        mask[0, cell_indices] = 1
-        mask[1, nodes_indices_without_edges] = 1
-        nodes_to_remove = torch.bitwise_and(mask[0], mask[1])
-        #nodes_to_remove = cell_indices.__and__(nodes_indices_without_edges)
-
-        #nodes_to_be_removed = cell_indices[edges_pr_node[cell_indices] == 0]
-        print('nodes_to_be_removed: ', nodes_to_remove)
+        graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], -1)
+        #graph.x = graph.x[node_indices_to_keep, :].squeeze()
+        return len(cell_mask) - len(graph.x)
 
     def update(self, graph):
         '''Update the graph a single time step'''
-        graph = add_edges(graph, self.radius, self.device) #dynamically add edges
+        add_edges(graph, self.radius, self.device) #dynamically add edges
+            
         food_mask = self.mask_food(graph)
 
         acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
@@ -112,12 +106,12 @@ class GNCA(nn.Module):
         border_costY = graph.x[:, 1].abs().log() * maskY.to(torch.float)
         border_cost = (border_costX.sum() + border_costY.sum())
 
-        #self.remove_island_cells(graph)
-
         food_reward = self.consume_food_if_possible(graph)
 
+        dead_cost = self.remove_island_cells(graph)
+
         graph = graph.to(device=self.device)
-        return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0), border_cost, food_reward
+        return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0), border_cost, food_reward, dead_cost
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
@@ -126,16 +120,20 @@ class GNCA(nn.Module):
         position_penalty = torch.tensor([0.0,0.0], device=self.device)
         border_costs = 0
         food_rewards = 0
+        dead_costs = 0
 
         #add_random_food(graph, 2)
 
         for i in range(time_steps):
+            if len(graph.x) < 3:
+                break
             if i % 30 == 0:
                 add_random_food(graph)
-            graph, velocity, position, border_cost, food_reward = self.update(graph)
+            graph, velocity, position, border_cost, food_reward, dead_cost = self.update(graph)
             velocity_bonus += velocity
             position_penalty += position
             border_costs += border_cost
             food_rewards += food_reward
+            dead_costs += dead_cost
 
-        return graph, velocity_bonus, position_penalty, border_costs, food_rewards
+        return graph, velocity_bonus, position_penalty, border_costs, food_rewards, dead_costs

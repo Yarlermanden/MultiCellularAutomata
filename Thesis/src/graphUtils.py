@@ -22,9 +22,9 @@ def add_edges(graph, radius, device):
             if dist < radius_to_use:
                 edges.append([i, j])
                 edges.append([j, i])
-
+    if len(edges) == 0:
+        return
     graph.edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
-    return graph
 
 def add_food(graph, food):
     '''Add food source as node to graph'''
