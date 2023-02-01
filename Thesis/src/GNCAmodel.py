@@ -32,9 +32,6 @@ class GNCA(nn.Module):
         self.max_velocity = 0.1
         self.max_pos = 1
 
-        #layer setup
-        #self.conv_layers1 = GCNConv(in_channels=channels, out_channels=channels)
-        #self.conv_layers2 = GCNConv(in_channels=channels, out_channels=1)
         self.conv_layers = GCNConv(in_channels=channels, out_channels=2)
 
     def convolve(self, graph):
@@ -79,8 +76,8 @@ class GNCA(nn.Module):
         border_costX = graph.x[:, 0].abs().log() * maskX.to(torch.float) 
         border_costY = graph.x[:, 1].abs().log() * maskY.to(torch.float)
         border_cost = (border_costX.sum() + border_costY.sum())
-        #position_cost = graph.x[:, :2].abs().log()
 
+        #TODO should check if food can be consumed - this could be done either through lowest distance to food, through count of edges with distance below something or through number of edges to food source...
         #TODO check for whether food can be consumed
 
         graph = graph.to(device=self.device)
