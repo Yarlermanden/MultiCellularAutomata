@@ -17,7 +17,7 @@ def add_edges(graph, radius, device):
     n = len(graph.x)
     for i in range(n):
         isFood_i = graph.x[i, 4] == 0
-        for j in range(i, n):
+        for j in range(i+1, n):
             isFood_j = graph.x[j, 4] == 0
             if isFood_i and isFood_j: 
                 continue #two food sources cannot have edges to each other
@@ -57,7 +57,6 @@ def consume_food(graph, food_index, energy_required=4):
     graph.attr[0] += 1
 
     if graph.attr[0] == energy_required:
-        print('grow cell')
         graph.attr[0] -= energy_required
         graph.x[food_index, 4] = 1
     else: #kill

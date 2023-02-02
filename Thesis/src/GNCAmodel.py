@@ -19,6 +19,7 @@ class GNCA(nn.Module):
         self.max_pos = 1
         self.consumption_edge_required = 5
         self.edges_to_stay_alive = 2
+        self.energy_required = 4
 
         self.conv_layers = GCNConv(in_channels=channels, out_channels=2)
 
@@ -47,9 +48,14 @@ class GNCA(nn.Module):
         #consume food if possible
         food_reward = 0
         
-        edges_pr_node = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0])
         food_mask = graph.x[:, 4] == 0
+        edges_pr_node = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0])
         edge_mask = edges_pr_node >= self.consumption_edge_required
+        if len(edges_pr_node) != len(food_mask):
+            print('graph.x shape: ', graph.x.shape)
+            print('edge_index shape: ', graph.edge_index.shape)
+            print('edge_mask', edge_mask)
+            print('food_mask: ', food_mask)
         consumption_mask = torch.bitwise_and(food_mask, edge_mask)
 
         consumption_indices = torch.nonzero(consumption_mask).flatten()
@@ -57,16 +63,9 @@ class GNCA(nn.Module):
         index_reduction = 0
         for index in consumption_indices:
             consume_food(graph, index-index_reduction)
-            if graph.attr[0] < 3:
+            if graph.attr[0] < self.energy_required:
                 index_reduction += 1 #we know node will be removed
             food_reward += 1
-
-        #food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
-        #for index in food_indices:
-        #    count = edges_pr_node[index]
-        #    if count >= self.consumption_edge_required:
-        #        consume_food(graph, index)
-        #        food_reward += 1
         return food_reward
 
     def remove_island_cells(self, graph):
@@ -81,9 +80,27 @@ class GNCA(nn.Module):
         node_indices_to_keep = torch.nonzero(mask.bitwise_not())
 
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
-        if len(cell_mask) - len(graph.x) > 0:
-            print('removed cells')
-        return len(cell_mask) - len(graph.x)
+        nodes_removed = len(cell_mask) - len(graph.x)
+        if nodes_removed == 0:
+            return nodes_removed
+
+        return nodes_removed
+
+        #TODO need to remove all edges connected to this node - node-cell and cell-cell edges...
+        #find indices of all edges, which is connected to these nodes and remove them from both edge_index and edge_attr
+        edges_mask1 = torch.isin(graph.edge_index[0], node_indices_to_keep)
+        edges_mask2 = torch.isin(graph.edge_index[1], node_indices_to_keep)
+        edges_mask = torch.bitwise_or(edges_mask1, edges_mask2)
+        #edges1 = graph.edge_index[graph.edge_index[0] == node_indices_to_keep]
+        #edges2 = graph.edge_index[graph.edge_index[1] == node_indices_to_keep]
+
+        graph.edge_index = graph.edge_index[:, edges_mask]
+
+        #edge_attr1 = graph.edge_attr[graph.edge_index[0] == node_indices_to_keep]
+        #edge_attr2 = graph.edge_attr[graph.edge_index[1] == node_indices_to_keep]
+        #graph.edge_attr = torch.concat((edge_attr1, edge_attr2))
+        graph.edge_attr = graph.edge_attr[edges_mask]
+        return nodes_removed
 
     def update(self, graph):
         '''Update the graph a single time step'''
@@ -111,11 +128,13 @@ class GNCA(nn.Module):
         border_costY = graph.x[:, 1].abs().log() * maskY.to(torch.float)
         border_cost = (border_costX.sum() + border_costY.sum())
 
-        food_reward = self.consume_food_if_possible(graph)
-
         dead_cost = self.remove_island_cells(graph)
-
-        graph = graph.to(device=self.device)
+        #really bad practice
+        any_edges = add_edges(graph, self.radius, self.device)
+        food_reward = 0
+        if any_edges:
+            food_reward = self.consume_food_if_possible(graph)
+            graph = graph.to(device=self.device)
         return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0), border_cost, food_reward, dead_cost
 
     def forward(self, graph, time_steps = 1):
