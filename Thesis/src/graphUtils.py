@@ -1,11 +1,18 @@
 import torch
 from generator import generate_food
+import random
 
 def add_edges(graph, radius, device):
     '''Add edges dynamically according to radius. '''
     edges = []
     edge_attributes = []
-    radius_food = radius*2
+    radius_food = radius*3
+
+    #get list of all cell-nodes
+    #for each - go through list of all nodes with index above this node and check for whether to add edge
+        #this outer loop only iterate all cell-nodes 
+        #and inner loop only iterates all nodes above - so only one way
+        #this will miss all edges between food and a cell noce with higher index...
 
     n = len(graph.x)
     for i in range(n):
@@ -45,8 +52,13 @@ def add_random_food(graph, n=1):
         add_food(graph, food)
 
 #consume food
-def consume_food(food):
+def consume_food(graph, food_index, energy_required=4):
     '''Consumes the food source and convert it to regular cell-node'''
-    food[4] = 1
-    #also need to add new food source... - maybe not in here
+    graph.attr[0] += 1
 
+    if graph.attr[0] == energy_required:
+        print('grow cell')
+        graph.attr[0] -= energy_required
+        graph.x[food_index, 4] = 1
+    else: #kill
+        graph.x = torch.cat((graph.x[:food_index], graph.x[food_index+1:]))

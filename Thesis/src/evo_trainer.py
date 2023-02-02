@@ -44,13 +44,13 @@ class Custom_NEProblem(NEProblem):
         #distance cost
         #velocity bonus
         #position cost
-        return velocity_bonus.sum()*2 - border_cost + food_reward - dead_cost/2
+        return velocity_bonus.sum()*2 - border_cost + food_reward*4 - dead_cost/2
 
         #return velocity_bonus.sum() - position_penalty.log().sum()
         #return -(velocity_bonus * position_penalty.log()).sum()*100
 
 class Evo_Trainer():
-    def __init__(self, n, device):
+    def __init__(self, n, device, popsize=10):
         self.problem = Custom_NEProblem(
             n=n,
             device=device,
@@ -63,7 +63,7 @@ class Evo_Trainer():
         self.searcher = CMAES(
             self.problem,
             stdev_init=torch.tensor(0.1),
-            popsize=10,
+            popsize=popsize,
         )
         self.searcher.before_step_hook.append(before_epoch)
 

@@ -17,6 +17,8 @@ class GNCA(nn.Module):
         self.acceleration_scale = 0.02
         self.max_velocity = 0.1
         self.max_pos = 1
+        self.consumption_edge_required = 5
+        self.edges_to_stay_alive = 2
 
         self.conv_layers = GCNConv(in_channels=channels, out_channels=2)
 
@@ -44,14 +46,27 @@ class GNCA(nn.Module):
         '''Consumes food if criteria is met and returns reward'''
         #consume food if possible
         food_reward = 0
-        food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
+        
         edges_pr_node = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0])
+        food_mask = graph.x[:, 4] == 0
+        edge_mask = edges_pr_node >= self.consumption_edge_required
+        consumption_mask = torch.bitwise_and(food_mask, edge_mask)
 
-        for index in food_indices:
-            count = edges_pr_node[index]
-            if count > 4:
-                consume_food(graph.x[index])
-                food_reward += 1
+        consumption_indices = torch.nonzero(consumption_mask).flatten()
+
+        index_reduction = 0
+        for index in consumption_indices:
+            consume_food(graph, index-index_reduction)
+            if graph.attr[0] < 3:
+                index_reduction += 1 #we know node will be removed
+            food_reward += 1
+
+        #food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
+        #for index in food_indices:
+        #    count = edges_pr_node[index]
+        #    if count >= self.consumption_edge_required:
+        #        consume_food(graph, index)
+        #        food_reward += 1
         return food_reward
 
     def remove_island_cells(self, graph):
@@ -61,12 +76,13 @@ class GNCA(nn.Module):
         cell_edge_indices = torch.nonzero(graph.edge_attr[:, 1] == 1).flatten()
 
         #zero_edge_mask = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0]) == 0
-        #zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < 2
-        zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) == 0
+        zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < self.edges_to_stay_alive
         mask = torch.bitwise_and(cell_mask, zero_edge_mask)
         node_indices_to_keep = torch.nonzero(mask.bitwise_not())
 
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
+        if len(cell_mask) - len(graph.x) > 0:
+            print('removed cells')
         return len(cell_mask) - len(graph.x)
 
     def update(self, graph):
@@ -116,7 +132,7 @@ class GNCA(nn.Module):
         for i in range(time_steps):
             if len(graph.x) < 3:
                 break
-            if i % 30 == 0:
+            if i % 40 == 0:
                 add_random_food(graph)
             graph, velocity, position, border_cost, food_reward, dead_cost = self.update(graph)
             velocity_bonus += velocity
