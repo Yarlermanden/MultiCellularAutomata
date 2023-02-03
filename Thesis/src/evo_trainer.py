@@ -15,7 +15,7 @@ class GlobalVarActor():
         self.time_steps = self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(25, 100)
+        self.time_steps = np.random.randint(75, 100)
 
     def get_global_var(self):
         return self.time_steps
@@ -27,10 +27,8 @@ global_var = GlobalVarActor.remote()
 ray.get(global_var.set_global_var.remote())
 
 class Custom_NEProblem(NEProblem):
-    def __init__(self, n, device, objective_sense, network, network_args, num_actors):
-    #def __init__(self, n, device, **kwargs):
-        super(Custom_NEProblem, self).__init__(objective_sense=objective_sense, network=network, network_args=network_args, device=device, num_actors=num_actors)
-        #super(Custom_NEProblem, self).__init__(**kwargs)
+    def __init__(self, n, **kwargs):
+        super(Custom_NEProblem, self).__init__(**kwargs)
         self.n = n
 
     def _evaluate_network(self, network: torch.nn.Module):
@@ -44,7 +42,7 @@ class Custom_NEProblem(NEProblem):
         #distance cost
         #velocity bonus
         #position cost
-        return velocity_bonus.sum()*2 - border_cost + food_reward*4 - dead_cost/2
+        return velocity_bonus.sum() - border_cost + food_reward*4 - dead_cost/2
 
         #return velocity_bonus.sum() - position_penalty.log().sum()
         #return -(velocity_bonus * position_penalty.log()).sum()*100

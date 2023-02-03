@@ -4,8 +4,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 import torch_geometric
-from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GCNConv, EdgeConv
 from graphUtils import add_edges, add_random_food, consume_food
+
+class Mlp(nn.Module):
+    def __init__(self, input: int, output: int):
+        super(Mlp, self).__init__()
+        self.mlp1 = nn.Linear(input, input)
+        self.mlp2 = nn.Linear(input, input)
+        self.mlp3 = nn.Linear(input, output)
+    
+    def forward(self, x):
+        x = torch.relu(self.mlp1(x))
+        x = torch.relu(self.mlp2(x))
+        x = self.mlp3(x)
+        return x
 
 class GNCA(nn.Module):
     def __init__(self, device, channels=5):
@@ -18,10 +31,14 @@ class GNCA(nn.Module):
         self.max_velocity = 0.1
         self.max_pos = 1
         self.consumption_edge_required = 5
-        self.edges_to_stay_alive = 2
+        self.edges_to_stay_alive = 1
         self.energy_required = 4
 
-        self.conv_layers = GCNConv(in_channels=channels, out_channels=2)
+        #self.conv_layers = GCNConv(in_channels=channels, out_channels=2)
+        self.input_channels = channels
+        self.output_channels = 2
+        self.mlp = Mlp(self.input_channels*2, self.output_channels)
+        self.conv_layers = EdgeConv(self.mlp)
 
     def convolve(self, graph):
         '''Convolves the graph for message passing'''
@@ -74,7 +91,6 @@ class GNCA(nn.Module):
         
         cell_edge_indices = torch.nonzero(graph.edge_attr[:, 1] == 1).flatten()
 
-        #zero_edge_mask = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0]) == 0
         zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < self.edges_to_stay_alive
         mask = torch.bitwise_and(cell_mask, zero_edge_mask)
         node_indices_to_keep = torch.nonzero(mask.bitwise_not())
@@ -151,7 +167,7 @@ class GNCA(nn.Module):
         for i in range(time_steps):
             if len(graph.x) < 3:
                 break
-            if i % 40 == 0:
+            if i % 10 == 0:
                 add_random_food(graph)
             graph, velocity, position, border_cost, food_reward, dead_cost = self.update(graph)
             velocity_bonus += velocity
