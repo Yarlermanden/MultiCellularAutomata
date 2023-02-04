@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 import torch_geometric
-from torch_geometric.nn import GCNConv, EdgeConv
+from torch_geometric.nn import GCNConv, EdgeConv, NNConv
 from graphUtils import add_edges, add_random_food, consume_food
 
 class Mlp(nn.Module):
@@ -27,22 +27,29 @@ class GNCA(nn.Module):
         self.device = device
 
         self.radius = 0.05
-        self.acceleration_scale = 0.02
+        self.acceleration_scale = 0.01
         self.max_velocity = 0.1
         self.max_pos = 1
-        self.consumption_edge_required = 5
+        self.consumption_edge_required = 3
         self.edges_to_stay_alive = 1
-        self.energy_required = 4
+        self.energy_required = 5
 
         #self.conv_layers = GCNConv(in_channels=channels, out_channels=2)
         self.input_channels = channels
         self.output_channels = 2
-        self.mlp = Mlp(self.input_channels*2, self.output_channels)
-        self.conv_layers = EdgeConv(self.mlp)
+        #self.mlp = Mlp(self.input_channels*2, self.output_channels)
+        #self.conv_layers = EdgeConv(self.mlp)
+
+        #self.mlp = Mlp(self.input_channels, self.output_channels)
+        #self.conv_layers = NNConv(self.input_channels, self.output_channels, self.mlp)
+        self.mlp = nn.Sequential(nn.Linear(2, 2), nn.ReLU(),
+                            nn.Linear(2, channels * self.output_channels))
+        self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='mean')
 
     def convolve(self, graph):
         '''Convolves the graph for message passing'''
-        h = self.conv_layers(graph.x, graph.edge_index)
+        #h = self.conv_layers(graph.x, graph.edge_index)
+        h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
         return h
 
     def update_velocity(self, graph, acceleration):

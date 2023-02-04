@@ -6,7 +6,7 @@ def add_edges(graph, radius, device):
     '''Add edges dynamically according to radius. '''
     edges = []
     edge_attributes = []
-    radius_food = radius*3
+    radius_food = radius*1
 
     #get list of all cell-nodes
     #for each - go through list of all nodes with index above this node and check for whether to add edge
