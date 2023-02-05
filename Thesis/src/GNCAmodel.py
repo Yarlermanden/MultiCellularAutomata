@@ -71,7 +71,8 @@ class GNCA(nn.Module):
         food_reward = 0
         
         food_mask = graph.x[:, 4] == 0
-        edges_pr_node = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0])
+        edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < self.radius).flatten()
+        edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
         edge_mask = edges_pr_node >= self.consumption_edge_required
         consumption_mask = torch.bitwise_and(food_mask, edge_mask)
         consumption_indices = torch.nonzero(consumption_mask).flatten()
