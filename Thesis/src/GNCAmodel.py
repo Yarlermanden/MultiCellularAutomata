@@ -59,7 +59,6 @@ class GNCA(nn.Module):
 
     def update_positions(self, graph, velocity):
         positions = graph.x[:, :2] + velocity #update position
-        #positions = torch.clamp(positions, -self.max_pos, self.max_pos)
         return positions
 
     def mask_food(self, graph):
@@ -69,19 +68,12 @@ class GNCA(nn.Module):
 
     def consume_food_if_possible(self, graph):
         '''Consumes food if criteria is met and returns reward'''
-        #consume food if possible
         food_reward = 0
         
         food_mask = graph.x[:, 4] == 0
         edges_pr_node = torch.bincount(graph.edge_index[0], minlength=graph.x.shape[0])
         edge_mask = edges_pr_node >= self.consumption_edge_required
-        if len(edges_pr_node) != len(food_mask):
-            print('graph.x shape: ', graph.x.shape)
-            print('edge_index shape: ', graph.edge_index.shape)
-            print('edge_mask', edge_mask)
-            print('food_mask: ', food_mask)
         consumption_mask = torch.bitwise_and(food_mask, edge_mask)
-
         consumption_indices = torch.nonzero(consumption_mask).flatten()
 
         index_reduction = 0
@@ -136,9 +128,6 @@ class GNCA(nn.Module):
         acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
         acceleration = acceleration * torch.stack((food_mask, food_mask), dim=1)
 
-        #TODO mask away acceleration from food sources - such that they can't move ....
-
-        #compute the velocity and position + check if legal
         velocity = self.update_velocity(graph, acceleration)
         positions = self.update_positions(graph, velocity)
 
@@ -152,8 +141,7 @@ class GNCA(nn.Module):
         border_cost = (border_costX.sum() + border_costY.sum())
 
         dead_cost = self.remove_island_cells(graph)
-        #really bad practice
-        any_edges = add_edges(graph, self.radius, self.device)
+        any_edges = add_edges(graph, self.radius, self.device) #TODO fix this bad practice code....
         food_reward = 0
         if any_edges:
             food_reward = self.consume_food_if_possible(graph)
@@ -169,13 +157,13 @@ class GNCA(nn.Module):
         food_rewards = 0
         dead_costs = 0
 
-        #add_random_food(graph, 2)
+        add_random_food(graph, 20)
 
         for i in range(time_steps):
             if len(graph.x) < 3:
                 break
-            if i % 10 == 0:
-                add_random_food(graph)
+            #if i % 10 == 0:
+            #    add_random_food(graph)
             graph, velocity, position, border_cost, food_reward, dead_cost = self.update(graph)
             velocity_bonus += velocity
             position_penalty += position

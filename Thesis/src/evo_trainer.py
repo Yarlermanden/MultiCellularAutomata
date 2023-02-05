@@ -38,14 +38,10 @@ class Custom_NEProblem(NEProblem):
 
         graph, velocity_bonus, position_penalty, border_cost, food_reward, dead_cost = network(graph, steps)
 
-        #compute fitness
-        #distance cost
-        #velocity bonus
-        #position cost
-        return velocity_bonus.sum() - border_cost + food_reward*8 - dead_cost/2
-
-        #return velocity_bonus.sum() - position_penalty.log().sum()
-        #return -(velocity_bonus * position_penalty.log()).sum()*100
+        fitness = velocity_bonus.sum() - border_cost + food_reward*8 - dead_cost/2
+        #fitness = torch.tensor([velocity_bonus.sum(), -border_cost, food_reward*8, -dead_cost/2])
+        #fitness = [velocity_bonus.sum(), -border_cost, food_reward*8, -dead_cost/2]
+        return fitness
 
 class Evo_Trainer():
     def __init__(self, n, device, popsize=10):

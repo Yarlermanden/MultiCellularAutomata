@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
+from graphUtils import add_edges, add_random_food, consume_food
 
 import torch
 
@@ -45,10 +46,11 @@ class Visualizer():
     def animate_organism(self, graph, model, frames=50, interval=150):
         self.graph = graph
         self.plot_organism(graph.clone().detach().cpu())
+        add_random_food(graph, 20)
 
         @torch.no_grad()
         def animate(i):
-            self.graph, *_ = model(self.graph,1)
+            self.graph, *_ = model.update(self.graph)
             self.plot_organism(self.graph.clone().detach().cpu())
 
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval).to_jshtml()
