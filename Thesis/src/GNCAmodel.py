@@ -42,7 +42,7 @@ class GNCA(nn.Module):
 
         #self.mlp = Mlp(self.input_channels, self.output_channels)
         #self.conv_layers = NNConv(self.input_channels, self.output_channels, self.mlp)
-        self.mlp = nn.Sequential(nn.Linear(2, 2), nn.ReLU(),
+        self.mlp = nn.Sequential(nn.Linear(2, 2), nn.ReLU(), nn.Linear(2,2), nn.ReLU(),
                             nn.Linear(2, channels * self.output_channels))
         self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='mean')
 
@@ -66,57 +66,22 @@ class GNCA(nn.Module):
         mask = graph.x[:, 4] == 1
         return mask.to(torch.float)
 
-    def consume_food_if_possible(self, graph):
+    def get_consume_food_mask(self, graph):
         '''Consumes food if criteria is met and returns reward'''
-        food_reward = 0
-        
         food_mask = graph.x[:, 4] == 0
         edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < self.radius).flatten()
         edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
         edge_mask = edges_pr_node >= self.consumption_edge_required
         consumption_mask = torch.bitwise_and(food_mask, edge_mask)
-        consumption_indices = torch.nonzero(consumption_mask).flatten()
+        return consumption_mask
 
-        index_reduction = 0
-        for index in consumption_indices:
-            consume_food(graph, index-index_reduction)
-            if graph.attr[0] < self.energy_required:
-                index_reduction += 1 #we know node will be removed
-            food_reward += 1
-        return food_reward
-
-    def remove_island_cells(self, graph):
+    def get_island_cells_mask(self, graph):
         '''Remove cells without any edges'''
         cell_mask = graph.x[:, 4] == 1
-        
         cell_edge_indices = torch.nonzero(graph.edge_attr[:, 1] == 1).flatten()
-
         zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < self.edges_to_stay_alive
         mask = torch.bitwise_and(cell_mask, zero_edge_mask)
-        node_indices_to_keep = torch.nonzero(mask.bitwise_not())
-
-        graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
-        nodes_removed = len(cell_mask) - len(graph.x)
-        if nodes_removed == 0:
-            return nodes_removed
-
-        return nodes_removed
-
-        #TODO need to remove all edges connected to this node - node-cell and cell-cell edges...
-        #find indices of all edges, which is connected to these nodes and remove them from both edge_index and edge_attr
-        edges_mask1 = torch.isin(graph.edge_index[0], node_indices_to_keep)
-        edges_mask2 = torch.isin(graph.edge_index[1], node_indices_to_keep)
-        edges_mask = torch.bitwise_or(edges_mask1, edges_mask2)
-        #edges1 = graph.edge_index[graph.edge_index[0] == node_indices_to_keep]
-        #edges2 = graph.edge_index[graph.edge_index[1] == node_indices_to_keep]
-
-        graph.edge_index = graph.edge_index[:, edges_mask]
-
-        #edge_attr1 = graph.edge_attr[graph.edge_index[0] == node_indices_to_keep]
-        #edge_attr2 = graph.edge_attr[graph.edge_index[1] == node_indices_to_keep]
-        #graph.edge_attr = torch.concat((edge_attr1, edge_attr2))
-        graph.edge_attr = graph.edge_attr[edges_mask]
-        return nodes_removed
+        return mask
 
     def update(self, graph):
         '''Update the graph a single time step'''
@@ -128,8 +93,8 @@ class GNCA(nn.Module):
 
         acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
         acceleration = acceleration * torch.stack((food_mask, food_mask), dim=1)
-
         velocity = self.update_velocity(graph, acceleration)
+        #velocity = self.convolve(graph) * 0.1 * torch.stack((food_mask, food_mask), dim=1)
         positions = self.update_positions(graph, velocity)
 
         graph.x[:, 2:4] = velocity
@@ -141,22 +106,26 @@ class GNCA(nn.Module):
         border_costY = graph.x[:, 1].abs().log() * maskY.to(torch.float)
         border_cost = (border_costX.sum() + border_costY.sum())
 
-        dead_cost = self.remove_island_cells(graph)
-        any_edges = add_edges(graph, self.radius, self.device) #TODO fix this bad practice code....
-        food_reward = 0
-        if any_edges:
-            food_reward = self.consume_food_if_possible(graph)
-            graph = graph.to(device=self.device)
+        dead_cells_mask = self.get_island_cells_mask(graph)
+        dead_cost = dead_cells_mask.sum()
+        consumed_mask = self.get_consume_food_mask(graph)
+        food_reward = consumed_mask.sum()
+
+        remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
+        node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
+        graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
+
+        graph.attr[0] += food_reward
+        #TODO add a new cell node pr x graph energy
+
+        graph = graph.to(device=self.device)
         return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0), border_cost, food_reward, dead_cost
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
-        #optionally compute losses
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device)
         position_penalty = torch.tensor([0.0,0.0], device=self.device)
-        border_costs = 0
-        food_rewards = 0
-        dead_costs = 0
+        border_costs, food_rewards, dead_costs = 0, 0, 0
 
         add_random_food(graph, 20)
 

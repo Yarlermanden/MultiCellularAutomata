@@ -17,6 +17,7 @@ def add_edges(graph, radius, device):
         if with_food:
             radius_to_use = radius_food
             cell_to_cell = 0
+        #dist = (((graph.x[i] - graph.x[j])**2).sum()) ** 0.5# - How is this not the same???
         distX = graph.x[i][0] - graph.x[j][0]
         distY = graph.x[i][1] - graph.x[j][1]
         dist = (distX**2 + distY**2)**0.5
@@ -51,8 +52,7 @@ def add_random_food(graph, n=1):
         food = generate_food()
         add_food(graph, food)
 
-#consume food
-def consume_food(graph, food_index, energy_required=4):
+def consume_food(graph, food_index, energy_required):
     '''Consumes the food source and convert it to regular cell-node'''
     graph.attr[0] += 1
 
