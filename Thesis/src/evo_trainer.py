@@ -36,7 +36,8 @@ class Custom_NEProblem(NEProblem):
         organism = generate_organism(self.n, self.device)
         graph = organism.toGraph()
 
-        graph, velocity_bonus, border_cost, food_reward, dead_cost = network(graph, steps)
+        with torch.no_grad():
+            graph, velocity_bonus, border_cost, food_reward, dead_cost = network(graph, steps)
 
         fitness = velocity_bonus.sum()/2 - border_cost + food_reward*30 - dead_cost
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan

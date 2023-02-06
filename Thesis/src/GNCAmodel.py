@@ -128,7 +128,7 @@ class GNCA(nn.Module):
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device)
         border_costs, food_rewards, dead_costs = 0, 0, 0
 
-        add_random_food(graph, 20)
+        add_random_food(graph, self.device, 20)
 
         for i in range(time_steps):
             if len(graph.x) < 3:
