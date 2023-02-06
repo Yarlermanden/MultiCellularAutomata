@@ -8,6 +8,7 @@ import ray
 
 from generator import generate_organism
 from GNCAmodel import GNCA
+from evotorch.decorators import vectorized, on_aux_device
 
 @ray.remote
 class GlobalVarActor():
@@ -31,6 +32,8 @@ class Custom_NEProblem(NEProblem):
         super(Custom_NEProblem, self).__init__(**kwargs)
         self.n = n
 
+    @vectorized
+    @on_aux_device
     def _evaluate_network(self, network: torch.nn.Module):
         steps = ray.get(global_var.get_global_var.remote())
         organism = generate_organism(self.n, self.device)
@@ -53,12 +56,13 @@ class Evo_Trainer():
             network=GNCA,
             network_args={'device': device},
             num_actors='max',
+            num_gpus_per_actor = 'max',
         )
-        self.device = device
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(0.1),
+            stdev_init=torch.tensor(0.1, dtype=torch.float),
             popsize=popsize,
+            limit_C_decomposition=False,
         )
         self.searcher.before_step_hook.append(before_epoch)
 
@@ -71,7 +75,7 @@ class Evo_Trainer():
         self.searcher.run(n)
         self.logger_df = self.logger.to_dataframe()
         self.logger_df.to_csv('../logger/' + name + '.csv')
-        self.trained_network = self.problem.parameterize_net(self.searcher.status['center'])
+        self.trained_network = self.problem.parameterize_net(self.searcher.status['center'][0])
         torch.save(self.trained_network.state_dict(), '../models/' + name + '.pth')
 
     def visualize_training(self):

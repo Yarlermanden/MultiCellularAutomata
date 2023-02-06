@@ -45,8 +45,9 @@ class Visualizer():
 
     def animate_organism(self, graph, model, frames=50, interval=150):
         self.graph = graph
+        #self.plot_organism(graph.clone().detach().cpu())
         self.plot_organism(graph.clone().detach().cpu())
-        add_random_food(graph, 20)
+        add_random_food(graph, torch.device('cpu'), 20)
 
         @torch.no_grad()
         def animate(i):
