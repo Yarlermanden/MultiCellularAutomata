@@ -11,12 +11,12 @@ class Mlp(nn.Module):
     def __init__(self, input: int, output: int):
         super(Mlp, self).__init__()
         self.mlp1 = nn.Linear(input, input)
-        self.mlp2 = nn.Linear(input, input)
+        #self.mlp2 = nn.Linear(input, input)
         self.mlp3 = nn.Linear(input, output)
     
     def forward(self, x):
         x = torch.relu(self.mlp1(x))
-        x = torch.relu(self.mlp2(x))
+        #x = torch.relu(self.mlp2(x))
         x = self.mlp3(x)
         return x
 
@@ -27,7 +27,7 @@ class GNCA(nn.Module):
         self.device = device
 
         self.radius = 0.05
-        self.acceleration_scale = 0.1
+        self.acceleration_scale = 0.4
         self.max_velocity = 0.1
         self.max_pos = 1
         self.consumption_edge_required = 3
@@ -36,20 +36,21 @@ class GNCA(nn.Module):
 
         #self.conv_layers = GCNConv(in_channels=channels, out_channels=2)
         self.input_channels = channels
-        self.output_channels = 2
+        self.output_channels = channels
         #self.mlp = Mlp(self.input_channels*2, self.output_channels)
         #self.conv_layers = EdgeConv(self.mlp)
 
+        self.mlp2 = Mlp(self.input_channels, 2)
         #self.mlp = Mlp(self.input_channels, self.output_channels)
         #self.conv_layers = NNConv(self.input_channels, self.output_channels, self.mlp)
-        self.mlp = nn.Sequential(nn.Linear(2, 2), nn.ReLU(), nn.Linear(2,2), nn.ReLU(),
-                            nn.Linear(2, channels * self.output_channels))
-        self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='mean')
+        self.mlp = nn.Sequential(nn.Linear(2, 2), nn.ReLU(), nn.Linear(2, channels * self.output_channels))
+        self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='add')
 
     def convolve(self, graph):
         '''Convolves the graph for message passing'''
         #h = self.conv_layers(graph.x, graph.edge_index)
         h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
+        h = self.mlp2(h)
         return h
 
     def update_velocity(self, graph, acceleration):
@@ -87,7 +88,7 @@ class GNCA(nn.Module):
         '''Update the graph a single time step'''
         any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
         if not any_edges:
-            return graph, 0, 0, 0, 0, 0
+            return graph, 0, 0, 0, 0
             
         food_mask = self.mask_food(graph)
 
@@ -100,10 +101,11 @@ class GNCA(nn.Module):
         graph.x[:, 2:4] = velocity
         graph.x[:, :2] = positions
 
+        epsilon = 0.000001 #Used to prevent taking log of 0.0 resulting in nan values
         maskX = graph.x[:, 0].abs() > 1
         maskY = graph.x[:, 1].abs() > 1
-        border_costX = graph.x[:, 0].abs().log() * maskX.to(torch.float) 
-        border_costY = graph.x[:, 1].abs().log() * maskY.to(torch.float)
+        border_costX = (graph.x[:, 0].abs()+epsilon).log() * maskX.to(torch.float)
+        border_costY = (graph.x[:, 1].abs()+epsilon).log() * maskY.to(torch.float)
         border_cost = (border_costX.sum() + border_costY.sum())
 
         dead_cells_mask = self.get_island_cells_mask(graph)
@@ -119,12 +121,11 @@ class GNCA(nn.Module):
         #TODO add a new cell node pr x graph energy
 
         graph = graph.to(device=self.device)
-        return graph, velocity.abs().mean(dim=0), positions.abs().mean(dim=0), border_cost, food_reward, dead_cost
+        return graph, velocity.abs().mean(dim=0), border_cost, food_reward, dead_cost
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device)
-        position_penalty = torch.tensor([0.0,0.0], device=self.device)
         border_costs, food_rewards, dead_costs = 0, 0, 0
 
         add_random_food(graph, 20)
@@ -134,11 +135,10 @@ class GNCA(nn.Module):
                 break
             #if i % 10 == 0:
             #    add_random_food(graph)
-            graph, velocity, position, border_cost, food_reward, dead_cost = self.update(graph)
+            graph, velocity, border_cost, food_reward, dead_cost = self.update(graph)
             velocity_bonus += velocity
-            position_penalty += position
             border_costs += border_cost
             food_rewards += food_reward
             dead_costs += dead_cost
 
-        return graph, velocity_bonus, position_penalty, border_costs, food_rewards, dead_costs
+        return graph, velocity_bonus, border_costs, food_rewards, dead_costs

@@ -15,7 +15,7 @@ class GlobalVarActor():
         self.time_steps = self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(150, 200)
+        self.time_steps = np.random.randint(50, 100)
 
     def get_global_var(self):
         return self.time_steps
@@ -36,12 +36,10 @@ class Custom_NEProblem(NEProblem):
         organism = generate_organism(self.n, self.device)
         graph = organism.toGraph()
 
-        graph, velocity_bonus, position_penalty, border_cost, food_reward, dead_cost = network(graph, steps)
+        graph, velocity_bonus, border_cost, food_reward, dead_cost = network(graph, steps)
 
-        fitness = velocity_bonus.sum() - border_cost + food_reward*8 - dead_cost/2
-        #fitness = torch.tensor([velocity_bonus.sum(), -border_cost, food_reward*8, -dead_cost/2])
-        #fitness = [velocity_bonus.sum(), -border_cost, food_reward*8, -dead_cost/2]
-        if torch.isnan(fitness):
+        fitness = velocity_bonus.sum()/2 - border_cost + food_reward*30 - dead_cost
+        if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             fitness = -1000
         return fitness
 

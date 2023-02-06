@@ -37,9 +37,11 @@ def add_edges(graph, radius, device):
             add_edge(cell_indices[i_i], cell_indices[i_j], False)
 
     if len(edges) == 0:
+        node_indices_to_keep = torch.nonzero(food_indices).flatten()
+        graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
         return False
     graph.edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
-    graph.edge_attr = torch.tensor(edge_attributes)
+    graph.edge_attr = torch.tensor(edge_attributes, device=device)
     return True
 
 def add_food(graph, food):
