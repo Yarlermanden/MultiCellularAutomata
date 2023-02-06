@@ -53,5 +53,8 @@ class Visualizer():
             self.graph, *_ = model.update(self.graph)
             self.plot_organism(self.graph.clone().detach().cpu())
 
-        anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval).to_jshtml()
+        anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval)
         return anim
+
+    def save_animation_to_gif(self, anim, name, fps=30):
+        anim.save('../animation/' + name + '.gif', writer='imagemagick', fps=fps)

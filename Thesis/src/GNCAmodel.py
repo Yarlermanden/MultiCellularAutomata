@@ -27,7 +27,7 @@ class GNCA(nn.Module):
         self.device = device
 
         self.radius = 0.05
-        self.acceleration_scale = 0.01
+        self.acceleration_scale = 0.1
         self.max_velocity = 0.1
         self.max_pos = 1
         self.consumption_edge_required = 3

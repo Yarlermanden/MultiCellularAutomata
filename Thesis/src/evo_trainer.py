@@ -15,7 +15,7 @@ class GlobalVarActor():
         self.time_steps = self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(75, 100)
+        self.time_steps = np.random.randint(150, 200)
 
     def get_global_var(self):
         return self.time_steps
@@ -41,6 +41,8 @@ class Custom_NEProblem(NEProblem):
         fitness = velocity_bonus.sum() - border_cost + food_reward*8 - dead_cost/2
         #fitness = torch.tensor([velocity_bonus.sum(), -border_cost, food_reward*8, -dead_cost/2])
         #fitness = [velocity_bonus.sum(), -border_cost, food_reward*8, -dead_cost/2]
+        if torch.isnan(fitness):
+            fitness = -1000
         return fitness
 
 class Evo_Trainer():
