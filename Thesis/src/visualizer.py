@@ -24,11 +24,11 @@ class Visualizer():
         foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
         edgeIndices1 = graph.edge_index[0, :]
         edgeIndices2 = graph.edge_index[1, :]
-        edges1 = graph.x[edgeIndices1][:, 0:2].T.detach().cpu().numpy()
-        edges2 = graph.x[edgeIndices2][:, 0:2].T.detach().cpu().numpy()
+        edges_from = graph.x[edgeIndices1][:, 0:2].detach().cpu().numpy()
+        edges_to = graph.x[edgeIndices2][:, 0:2].detach().cpu().numpy()
 
-        edges_x = [edges1[0,:], edges2[0, :]]
-        edges_y = [edges1[1,:], edges2[1, :]]
+        edges_x = [edges_from[:,0], edges_to[:,0]]
+        edges_y = [edges_from[:,1], edges_to[:,1]]
 
         if self.figure is None:
             plt.ion()
@@ -50,7 +50,7 @@ class Visualizer():
                 lw=0.5,
                 #**kwargs
             )
-            self.edge_plot, *_ = axes.plot(edges_x, edges_y, linewidth=0.2)
+            self.edge_plot, *_ = axes.plot(edges_x, edges_y, linewidth=0.1)
             plt.show()
 
         self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
