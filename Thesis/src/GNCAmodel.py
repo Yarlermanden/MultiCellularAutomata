@@ -40,8 +40,9 @@ class GNCA(nn.Module):
         #self.mlp = Mlp(self.input_channels*2, self.output_channels)
         #self.conv_layers = EdgeConv(self.mlp)
 
-        self.mlp2 = Mlp(self.input_channels, 2)
+        #self.mlp2 = Mlp(self.input_channels, 2)
         #self.mlp2 = nn.Conv2d(self.input_channels, 2, 1, padding=0)
+        self.mlp2 = nn.Conv1d(self.input_channels, 2, 1, padding=0)
 
         #self.mlp = Mlp(self.input_channels, self.output_channels)
         #self.conv_layers = NNConv(self.input_channels, self.output_channels, self.mlp)
@@ -54,16 +55,19 @@ class GNCA(nn.Module):
         #h = self.conv_layers(graph.x, graph.edge_index)
         h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
         #h = self.conv_layers2(x=h, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
-        h = self.mlp2(h)
+        h = self.mlp2(h.permute(1,0))
+        h = h.permute(1,0)
         return h
 
     def update_velocity(self, graph, acceleration):
-        velocity = graph.x[:, 2:4] + acceleration #update velocity
+        '''Updates the velocity of the nodes given the acceleration and previous velocity'''
+        velocity = graph.x[:, 2:4] + acceleration
         velocity = torch.clamp(velocity, -self.max_velocity, self.max_velocity)
         return velocity
 
     def update_positions(self, graph, velocity):
-        positions = graph.x[:, :2] + velocity #update position
+        '''Updates the position of the nodes given the velocity and previous positions'''
+        positions = graph.x[:, :2] + velocity
         return positions
 
     def mask_food(self, graph):
@@ -88,40 +92,43 @@ class GNCA(nn.Module):
         mask = torch.bitwise_and(cell_mask, zero_edge_mask)
         return mask
 
-    def update(self, graph):
-        '''Update the graph a single time step'''
-        any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
-        if not any_edges:
-            return graph, 0, 0, 0, 0, False
-            
+    def update_graph(self, graph):
+        '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         food_mask = self.mask_food(graph)
-
         acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
         acceleration = acceleration * torch.stack((food_mask, food_mask), dim=1)
         velocity = self.update_velocity(graph, acceleration)
         #velocity = self.convolve(graph) * 0.1 * torch.stack((food_mask, food_mask), dim=1)
         #velocity = torch.clamp(velocity, -self.max_velocity, self.max_velocity)
         positions = self.update_positions(graph, velocity)
-
         graph.x[:, 2:4] = velocity
         graph.x[:, :2] = positions
+        return velocity
 
-        epsilon = 0.000001 #Used to prevent taking log of 0.0 resulting in nan values
-        maskX = graph.x[:, 0].abs() > 1
-        maskY = graph.x[:, 1].abs() > 1
-        border_costX = (graph.x[:, 0].abs()+epsilon).log() * maskX.to(torch.float)
-        border_costY = (graph.x[:, 1].abs()+epsilon).log() * maskY.to(torch.float)
-        border_cost = (border_costX.sum() + border_costY.sum())
-
+    def remove_nodes(self, graph):
+        '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
         dead_cells_mask = self.get_island_cells_mask(graph)
-        dead_cost = dead_cells_mask.sum()
         consumed_mask = self.get_consume_food_mask(graph)
-        food_reward = consumed_mask.sum()
-
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
+        return dead_cells_mask.sum(), consumed_mask.sum()
 
+    def update(self, graph):
+        '''Update the graph a single time step'''
+        any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
+        if not any_edges:
+            return graph, 0, 0, 0, 0, False
+
+        velocity = self.update_graph(graph)
+
+        epsilon = 0.000001 #Used to prevent taking log of 0.0 resulting in nan values
+        mask = graph.x.abs() > 1
+        border_costX = (graph.x[:, 0].abs()+epsilon).log() * mask[:,0].to(torch.float)
+        border_costY = (graph.x[:, 1].abs()+epsilon).log() * mask[:,1].to(torch.float)
+        border_cost = (border_costX.sum() + border_costY.sum())
+
+        dead_cost, food_reward = self.remove_nodes(graph)
         graph.attr[0] += food_reward
         #TODO add a new cell node pr x graph energy
 
