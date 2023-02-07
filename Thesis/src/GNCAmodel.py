@@ -26,11 +26,11 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.device = device
 
-        self.radius = 0.05
-        self.acceleration_scale = 0.4
+        self.radius = 0.03
+        self.acceleration_scale = 0.01
         self.max_velocity = 0.1
         self.max_pos = 1
-        self.consumption_edge_required = 3
+        self.consumption_edge_required = 5
         self.edges_to_stay_alive = 1
         self.energy_required = 5
 
@@ -41,15 +41,19 @@ class GNCA(nn.Module):
         #self.conv_layers = EdgeConv(self.mlp)
 
         self.mlp2 = Mlp(self.input_channels, 2)
+        #self.mlp2 = nn.Conv2d(self.input_channels, 2, 1, padding=0)
+
         #self.mlp = Mlp(self.input_channels, self.output_channels)
         #self.conv_layers = NNConv(self.input_channels, self.output_channels, self.mlp)
-        self.mlp = nn.Sequential(nn.Linear(2, 2), nn.ReLU(), nn.Linear(2, channels * self.output_channels))
+        self.mlp = nn.Sequential(nn.Linear(2, 4), nn.ReLU(), nn.Linear(4, 8), nn.ReLU(), nn.Linear(8, channels * self.output_channels))
         self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='add')
+        #self.conv_layers2 = NNConv(channels, self.output_channels, self.mlp, aggr='add')
 
     def convolve(self, graph):
         '''Convolves the graph for message passing'''
         #h = self.conv_layers(graph.x, graph.edge_index)
         h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
+        #h = self.conv_layers2(x=h, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
         h = self.mlp2(h)
         return h
 
@@ -88,7 +92,7 @@ class GNCA(nn.Module):
         '''Update the graph a single time step'''
         any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
         if not any_edges:
-            return graph, 0, 0, 0, 0
+            return graph, 0, 0, 0, 0, False
             
         food_mask = self.mask_food(graph)
 
@@ -96,6 +100,7 @@ class GNCA(nn.Module):
         acceleration = acceleration * torch.stack((food_mask, food_mask), dim=1)
         velocity = self.update_velocity(graph, acceleration)
         #velocity = self.convolve(graph) * 0.1 * torch.stack((food_mask, food_mask), dim=1)
+        #velocity = torch.clamp(velocity, -self.max_velocity, self.max_velocity)
         positions = self.update_positions(graph, velocity)
 
         graph.x[:, 2:4] = velocity
@@ -121,7 +126,7 @@ class GNCA(nn.Module):
         #TODO add a new cell node pr x graph energy
 
         graph = graph.to(device=self.device)
-        return graph, velocity.abs().mean(dim=0), border_cost, food_reward, dead_cost
+        return graph, velocity.abs().mean(dim=0), border_cost, food_reward, dead_cost, True
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
@@ -131,11 +136,9 @@ class GNCA(nn.Module):
         add_random_food(graph, self.device, 20)
 
         for i in range(time_steps):
-            if len(graph.x) < 3:
+            graph, velocity, border_cost, food_reward, dead_cost, viable = self.update(graph)
+            if not viable: 
                 break
-            #if i % 10 == 0:
-            #    add_random_food(graph)
-            graph, velocity, border_cost, food_reward, dead_cost = self.update(graph)
             velocity_bonus += velocity
             border_costs += border_cost
             food_rewards += food_reward

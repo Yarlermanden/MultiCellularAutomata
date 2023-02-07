@@ -16,7 +16,7 @@ class GlobalVarActor():
         self.time_steps = self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(50, 100)
+        self.time_steps = np.random.randint(200, 300)
 
     def get_global_var(self):
         return self.time_steps
@@ -42,7 +42,7 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph, velocity_bonus, border_cost, food_reward, dead_cost = network(graph, steps)
 
-        fitness = velocity_bonus.sum()/2 - border_cost + food_reward*30 - dead_cost
+        fitness = velocity_bonus.sum() - border_cost/10 + food_reward*100 - dead_cost/100
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             fitness = -1000
         return fitness

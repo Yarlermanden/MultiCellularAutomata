@@ -13,10 +13,23 @@ class Visualizer():
         self.borders = canvas_scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
         self.scatter_cell = None
         self.scatter_food = None
+        self.edge_plot = None
+        self.device = torch.device('cpu')
 
     def plot_organism(self, graph):
+        any_edges = add_edges(graph, 0.05, self.device)
+        if not any_edges:
+            return
         cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()
         foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
+        edgeIndices1 = graph.edge_index[0, :]
+        edgeIndices2 = graph.edge_index[1, :]
+        edges1 = graph.x[edgeIndices1][:, 0:2].T.detach().cpu().numpy()
+        edges2 = graph.x[edgeIndices2][:, 0:2].T.detach().cpu().numpy()
+
+        edges_x = [edges1[0,:], edges2[0, :]]
+        edges_y = [edges1[1,:], edges2[1, :]]
+
         if self.figure is None:
             plt.ion()
             self.figure = plt.figure()
@@ -37,17 +50,19 @@ class Visualizer():
                 lw=0.5,
                 #**kwargs
             )
+            self.edge_plot, *_ = axes.plot(edges_x, edges_y)
             plt.show()
+
         self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
         self.scatter_food.set_offsets(graph.x[foodIndices, :2])
+        self.edge_plot.set_data(edges_x, edges_y)
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
     def animate_organism(self, graph, model, frames=50, interval=150):
         self.graph = graph
-        #self.plot_organism(graph.clone().detach().cpu())
         self.plot_organism(graph.clone().detach().cpu())
-        add_random_food(graph, torch.device('cpu'), 20)
+        add_random_food(graph, self.device, 20)
 
         @torch.no_grad()
         def animate(i):
