@@ -50,7 +50,7 @@ class Visualizer():
                 lw=0.5,
                 #**kwargs
             )
-            self.edge_plot, *_ = axes.plot(edges_x, edges_y)
+            self.edge_plot, *_ = axes.plot(edges_x, edges_y, linewidth=0.2)
             plt.show()
 
         self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
@@ -62,7 +62,7 @@ class Visualizer():
     def animate_organism(self, graph, model, frames=50, interval=150):
         self.graph = graph
         self.plot_organism(graph.clone().detach().cpu())
-        add_random_food(graph, self.device, 20)
+        add_random_food(graph, self.device, 100)
 
         @torch.no_grad()
         def animate(i):

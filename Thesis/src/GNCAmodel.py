@@ -26,11 +26,12 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.device = device
 
-        self.radius = 0.03
+        self.radius = 0.05
+        self.consume_radius = self.radius*2
         self.acceleration_scale = 0.01
         self.max_velocity = 0.1
         self.max_pos = 1
-        self.consumption_edge_required = 5
+        self.consumption_edge_required = 3
         self.edges_to_stay_alive = 1
         self.energy_required = 5
 
@@ -42,11 +43,13 @@ class GNCA(nn.Module):
 
         #self.mlp2 = Mlp(self.input_channels, 2)
         #self.mlp2 = nn.Conv2d(self.input_channels, 2, 1, padding=0)
-        self.mlp2 = nn.Conv1d(self.input_channels, 2, 1, padding=0)
+        self.mlp2 = nn.Conv1d(self.input_channels, self.input_channels, 1, padding=0)
+        self.mlp3 = nn.Conv1d(self.input_channels, 2, 1, padding=0)
 
         #self.mlp = Mlp(self.input_channels, self.output_channels)
         #self.conv_layers = NNConv(self.input_channels, self.output_channels, self.mlp)
-        self.mlp = nn.Sequential(nn.Linear(2, 4), nn.ReLU(), nn.Linear(4, 8), nn.ReLU(), nn.Linear(8, channels * self.output_channels))
+        #self.mlp = nn.Sequential(nn.Linear(2, 4), nn.ReLU(), nn.Linear(4, 8), nn.ReLU(), nn.Linear(8, channels * self.output_channels))
+        self.mlp = nn.Sequential(nn.Linear(2, 4), nn.ReLU(), nn.Linear(4, channels * self.output_channels))
         self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='add')
         #self.conv_layers2 = NNConv(channels, self.output_channels, self.mlp, aggr='add')
 
@@ -56,6 +59,7 @@ class GNCA(nn.Module):
         h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
         #h = self.conv_layers2(x=h, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
         h = self.mlp2(h.permute(1,0))
+        h = self.mlp3(h)
         h = h.permute(1,0)
         return h
 
@@ -78,7 +82,7 @@ class GNCA(nn.Module):
     def get_consume_food_mask(self, graph):
         '''Consumes food if criteria is met and returns reward'''
         food_mask = graph.x[:, 4] == 0
-        edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < self.radius).flatten()
+        edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < self.consume_radius).flatten()
         edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
         edge_mask = edges_pr_node >= self.consumption_edge_required
         consumption_mask = torch.bitwise_and(food_mask, edge_mask)
@@ -123,10 +127,12 @@ class GNCA(nn.Module):
         velocity = self.update_graph(graph)
 
         epsilon = 0.000001 #Used to prevent taking log of 0.0 resulting in nan values
-        mask = graph.x.abs() > 1
+        mask = graph.x[:, :2].abs() > 1
         border_costX = (graph.x[:, 0].abs()+epsilon).log() * mask[:,0].to(torch.float)
         border_costY = (graph.x[:, 1].abs()+epsilon).log() * mask[:,1].to(torch.float)
         border_cost = (border_costX.sum() + border_costY.sum())
+        
+        #velocity *= mask[:, :2]
 
         dead_cost, food_reward = self.remove_nodes(graph)
         graph.attr[0] += food_reward
@@ -140,11 +146,12 @@ class GNCA(nn.Module):
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device)
         border_costs, food_rewards, dead_costs = 0, 0, 0
 
-        add_random_food(graph, self.device, 20)
+        add_random_food(graph, self.device, 100)
 
         for i in range(time_steps):
             graph, velocity, border_cost, food_reward, dead_cost, viable = self.update(graph)
             if not viable: 
+                velocity_bonus, border_costs, food_reward, dead_costs = torch.tensor(0), 100, 0, 100
                 break
             velocity_bonus += velocity
             border_costs += border_cost
