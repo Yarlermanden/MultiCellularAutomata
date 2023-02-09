@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 import torch_geometric
-from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv
+from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 from graphUtils import add_edges, add_random_food, consume_food
 
 class Mlp(nn.Module):
@@ -21,7 +21,7 @@ class Mlp(nn.Module):
         return x
 
 class GNCA(nn.Module):
-    def __init__(self, device, channels=5):
+    def __init__(self, device, channels=8):
         #batching?
         super(GNCA, self).__init__()
         self.device = device
@@ -47,7 +47,7 @@ class GNCA(nn.Module):
         self.mlp = nn.Sequential(
             nn.Linear(self.input_channels, self.input_channels),
             nn.ReLU(), 
-            nn.Linear(self.input_channels, 2),
+            nn.Linear(self.input_channels, 5),
             nn.ReLU())
         #self.mlp1 = nn.Conv1d(self.input_channels, self.input_channels, 1, padding=0)
         #self.mlp2 = nn.Conv1d(self.input_channels, 2, 1, padding=0)
@@ -58,7 +58,8 @@ class GNCA(nn.Module):
 
         #self.mlp = nn.Sequential(nn.Linear(2, 4), nn.Tanh(), nn.Linear(4, channels * self.output_channels))
         #self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='add')
-        self.conv_layers = GATConv(channels, self.output_channels, heads=1, edge_dim=2)
+        #self.conv_layers = GATConv(channels, self.output_channels, heads=1, edge_dim=2)
+        self.conv_layers = GATv2Conv(channels, self.output_channels, heads=1, edge_dim=2)
         #self.conv_layers2 = GATConv(channels, self.output_channels, heads=1, dropout=0.02)
         #self.mlp_before = nn.Linear(channels, channels*4)
 
@@ -118,7 +119,10 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         food_mask = self.mask_food(graph)
-        acceleration = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask), dim=1)
+        #acceleration = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask), dim=1)
+        h = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask, food_mask, food_mask, food_mask), dim=1)
+        acceleration = h[:, :2]
+        graph.x[:, 5:] = h[:, 2:]
         velocity = self.update_velocity(graph, acceleration)
         #velocity = self.convolve(graph) * 0.1 * torch.stack((food_mask, food_mask), dim=1)
         #velocity = torch.clamp(velocity, -self.max_velocity, self.max_velocity)
@@ -164,7 +168,7 @@ class GNCA(nn.Module):
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device)
         border_costs, food_rewards, dead_costs = 0, 0, 0
 
-        add_random_food(graph, self.device, 100)
+        add_random_food(graph, self.device, 30)
 
         for i in range(time_steps):
             graph, velocity, border_cost, food_reward, dead_cost, viable = self.update(graph)

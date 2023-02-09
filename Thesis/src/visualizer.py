@@ -61,10 +61,10 @@ class Visualizer():
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
-    def animate_organism(self, graph, model, frames=50, interval=150):
+    def animate_organism(self, graph, model, food=100, frames=50, interval=150):
         self.graph = graph
         self.plot_organism(graph.clone().detach().cpu())
-        add_random_food(graph, self.device, 100)
+        add_random_food(graph, self.device, food)
 
         @torch.no_grad()
         def animate(i):
