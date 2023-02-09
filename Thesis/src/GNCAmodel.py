@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 import torch_geometric
-from torch_geometric.nn import GCNConv, EdgeConv, NNConv
+from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv
 from graphUtils import add_edges, add_random_food, consume_food
 
 class Mlp(nn.Module):
@@ -43,24 +43,43 @@ class GNCA(nn.Module):
 
         #self.mlp2 = Mlp(self.input_channels, 2)
         #self.mlp2 = nn.Conv2d(self.input_channels, 2, 1, padding=0)
-        self.mlp2 = nn.Conv1d(self.input_channels, self.input_channels, 1, padding=0)
-        self.mlp3 = nn.Conv1d(self.input_channels, 2, 1, padding=0)
+
+        self.mlp = nn.Sequential(
+            nn.Linear(self.input_channels, self.input_channels),
+            nn.ReLU(), 
+            nn.Linear(self.input_channels, 2),
+            nn.ReLU())
+        #self.mlp1 = nn.Conv1d(self.input_channels, self.input_channels, 1, padding=0)
+        #self.mlp2 = nn.Conv1d(self.input_channels, 2, 1, padding=0)
 
         #self.mlp = Mlp(self.input_channels, self.output_channels)
         #self.conv_layers = NNConv(self.input_channels, self.output_channels, self.mlp)
         #self.mlp = nn.Sequential(nn.Linear(2, 4), nn.ReLU(), nn.Linear(4, 8), nn.ReLU(), nn.Linear(8, channels * self.output_channels))
-        self.mlp = nn.Sequential(nn.Linear(2, 4), nn.ReLU(), nn.Linear(4, channels * self.output_channels))
-        self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='add')
-        #self.conv_layers2 = NNConv(channels, self.output_channels, self.mlp, aggr='add')
+
+        #self.mlp = nn.Sequential(nn.Linear(2, 4), nn.Tanh(), nn.Linear(4, channels * self.output_channels))
+        #self.conv_layers = NNConv(channels, self.output_channels, self.mlp, aggr='add')
+        self.conv_layers = GATConv(channels, self.output_channels, heads=1, edge_dim=2)
+        #self.conv_layers2 = GATConv(channels, self.output_channels, heads=1, dropout=0.02)
+        #self.mlp_before = nn.Linear(channels, channels*4)
+
+        #self.mlp4 = nn.Sequential(nn.Linear(2, 4), nn.Tanh(), nn.Linear(4, channels * self.output_channels))
+        #self.conv_layers2 = NNConv(channels, self.output_channels, self.mlp4, aggr='add')
 
     def convolve(self, graph):
         '''Convolves the graph for message passing'''
         #h = self.conv_layers(graph.x, graph.edge_index)
+
+        #h = self.mlp_before(graph.x)
         h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
         #h = self.conv_layers2(x=h, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
-        h = self.mlp2(h.permute(1,0))
-        h = self.mlp3(h)
-        h = h.permute(1,0)
+
+        h = self.mlp(h)
+        h = h*2 - 1 #forces acceleration to be between -1 and 1 while using ReLU instead of Tanh
+        #h = self.mlp1(h.permute(1,0))
+        #h = self.tanh(h)
+        #h = self.mlp2(h)
+        #h = h.permute(1,0)
+        #h = self.tanh(h) #force the acceleration between -1 and 1
         return h
 
     def update_velocity(self, graph, acceleration):
@@ -99,8 +118,7 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         food_mask = self.mask_food(graph)
-        acceleration = self.convolve(graph) * self.acceleration_scale #get acceleration
-        acceleration = acceleration * torch.stack((food_mask, food_mask), dim=1)
+        acceleration = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask), dim=1)
         velocity = self.update_velocity(graph, acceleration)
         #velocity = self.convolve(graph) * 0.1 * torch.stack((food_mask, food_mask), dim=1)
         #velocity = torch.clamp(velocity, -self.max_velocity, self.max_velocity)
