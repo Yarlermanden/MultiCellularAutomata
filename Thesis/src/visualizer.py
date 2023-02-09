@@ -14,6 +14,7 @@ class Visualizer():
         self.scatter_cell = None
         self.scatter_food = None
         self.edge_plot = None
+        self.axes = None
         self.device = torch.device('cpu')
 
     def plot_organism(self, graph):
@@ -22,19 +23,19 @@ class Visualizer():
             return
         cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()
         foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
-        edgeIndices1 = graph.edge_index[0, :]
-        edgeIndices2 = graph.edge_index[1, :]
-        edges_from = graph.x[edgeIndices1][:, 0:2].detach().cpu().numpy()
-        edges_to = graph.x[edgeIndices2][:, 0:2].detach().cpu().numpy()
 
-        edges_x = [edges_from[:,0], edges_to[:,0]]
-        edges_y = [edges_from[:,1], edges_to[:,1]]
+        edge_from = graph.edge_index[0, :]
+        edge_to = graph.edge_index[1, :]
+        node_from = graph.x[edge_from, :2].detach().cpu().numpy()
+        node_to = graph.x[edge_to, :2].detach().cpu().numpy()
+        edges_x = [node_from[:,0], node_to[:,0]]
+        edges_y = [node_from[:,1], node_to[:,1]]
 
         if self.figure is None:
             plt.ion()
             self.figure = plt.figure()
-            axes = plt.axes(xlim=self.borders[::2], ylim=self.borders[1::2])
-            self.scatter_cell = axes.scatter(
+            self.axes = plt.axes(xlim=self.borders[::2], ylim=self.borders[1::2])
+            self.scatter_cell = self.axes.scatter(
                 graph.x[cellIndices, 0],
                 graph.x[cellIndices, 1],
                 marker=".",
@@ -42,7 +43,7 @@ class Visualizer():
                 lw=0.5,
                 #**kwargs
             )
-            self.scatter_food = axes.scatter(
+            self.scatter_food = self.axes.scatter(
                 graph.x[foodIndices, 0],
                 graph.x[foodIndices, 1],
                 marker=".",
@@ -50,12 +51,13 @@ class Visualizer():
                 lw=0.5,
                 #**kwargs
             )
-            self.edge_plot, *_ = axes.plot(edges_x, edges_y, linewidth=0.1)
+            self.edge_plot = self.axes.plot([[],[]], [[],[]], linewidth=0.1)
             plt.show()
 
         self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
         self.scatter_food.set_offsets(graph.x[foodIndices, :2])
-        self.edge_plot.set_data(edges_x, edges_y)
+        [plot.remove() for plot in self.edge_plot]
+        self.edge_plot = self.axes.plot(edges_x, edges_y, linewidth=0.1)
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 

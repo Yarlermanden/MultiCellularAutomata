@@ -1,6 +1,8 @@
 import torch
 from generator import generate_food
 import random
+import torch_geometric
+from torch_geometric import utils
 
 def add_edges(graph, radius, device):
     '''Add edges dynamically according to radius. '''
@@ -20,9 +22,7 @@ def add_edges(graph, radius, device):
         dist = (graph.x[i]-graph.x[j])[:2].norm()
         if dist < radius_to_use:
             edges.append([i, j])
-            edges.append([j, i])
             edge_attribute = [dist, cell_to_cell]
-            edge_attributes.append(edge_attribute)
             edge_attributes.append(edge_attribute)
 
     n = len(cell_indices)
@@ -36,8 +36,9 @@ def add_edges(graph, radius, device):
     if len(edges) == 0:
         graph.x = graph.x[food_indices].view(food_indices.shape[0], graph.x.shape[1])
         return False
-    graph.edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
-    graph.edge_attr = torch.tensor(edge_attributes, device=device)
+    edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
+    edge_attr = torch.tensor(edge_attributes, device=device)
+    graph.edge_index, graph.edge_attr = utils.to_undirected(edge_index, edge_attr)
     return True
 
 def add_food(graph, food):
