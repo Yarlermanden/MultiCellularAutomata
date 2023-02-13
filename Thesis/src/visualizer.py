@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
-from graphUtils import add_edges, add_random_food, consume_food
+from graphUtils import add_edges, add_random_food
 
 import torch
 

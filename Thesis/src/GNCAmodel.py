@@ -5,7 +5,9 @@ import torch.nn.functional as F
 import math
 import torch_geometric
 from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
-from graphUtils import add_edges, add_random_food, consume_food
+from torch_geometric_temporal.nn.recurrent import attentiontemporalgcn
+
+from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask
 
 class GNCA(nn.Module):
     def __init__(self, device, channels=6):
@@ -21,78 +23,42 @@ class GNCA(nn.Module):
         self.consumption_edge_required = 3
         self.edges_to_stay_alive = 1
         self.energy_required = 5
-
         self.input_channels = channels
         self.output_channels = 3
 
         self.heads = 1
         self.mlp = nn.Sequential(
+            nn.ReLU(), 
             nn.Linear(self.input_channels, self.input_channels),
             nn.ReLU(), 
             nn.Linear(self.input_channels, self.output_channels),
             nn.ReLU())
-        self.conv_layers = GATv2Conv(self.input_channels, self.output_channels, heads=self.heads, edge_dim=2, concat=False, share_weights=False, add_self_loops=True)
+        self.conv_layers = GATv2Conv(self.input_channels, self.input_channels, heads=self.heads, edge_dim=2, concat=False, share_weights=False, add_self_loops=True)
 
-    def convolve(self, graph):
+    def message_pass(self, graph):
         '''Convolves the graph for message passing'''
-        #h = self.mlp_before(graph.x)
         h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
-        #h = self.conv_layers2(x=h, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
-
-        #h = self.mlp(h)
+        h = self.mlp(h)
         h = h*2 - 1 #forces acceleration to be between -1 and 1 while using ReLU instead of Tanh
         return h
 
-    def update_velocity(self, graph, acceleration):
-        '''Updates the velocity of the nodes given the acceleration and previous velocity'''
-        velocity = graph.x[:, 2:4] + acceleration
-        velocity = torch.clamp(velocity, -self.max_velocity, self.max_velocity)
-        return velocity
-
-    def update_positions(self, graph, velocity):
-        '''Updates the position of the nodes given the velocity and previous positions'''
-        positions = graph.x[:, :2] + velocity
-        return positions
-
-    def mask_food(self, graph):
-        '''Used to get mask to only update all cell nodes - aka not food sources'''
-        mask = graph.x[:, 4] == 1
-        return mask.to(torch.float)
-
-    def get_consume_food_mask(self, graph):
-        '''Consumes food if criteria is met and returns reward'''
-        food_mask = graph.x[:, 4] == 0
-        edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < self.consume_radius).flatten()
-        edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
-        edge_mask = edges_pr_node >= self.consumption_edge_required
-        consumption_mask = torch.bitwise_and(food_mask, edge_mask)
-        return consumption_mask
-
-    def get_island_cells_mask(self, graph):
-        '''Remove cells without any edges'''
-        cell_mask = graph.x[:, 4] == 1
-        cell_edge_indices = torch.nonzero(graph.edge_attr[:, 1] == 1).flatten()
-        zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < self.edges_to_stay_alive
-        mask = torch.bitwise_and(cell_mask, zero_edge_mask)
-        return mask
-
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
-        food_mask = self.mask_food(graph)
+        c_mask = cell_mask(graph)
         #acceleration = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask), dim=1)
-        h = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask, food_mask), dim=1)
+        h = self.message_pass(graph) * self.acceleration_scale * torch.stack((c_mask, c_mask, c_mask), dim=1)
         acceleration = h[:, :2]
         graph.x[:, 5:] = h[:, 2:]
-        velocity = self.update_velocity(graph, acceleration)
-        positions = self.update_positions(graph, velocity)
+        velocity = update_velocity(graph, acceleration, self.max_velocity)
+        positions = update_positions(graph, velocity)
         graph.x[:, 2:4] = velocity
         graph.x[:, :2] = positions
         return velocity
 
     def remove_nodes(self, graph):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
-        dead_cells_mask = self.get_island_cells_mask(graph)
-        consumed_mask = self.get_consume_food_mask(graph)
+        dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
+        consumed_mask = get_consume_food_mask(graph, self.consume_radius, self.consumption_edge_required)
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])

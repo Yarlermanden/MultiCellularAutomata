@@ -51,12 +51,40 @@ def add_random_food(graph, device, n=1):
         food = generate_food(device)
         add_food(graph, food)
 
-def consume_food(graph, food_index, energy_required):
-    '''Consumes the food source and convert it to regular cell-node'''
-    graph.attr[0] += 1
+def update_velocity(graph, acceleration, max_velocity):
+    '''Updates the velocity of the nodes given the acceleration and previous velocity'''
+    velocity = graph.x[:, 2:4] + acceleration
+    velocity = torch.clamp(velocity, -max_velocity, max_velocity)
+    return velocity
 
-    if graph.attr[0] == energy_required:
-        graph.attr[0] -= energy_required
-        graph.x[food_index, 4] = 1
-    else: #remove
-        graph.x = torch.cat((graph.x[:food_index], graph.x[food_index+1:]))
+def update_positions(graph, velocity):
+    '''Updates the position of the nodes given the velocity and previous positions'''
+    positions = graph.x[:, :2] + velocity
+    return positions
+
+def food_mask(graph):
+    '''Used to mask away all cell nodes to only keep food'''
+    mask = graph.x[:, 4] == 0
+    return mask
+
+def cell_mask(graph):
+    '''Used to mask away all food nodes to only keep cell nodes'''
+    mask = graph.x[:, 4] == 1
+    return mask
+
+def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
+    '''Consumes food if criteria is met and returns reward'''
+    f_mask = food_mask(graph)
+    edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < consume_radius).flatten()
+    edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
+    edge_mask = edges_pr_node >= consumption_edge_required
+    consumption_mask = torch.bitwise_and(f_mask, edge_mask)
+    return consumption_mask
+
+def get_island_cells_mask(graph, edges_to_stay_alive):
+    '''Remove cells without any edges'''
+    c_mask = cell_mask(graph)
+    cell_edge_indices = torch.nonzero(graph.edge_attr[:, 1] == 1).flatten()
+    zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
+    mask = torch.bitwise_and(c_mask, zero_edge_mask)
+    return mask
