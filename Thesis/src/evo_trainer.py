@@ -20,7 +20,7 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(80, 90)
+        self.time_steps = np.random.randint(100, 110)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
@@ -66,15 +66,15 @@ class Evo_Trainer():
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(0.5, dtype=torch.float),
+            stdev_init=torch.tensor(0.1, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
         )
 
         def before_epoch():
             ray.get(global_var.set_global_var.remote())
+            
         self.searcher.before_step_hook.append(before_epoch)
-
         self.logger = StdOutLogger(self.searcher)
         self.logger = PandasLogger(self.searcher)
         self.logger_df = None

@@ -14,7 +14,7 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.device = device
 
-        self.radius = 0.03
+        self.radius = 0.04
         self.consume_radius = self.radius*2
         self.acceleration_scale = 0.01
         self.max_velocity = 0.1
