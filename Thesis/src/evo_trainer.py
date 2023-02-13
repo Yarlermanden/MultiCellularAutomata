@@ -18,7 +18,7 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(50, 60)
+        self.time_steps = np.random.randint(100, 110)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
@@ -40,9 +40,8 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph, velocity_bonus, border_cost, food_reward, dead_cost = network(graph, steps)
 
-        #fitness = velocity_bonus.sum() - border_cost/10 + food_reward*100 - dead_cost/100
+        fitness = velocity_bonus.sum() - border_cost + food_reward*100/(1+10*velocity_bonus.mean()) - dead_cost
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
-        fitness = velocity_bonus.sum() + food_reward*10 - border_cost*3 - dead_cost/5
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             fitness = -1000
         return fitness
@@ -64,7 +63,7 @@ class Evo_Trainer():
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(0.1, dtype=torch.float),
+            stdev_init=torch.tensor(0.04, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
         )

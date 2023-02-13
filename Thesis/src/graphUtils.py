@@ -8,7 +8,7 @@ def add_edges(graph, radius, device):
     '''Add edges dynamically according to radius. '''
     edges = []
     edge_attributes = []
-    radius_food = radius*5
+    radius_food = radius*6
     
     cell_indices = torch.nonzero(graph.x[:, 4] == 1).flatten()
     food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
