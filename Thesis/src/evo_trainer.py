@@ -8,6 +8,8 @@ import ray
 
 from generator import generate_organism
 from GNCAmodel import GNCA
+from GATConv import GATConv
+from SpatioTemporalModel import SpatioTemporal
 from evotorch.decorators import vectorized, on_aux_device
 
 @ray.remote
@@ -18,7 +20,7 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(100, 110)
+        self.time_steps = np.random.randint(80, 90)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
@@ -40,7 +42,7 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph, velocity_bonus, border_cost, food_reward, dead_cost = network(graph, steps)
 
-        fitness = velocity_bonus.sum() - border_cost + food_reward*100/(1+10*velocity_bonus.mean()) - dead_cost
+        fitness = velocity_bonus.sum() - border_cost + food_reward*100/(1+velocity_bonus.mean()) - dead_cost
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             fitness = -1000
@@ -56,14 +58,15 @@ class Evo_Trainer():
             global_var=global_var,
             device=device,
             objective_sense='max',
-            network=GNCA,
+            #network=GATConv,
+            network=SpatioTemporal,
             network_args={'device': device},
             num_actors='max',
             num_gpus_per_actor = 'max',
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(0.04, dtype=torch.float),
+            stdev_init=torch.tensor(0.5, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
         )

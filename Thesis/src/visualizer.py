@@ -18,7 +18,7 @@ class Visualizer():
         self.device = torch.device('cpu')
 
     def plot_organism(self, graph):
-        any_edges = add_edges(graph, 0.05, self.device)
+        any_edges = add_edges(graph, 0.03, self.device)
         if not any_edges:
             return
         cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()

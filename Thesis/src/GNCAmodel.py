@@ -5,12 +5,11 @@ import torch.nn.functional as F
 import math
 import torch_geometric
 from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
-from torch_geometric_temporal.nn.recurrent import attentiontemporalgcn
 
 from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask
 
 class GNCA(nn.Module):
-    def __init__(self, device, channels=6):
+    def __init__(self, device, channels):
         #batching?
         super(GNCA, self).__init__()
         self.device = device
@@ -20,27 +19,16 @@ class GNCA(nn.Module):
         self.acceleration_scale = 0.01
         self.max_velocity = 0.1
         self.max_pos = 1
-        self.consumption_edge_required = 3
+        self.consumption_edge_required = 5
         self.edges_to_stay_alive = 1
         self.energy_required = 5
         self.input_channels = channels
         self.output_channels = 3
-
-        self.heads = 1
-        self.mlp = nn.Sequential(
-            nn.ReLU(), 
-            nn.Linear(self.input_channels, self.input_channels),
-            nn.ReLU(), 
-            nn.Linear(self.input_channels, self.output_channels),
-            nn.ReLU())
-        self.conv_layers = GATv2Conv(self.input_channels, self.input_channels, heads=self.heads, edge_dim=2, concat=False, share_weights=False, add_self_loops=True)
+        self.node_indices_to_keep = None
 
     def message_pass(self, graph):
         '''Convolves the graph for message passing'''
-        h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
-        h = self.mlp(h)
-        h = h*2 - 1 #forces acceleration to be between -1 and 1 while using ReLU instead of Tanh
-        return h
+        ...
 
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
@@ -48,7 +36,7 @@ class GNCA(nn.Module):
         #acceleration = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask), dim=1)
         h = self.message_pass(graph) * self.acceleration_scale * torch.stack((c_mask, c_mask, c_mask), dim=1)
         acceleration = h[:, :2]
-        graph.x[:, 5:] = h[:, 2:]
+        #graph.x[:, 5:] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity)
         positions = update_positions(graph, velocity)
         graph.x[:, 2:4] = velocity
@@ -61,6 +49,7 @@ class GNCA(nn.Module):
         consumed_mask = get_consume_food_mask(graph, self.consume_radius, self.consumption_edge_required)
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
+        self.node_indices_to_keep = node_indices_to_keep
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
         return dead_cells_mask.sum(), consumed_mask.sum()
 
