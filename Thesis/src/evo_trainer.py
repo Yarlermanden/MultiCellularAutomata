@@ -46,7 +46,7 @@ class Custom_NEProblem(NEProblem):
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             fitness = -1000
-        return fitness
+        return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
 
 class Evo_Trainer():
     def __init__(self, n, device, popsize=None):
@@ -57,7 +57,7 @@ class Evo_Trainer():
             n=n,
             global_var=global_var,
             device=device,
-            objective_sense='max',
+            objective_sense=['max', 'max', 'max', 'max', 'max'],
             #network=GATConv,
             network=SpatioTemporal,
             network_args={'device': device},
@@ -66,9 +66,10 @@ class Evo_Trainer():
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(0.1, dtype=torch.float),
+            stdev_init=torch.tensor(0.2, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
+            obj_index=0
         )
 
         def before_epoch():
