@@ -20,10 +20,10 @@ class GNCA(nn.Module):
         self.max_velocity = 0.1
         self.max_pos = 1
         self.consumption_edge_required = 5
-        self.edges_to_stay_alive = 1
+        self.edges_to_stay_alive = 3 #1 more than its self loop
         self.energy_required = 5
         self.input_channels = channels
-        self.output_channels = 3
+        self.output_channels = 2
         self.node_indices_to_keep = None
 
     def message_pass(self, graph):
@@ -34,7 +34,7 @@ class GNCA(nn.Module):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph)
         #acceleration = self.convolve(graph) * self.acceleration_scale * torch.stack((food_mask, food_mask), dim=1)
-        h = self.message_pass(graph) * self.acceleration_scale * torch.stack((c_mask, c_mask, c_mask), dim=1)
+        h = self.message_pass(graph) * self.acceleration_scale * torch.stack((c_mask, c_mask), dim=1)
         acceleration = h[:, :2]
         #graph.x[:, 5:] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity)

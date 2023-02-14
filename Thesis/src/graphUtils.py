@@ -9,6 +9,7 @@ def add_edges(graph, radius, device):
     edges = []
     edge_attributes = []
     radius_food = radius*4
+    norm_multi = 1/radius_food
     
     cell_indices = torch.nonzero(graph.x[:, 4] == 1).flatten()
     food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
@@ -19,18 +20,24 @@ def add_edges(graph, radius, device):
         if with_food:
             radius_to_use = radius_food
             cell_to_cell = 0
-        dist = (graph.x[i]-graph.x[j])[:2].norm()
+        xy_dist = (graph.x[i]-graph.x[j])[:2]
+        dist = xy_dist.norm()
         if dist < radius_to_use:
+            #xy_dist = xy_dist * norm_multi
             edges.append([i, j])
-            edge_attribute = [dist, cell_to_cell]
-            edge_attributes.append(edge_attribute)
+            edge_attribute1 = [dist, xy_dist[0], xy_dist[1], cell_to_cell]
+            edge_attributes.append(edge_attribute1)
+
+            edges.append([j, i])
+            edge_attribute2 = [dist, -xy_dist[0], -xy_dist[1], cell_to_cell]
+            edge_attributes.append(edge_attribute2)
 
     n = len(cell_indices)
     for i_i in range(n):
         for j in food_indices: #check distance to food sources
             add_edge(cell_indices[i_i], j, True)
 
-        for i_j in range(i_i+1, n): #check distance to other cells
+        for i_j in range(i_i, n): #check distance to other cells
             add_edge(cell_indices[i_i], cell_indices[i_j], False)
 
     if len(edges) == 0:
@@ -38,7 +45,9 @@ def add_edges(graph, radius, device):
         return False
     edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
     edge_attr = torch.tensor(edge_attributes, device=device)
-    graph.edge_index, graph.edge_attr = utils.to_undirected(edge_index, edge_attr)
+    graph.edge_index = edge_index
+    graph.edge_attr = edge_attr
+    #graph.edge_index, graph.edge_attr = utils.to_undirected(edge_index, edge_attr)
     return True
 
 def add_food(graph, food):
@@ -84,7 +93,7 @@ def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
 def get_island_cells_mask(graph, edges_to_stay_alive):
     '''Remove cells without any edges'''
     c_mask = cell_mask(graph)
-    cell_edge_indices = torch.nonzero(graph.edge_attr[:, 1] == 1).flatten()
+    cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
     zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
     mask = torch.bitwise_and(c_mask, zero_edge_mask)
     return mask

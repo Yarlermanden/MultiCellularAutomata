@@ -19,14 +19,19 @@ class SpatioTemporal(GNCA):
 
     def message_pass(self, graph):
         '''Convolves the graph for message passing'''
+        #TODO could the edge attributes be passed to a MLP which predicts the weight matrix to be passed to the SPModel
+
+        x = graph.x.clone()
+        mask = x[:, :2].abs() > 0.9
+        x[:, :2] = x[:, :2] * mask
         if self.X is None:
             zero = torch.zeros_like(graph.x)
-            self.X = torch.cat((graph.x.unsqueeze(dim=2), torch.zeros(*graph.x.shape, self.periods-1)), dim=2)
+            self.X = torch.cat((x.unsqueeze(dim=2), torch.zeros(*graph.x.shape, self.periods-1)), dim=2)
             self.h = zero.clone()
 
         if self.node_indices_to_keep is not None:
             self.X = self.X[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.X.shape[1], self.periods)
-            self.X = torch.cat((graph.x.unsqueeze(dim=2), self.X[:, :, :self.periods-1]), dim=2)
+            self.X = torch.cat((x.unsqueeze(dim=2), self.X[:, :, :self.periods-1]), dim=2)
             self.h = self.h[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.h.shape[1])
 
         #h = self.conv_layers(x=graph.x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
