@@ -6,7 +6,7 @@ import torch.nn as nn
 class CGConv1(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.conv_layers = CGConv(self.input_channels, dim=self.edge_dim)
+        self.conv_layers = CGConv(self.input_channels, dim=self.edge_dim, aggr='mean')
 
         self.mlp = nn.Sequential(
             #nn.ReLU(), 
