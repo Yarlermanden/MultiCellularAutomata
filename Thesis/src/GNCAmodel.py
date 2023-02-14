@@ -9,20 +9,21 @@ from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask
 
 class GNCA(nn.Module):
-    def __init__(self, device, channels):
+    def __init__(self, device, channels=5, edge_dim=4):
         #batching?
         super(GNCA, self).__init__()
         self.device = device
+        self.input_channels = channels
+        self.edge_dim=edge_dim
 
         self.radius = 0.04
         self.consume_radius = self.radius*2
-        self.acceleration_scale = 0.01
-        self.max_velocity = 0.1
+        self.acceleration_scale = 0.005
+        self.max_velocity = 0.05
         self.max_pos = 1
         self.consumption_edge_required = 5
         self.edges_to_stay_alive = 3 #1 more than its self loop
         self.energy_required = 5
-        self.input_channels = channels
         self.output_channels = 2
         self.node_indices_to_keep = None
 

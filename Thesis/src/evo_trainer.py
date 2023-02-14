@@ -9,6 +9,7 @@ import ray
 from generator import generate_organism
 from GNCAmodel import GNCA
 from GATConv import GATConv
+from CGConv import CGConv1
 from SpatioTemporalModel import SpatioTemporal
 from evotorch.decorators import vectorized, on_aux_device
 
@@ -58,7 +59,7 @@ class Evo_Trainer():
             global_var=global_var,
             device=device,
             objective_sense=['max', 'max', 'max', 'max', 'max'],
-            network=GATConv,
+            network=CGConv1,
             #network=SpatioTemporal,
             network_args={'device': device},
             num_actors='max',

@@ -3,9 +3,9 @@ from torch_geometric.nn import GATv2Conv
 import torch.nn as nn
 
 class GATConv(GNCA):
-    def __init__(self, device, channels=5):
-        super().__init__(device, channels)
-        self.conv_layers = GATv2Conv(channels, channels, heads=1, concat=False, edge_dim=4, add_self_loops=False)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.conv_layers = GATv2Conv(self.input_channels, self.input_channels, heads=1, concat=False, edge_dim=self.edge_dim, add_self_loops=False)
         self.mlp = nn.Sequential(
             nn.ReLU(), 
             nn.Linear(self.input_channels, self.input_channels),

@@ -4,10 +4,10 @@ import torch
 from torch_geometric_temporal.nn.recurrent.attentiontemporalgcn import A3TGCN
 
 class SpatioTemporal(GNCA):
-    def __init__(self, device, channels=5):
-        super().__init__(device, channels)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.periods = 8
-        self.conv_layers = A3TGCN(channels, channels, periods=self.periods)
+        self.conv_layers = A3TGCN(self.input_channels, self.input_channels, periods=self.periods)
         self.mlp = nn.Sequential(
             nn.Linear(self.input_channels, self.input_channels),
             nn.ReLU(), 
