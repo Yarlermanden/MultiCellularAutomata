@@ -9,6 +9,7 @@ class SpatioTemporal(GNCA):
         self.periods = 8
         self.conv_layers = A3TGCN(self.input_channels, self.input_channels, periods=self.periods)
         self.mlp = nn.Sequential(
+            nn.ReLU(), 
             nn.Linear(self.input_channels, self.input_channels),
             nn.ReLU(), 
             nn.Linear(self.input_channels, self.output_channels),

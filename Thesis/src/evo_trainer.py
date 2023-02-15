@@ -5,6 +5,8 @@ from evotorch.logging import PandasLogger, StdOutLogger
 import torch
 import numpy as np
 import ray
+from torch_geometric.utils import to_networkx
+import networkx as nx
 
 from generator import generate_organism
 from GNCAmodel import GNCA
@@ -21,7 +23,7 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(100, 110)
+        self.time_steps = np.random.randint(40, 50)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
@@ -41,11 +43,18 @@ class Custom_NEProblem(NEProblem):
         graph = organism.toGraph()
 
         with torch.no_grad():
-            graph, velocity_bonus, border_cost, food_reward, dead_cost = network(graph, steps)
+            graph, velocity_bonus, border_cost, food_reward, dead_cost, visible_food = network(graph, steps)
 
-        fitness = (velocity_bonus.sum() - border_cost + food_reward*200/(1+velocity_bonus.mean()*10)) / (1+dead_cost)
+        G = to_networkx(graph, to_undirected=True)
+        largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
+        G2 = G.subgraph(largest_component) 
+        diameter = nx.diameter(G2) #shortest longest path
+
+        #TODO add reward for the larger the longest distance in the graph is - that reward the organism in becoming more spread out while staying as one organism
+        fitness = (velocity_bonus.sum() + visible_food/10 + diameter*food_reward*1000/(1+velocity_bonus.mean()*10)) / (1+dead_cost+border_cost/4 + visible_food/100) - border_cost/10
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
+            print("fitness function returned nan")
             fitness = -1000
         return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
 
