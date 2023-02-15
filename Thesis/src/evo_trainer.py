@@ -23,7 +23,7 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(40, 50)
+        self.time_steps = np.random.randint(130, 200)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
@@ -43,16 +43,17 @@ class Custom_NEProblem(NEProblem):
         graph = organism.toGraph()
 
         with torch.no_grad():
-            graph, velocity_bonus, border_cost, food_reward, dead_cost, visible_food = network(graph, steps)
+            graph, velocity_bonus, border_cost, food_reward, dead_cost, visible_food, food_avg_degree = network(graph, steps)
 
-        G = to_networkx(graph, to_undirected=True)
-        largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
-        G2 = G.subgraph(largest_component) 
-        diameter = nx.diameter(G2) #shortest longest path
+        #G = to_networkx(graph, to_undirected=True)
+        #largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
+        #G2 = G.subgraph(largest_component) 
+        #diameter = nx.diameter(G2) #shortest longest path
 
-        #TODO add reward for the larger the longest distance in the graph is - that reward the organism in becoming more spread out while staying as one organism
-        fitness = (velocity_bonus.sum() + visible_food/10 + diameter*food_reward*1000/(1+velocity_bonus.mean()*10)) / (1+dead_cost+border_cost/4 + visible_food/100) - border_cost/10
+        #TODO add reward for the average degree of each visible food - encourage more nodes seeing the same food - hopefully going towards it...
+        #fitness = (velocity_bonus.sum() + visible_food/10 + food_avg_degree*diameter*food_reward*100/(1+velocity_bonus.mean()*100)) / (1+dead_cost+border_cost + visible_food/100) - border_cost/4
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
+        fitness = food_reward+1000 / (1+velocity_bonus.mean()*100) - border_cost
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             fitness = -1000

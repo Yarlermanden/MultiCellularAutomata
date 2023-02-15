@@ -20,7 +20,7 @@ class GNCA(nn.Module):
         self.radius = 0.05
         self.consume_radius = self.radius*2
         self.acceleration_scale = 0.005
-        self.max_velocity = 0.05
+        self.max_velocity = 0.02
         self.max_pos = 1
         self.consumption_edge_required = 5
         self.edges_to_stay_alive = 3 #1 more than its self loop
@@ -57,7 +57,7 @@ class GNCA(nn.Module):
         '''Update the graph a single time step'''
         any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
         if not any_edges:
-            return graph, 0, 0, 0, 0, 0, False
+            return graph, 0, 0, 0, 0, 0, 0, False
 
         velocity = self.update_graph(graph)
 
@@ -69,23 +69,25 @@ class GNCA(nn.Module):
 
         #Compute the number of food sources connected to the graph
         visible_food = (graph.edge_attr[:, 3] == 0).sum()
+        count_visible_food = len(torch.nonzero(graph.edge_attr[:, 3] == 0).flatten())
+        food_avg_degree = visible_food/count_visible_food
         
         dead_cost, food_reward = self.remove_nodes(graph)
         graph.attr[0] += food_reward
         #TODO add a new cell node pr x graph energy
 
         graph = graph.to(device=self.device)
-        return graph, velocity.abs().mean(dim=0), border_cost, food_reward, dead_cost, visible_food, True
+        return graph, velocity.abs().mean(dim=0), border_cost, food_reward, dead_cost, visible_food, food_avg_degree, True
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device, dtype=torch.float)
-        border_costs, food_rewards, dead_costs, visible_foods = 0.0, 0.0, 0.0, 0.0
+        border_costs, food_rewards, dead_costs, visible_foods, food_avg_degrees = 0.0, 0.0, 0.0, 0.0, 0.0
 
         add_random_food(graph, self.device, 30)
 
         for i in range(time_steps):
-            graph, velocity, border_cost, food_reward, dead_cost, visible_food, viable = self.update(graph)
+            graph, velocity, border_cost, food_reward, dead_cost, visible_food, viable, food_avg_degree = self.update(graph)
             if not viable: 
                 velocity_bonus, border_costs, food_reward, dead_costs = torch.tensor(0.0, dtype=torch.float), 100, 0, 100
                 break
@@ -94,5 +96,6 @@ class GNCA(nn.Module):
             food_rewards += food_reward
             dead_costs += dead_cost
             visible_foods += visible_food
+            food_avg_degrees += food_avg_degree
 
-        return graph, velocity_bonus, border_costs, food_rewards, dead_costs, visible_foods
+        return graph, velocity_bonus, border_costs, food_rewards, dead_costs, visible_foods, food_avg_degrees

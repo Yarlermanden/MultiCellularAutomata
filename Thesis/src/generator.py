@@ -17,7 +17,8 @@ def generate_organism(n: int, device):
 
 def generate_food(device):
     '''Generate a random food'''
-    x = random.uniform(-1, 1)
-    y = random.uniform(-1, 1)
+    d = 0.8
+    x = random.uniform(-d, d)
+    y = random.uniform(-d, d)
     food = torch.tensor([[x,y, 0, 0, 0, 0, 0]], device=device)
     return food
