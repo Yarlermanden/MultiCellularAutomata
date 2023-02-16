@@ -53,10 +53,10 @@ class Custom_NEProblem(NEProblem):
         #TODO add reward for the average degree of each visible food - encourage more nodes seeing the same food - hopefully going towards it...
         #fitness = (velocity_bonus.sum() + visible_food/10 + food_avg_degree*diameter*food_reward*100/(1+velocity_bonus.mean()*100)) / (1+dead_cost+border_cost + visible_food/100) - border_cost/4
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
-        fitness = food_reward+1000 / (1+velocity_bonus.mean()*100) - border_cost
+        fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
-            fitness = -1000
+            fitness = 0
         return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
 
 class Evo_Trainer():
@@ -77,7 +77,7 @@ class Evo_Trainer():
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(0.1, dtype=torch.float),
+            stdev_init=torch.tensor(10.0, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
             obj_index=0
