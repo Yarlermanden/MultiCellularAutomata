@@ -18,7 +18,7 @@ class GNCA(nn.Module):
         self.output_channels = 4
 
         self.radius = 0.05
-        self.consume_radius = self.radius*2
+        self.consume_radius = self.radius/2
         self.acceleration_scale = 0.005
         self.max_velocity = 0.02
         self.max_pos = 1

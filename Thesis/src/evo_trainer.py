@@ -23,7 +23,8 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(130, 200)
+        #self.time_steps = np.random.randint(130, 200)
+        self.time_steps = np.random.randint(80, 100)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
@@ -53,7 +54,9 @@ class Custom_NEProblem(NEProblem):
         #TODO add reward for the average degree of each visible food - encourage more nodes seeing the same food - hopefully going towards it...
         #fitness = (velocity_bonus.sum() + visible_food/10 + food_avg_degree*diameter*food_reward*100/(1+velocity_bonus.mean()*100)) / (1+dead_cost+border_cost + visible_food/100) - border_cost/4
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
-        fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
+
+        #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
+        fitness = (food_reward**2) - velocity_bonus.mean() - border_cost
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             fitness = 0
@@ -77,7 +80,7 @@ class Evo_Trainer():
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(10.0, dtype=torch.float),
+            stdev_init=torch.tensor(0.1, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
             obj_index=0

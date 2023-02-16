@@ -7,14 +7,14 @@ import torch
 class CGConv1(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.conv_layer_cells = CGConv(self.input_channels, dim=self.edge_dim, aggr='mean')
-        self.conv_layer_food = CGConv(self.input_channels, dim=self.edge_dim, aggr='mean')
+        self.conv_layer_cells = CGConv(self.input_channels, dim=self.edge_dim)
+        self.conv_layer_food = CGConv(self.input_channels, dim=self.edge_dim)
 
         self.mlp = nn.Sequential(
             nn.ReLU(), 
-            nn.Linear(self.input_channels*2, self.input_channels),
+            nn.Linear(self.input_channels*2, self.input_channels*2),
             nn.ReLU(), 
-            nn.Linear(self.input_channels, self.output_channels),
+            nn.Linear(self.input_channels*2, self.output_channels),
             nn.ReLU()
         )
 
