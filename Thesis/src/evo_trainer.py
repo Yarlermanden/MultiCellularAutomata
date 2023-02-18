@@ -56,10 +56,11 @@ class Custom_NEProblem(NEProblem):
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
-        fitness = (food_reward**2) - velocity_bonus.mean() - border_cost
+        fitness = (food_reward**3) - velocity_bonus.mean() - border_cost
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
-            fitness = 0
+            print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))
+            fitness = -10000
         return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
 
 class Evo_Trainer():
@@ -80,7 +81,7 @@ class Evo_Trainer():
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(0.1, dtype=torch.float),
+            stdev_init=torch.tensor(1.0, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
             obj_index=0

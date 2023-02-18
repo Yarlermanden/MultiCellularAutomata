@@ -13,7 +13,7 @@ class SpatioTemporal(GNCA):
             nn.Linear(self.input_channels, self.input_channels),
             nn.ReLU(), 
             nn.Linear(self.input_channels, self.output_channels),
-            nn.ReLU()
+            nn.Tanh()
             )
         self.h = None
         self.X = None
@@ -40,7 +40,6 @@ class SpatioTemporal(GNCA):
         self.h = h
 
         x = self.mlp(h)
-        x = x*2 - 1 #forces acceleration to be between -1 and 1 while using ReLU instead of Tanh
         return x
 
     def forward(self, *args):

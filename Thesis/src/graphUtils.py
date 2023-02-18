@@ -88,6 +88,7 @@ def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
     edge_mask = edges_pr_node >= consumption_edge_required
     consumption_mask = torch.bitwise_and(f_mask, edge_mask)
+
     return consumption_mask
 
 def get_island_cells_mask(graph, edges_to_stay_alive):
