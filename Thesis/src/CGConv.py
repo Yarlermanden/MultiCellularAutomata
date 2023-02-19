@@ -12,15 +12,15 @@ class CGConv1(GNCA):
 
         self.mlp = nn.Sequential(
             nn.ReLU(), 
-            nn.Linear(self.input_channels*2, self.input_channels*2),
-            nn.ReLU(), 
+            #nn.Linear(self.input_channels*2, self.input_channels*2),
+            #nn.ReLU(), 
             nn.Linear(self.input_channels*2, self.output_channels),
             nn.Tanh()
         )
 
         self.mlp_before = nn.Sequential(
-            nn.Linear(self.input_channels, self.input_channels),
-            nn.ReLU(),
+            #nn.Linear(self.input_channels, self.input_channels),
+            #nn.ReLU(),
             nn.Linear(self.input_channels, self.input_channels),
             nn.ReLU()
         )

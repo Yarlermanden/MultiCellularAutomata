@@ -18,7 +18,7 @@ class GNCA(nn.Module):
         self.output_channels = 7
 
         self.radius = 0.05
-        self.consume_radius = self.radius/2
+        self.consume_radius = self.radius
         self.acceleration_scale = 0.005
         self.max_velocity = 0.02
         self.max_pos = 1
@@ -84,7 +84,7 @@ class GNCA(nn.Module):
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device, dtype=torch.float)
         border_costs, food_rewards, dead_costs, visible_foods, food_avg_degrees = 0.0, 0.0, 0.0, 0.0, 0.0
 
-        add_random_food(graph, self.device, 50)
+        add_random_food(graph, self.device, 20)
 
         for i in range(time_steps):
             graph, velocity, border_cost, food_reward, dead_cost, visible_food, food_avg_degree, viable = self.update(graph)

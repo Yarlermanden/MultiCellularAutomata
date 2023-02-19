@@ -23,7 +23,7 @@ class SpatioTemporal(GNCA):
         #TODO could the edge attributes be passed to a MLP which predicts the weight matrix to be passed to the SPModel
 
         x = graph.x.clone()
-        mask = x[:, :2].abs() > 0.9
+        mask = x[:, :2].abs() > 1.0
         x[:, :2] = x[:, :2] * mask
         if self.X is None:
             zero = torch.zeros_like(graph.x)
