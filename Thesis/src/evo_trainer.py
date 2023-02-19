@@ -24,7 +24,7 @@ class GlobalVarActor():
 
     def set_global_var(self):
         #self.time_steps = np.random.randint(130, 200)
-        self.time_steps = np.random.randint(80, 100)
+        self.time_steps = np.random.randint(150, 200)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
