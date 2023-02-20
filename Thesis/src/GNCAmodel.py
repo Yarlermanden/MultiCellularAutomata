@@ -31,6 +31,12 @@ class GNCA(nn.Module):
         '''Convolves the graph for message passing'''
         ...
 
+    def add_noise(self, graph, c_mask):
+        x_noise = torch.randn_like(graph.x[:, 2]) * 0.001
+        y_noise = torch.randn_like(graph.x[:, 3]) * 0.001
+        graph.x[:, 2] += x_noise * c_mask
+        graph.x[:, 3] += y_noise * c_mask
+
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph)
@@ -41,6 +47,7 @@ class GNCA(nn.Module):
         positions = update_positions(graph, velocity)
         graph.x[:, 2:4] = velocity
         graph.x[:, :2] = positions
+        self.add_noise(graph, c_mask)
         return velocity
 
     def remove_nodes(self, graph):
@@ -57,7 +64,7 @@ class GNCA(nn.Module):
         '''Update the graph a single time step'''
         any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
         if not any_edges:
-            return graph, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, False
+            return graph, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, False
 
         velocity = self.update_graph(graph)
 
@@ -71,25 +78,27 @@ class GNCA(nn.Module):
         visible_food = (graph.edge_attr[:, 3] == 0).sum()
         count_visible_food = len(torch.nonzero(graph.edge_attr[:, 3] == 0).flatten())
         food_avg_degree = visible_food/count_visible_food
+
+        mean_food_dist = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten(), 0].sum()
         
         dead_cost, food_reward = self.remove_nodes(graph)
         graph.attr[0] += food_reward
         #TODO add a new cell node pr x graph energy
 
         graph = graph.to(device=self.device)
-        return graph, velocity.abs().mean(dim=0), border_cost, food_reward, dead_cost, visible_food, food_avg_degree, True
+        return graph, velocity.abs().mean(dim=0), border_cost, food_reward, dead_cost, visible_food, food_avg_degree, mean_food_dist, True
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
         velocity_bonus = torch.tensor([0.0,0.0], device=self.device, dtype=torch.float)
-        border_costs, food_rewards, dead_costs, visible_foods, food_avg_degrees = 0.0, 0.0, 0.0, 0.0, 0.0
+        border_costs, food_rewards, dead_costs, visible_foods, food_avg_degrees, mean_food_dists = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
         add_random_food(graph, self.device, 20)
 
         for i in range(time_steps):
-            graph, velocity, border_cost, food_reward, dead_cost, visible_food, food_avg_degree, viable = self.update(graph)
+            graph, velocity, border_cost, food_reward, dead_cost, visible_food, food_avg_degree, mean_food_dist, viable = self.update(graph)
             if not viable: 
-                velocity_bonus, border_costs, food_reward, dead_costs = torch.tensor([0.0, 0.0]), 100.0, 0.0, 100.0
+                velocity_bonus, border_costs, food_reward, dead_costs, mean_food_dist = torch.tensor([0.0, 0.0]), 100.0, 0.0, 100.0, 100.0
                 break
             velocity_bonus += velocity
             border_costs += border_cost
@@ -97,5 +106,6 @@ class GNCA(nn.Module):
             dead_costs += dead_cost
             visible_foods += visible_food
             food_avg_degrees += food_avg_degree
+            mean_food_dists += mean_food_dist
 
-        return graph, velocity_bonus, border_costs, food_rewards, dead_costs, visible_foods, food_avg_degrees
+        return graph, velocity_bonus, border_costs, food_rewards, dead_costs, visible_foods, food_avg_degrees, mean_food_dists

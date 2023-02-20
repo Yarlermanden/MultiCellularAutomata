@@ -23,8 +23,8 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        #self.time_steps = np.random.randint(130, 200)
-        self.time_steps = np.random.randint(150, 200)
+        self.time_steps = np.random.randint(80, 100)
+        #self.time_steps = np.random.randint(150, 200)
         self.organism = generate_organism(self.n, self.device)
 
     def get_global_var(self):
@@ -44,7 +44,7 @@ class Custom_NEProblem(NEProblem):
         graph = organism.toGraph()
 
         with torch.no_grad():
-            graph, velocity_bonus, border_cost, food_reward, dead_cost, visible_food, food_avg_degree = network(graph, steps)
+            graph, velocity_bonus, border_cost, food_reward, dead_cost, visible_food, food_avg_degree, mean_food_dist = network(graph, steps)
 
         #G = to_networkx(graph, to_undirected=True)
         #largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
@@ -56,7 +56,7 @@ class Custom_NEProblem(NEProblem):
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
-        fitness = (food_reward**2)*100 - velocity_bonus.mean()*3 - border_cost + visible_food/steps
+        fitness = (food_reward**2)*100 - velocity_bonus.mean()*3 - border_cost + (visible_food/steps /(1+mean_food_dist/steps))*10
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))
