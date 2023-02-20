@@ -4,26 +4,29 @@ import random
 import torch_geometric
 from torch_geometric import utils
 
-def add_edges(graph, radius, device):
+def add_edges(graph, radius, device, wrap_around):
     '''Add edges dynamically according to radius. '''
     edges = []
     edge_attributes = []
     radius_food = radius*5
-    norm_multi = 1/radius_food
     
     cell_indices = torch.nonzero(graph.x[:, 4] == 1).flatten()
     food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
 
-    def add_edge(i: int, j: int, with_food: bool):
+    def add_edge(i: int, j: int, with_food: bool, wrap_around: bool):
         radius_to_use = radius
         cell_to_cell = 1
         if with_food:
             radius_to_use = radius_food
             cell_to_cell = 0
-        xy_dist = (graph.x[i]-graph.x[j])[:2]
+
+        xy_dist = torch.abs(graph.x[i]-graph.x[j])[:2]
+        if xy_dist[0] > 1.0:
+            xy_dist[0] = 2.0 - xy_dist[0]
+        if xy_dist[1] > 1.0:
+            xy_dist[1] = 2.0 - xy_dist[1]
         dist = xy_dist.norm()
         if dist < radius_to_use:
-            #xy_dist = xy_dist * norm_multi
             edges.append([i, j])
             edge_attribute1 = [dist, xy_dist[0], xy_dist[1], cell_to_cell]
             edge_attributes.append(edge_attribute1)
@@ -35,10 +38,10 @@ def add_edges(graph, radius, device):
     n = len(cell_indices)
     for i_i in range(n):
         for j in food_indices: #check distance to food sources
-            add_edge(cell_indices[i_i], j, True)
+            add_edge(cell_indices[i_i], j, True, wrap_around)
 
         for i_j in range(i_i, n): #check distance to other cells
-            add_edge(cell_indices[i_i], cell_indices[i_j], False)
+            add_edge(cell_indices[i_i], cell_indices[i_j], False, wrap_around)
 
     if len(edges) == 0:
         graph.x = graph.x[food_indices].view(food_indices.shape[0], graph.x.shape[1])
@@ -66,9 +69,9 @@ def update_velocity(graph, acceleration, max_velocity):
     velocity = torch.clamp(velocity, -max_velocity, max_velocity)
     return velocity
 
-def update_positions(graph, velocity):
+def update_positions(graph, velocity, wrap_around):
     '''Updates the position of the nodes given the velocity and previous positions'''
-    positions = graph.x[:, :2] + velocity
+    positions = torch.remainder(graph.x[:, :2] + velocity + 1.0, 2.0) - 1.0
     return positions
 
 def food_mask(graph):

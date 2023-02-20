@@ -6,7 +6,7 @@ from graphUtils import add_edges, add_random_food
 import torch
 
 class Visualizer():
-    def __init__(self):
+    def __init__(self, wrap_around):
         self.figure = None
         self.graph = None
         canvas_scale = 1
@@ -16,9 +16,10 @@ class Visualizer():
         self.edge_plot = None
         self.axes = None
         self.device = torch.device('cpu')
+        self.wrap_around = wrap_around
 
     def plot_organism(self, graph):
-        any_edges = add_edges(graph, 0.05, self.device)
+        any_edges = add_edges(graph, 0.05, self.device, self.wrap_around)
         if not any_edges:
             return
         cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()

@@ -9,7 +9,7 @@ from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask
 
 class GNCA(nn.Module):
-    def __init__(self, device, channels=10, edge_dim=4):
+    def __init__(self, device, wrap_around, channels=10, edge_dim=4):
         #batching?
         super(GNCA, self).__init__()
         self.device = device
@@ -26,25 +26,27 @@ class GNCA(nn.Module):
         self.edges_to_stay_alive = 3 #1 more than its self loop
         self.energy_required = 5
         self.node_indices_to_keep = None
+        self.wrap_around = wrap_around
 
     def message_pass(self, graph):
         '''Convolves the graph for message passing'''
         ...
 
     def add_noise(self, graph, c_mask):
-        x_noise = torch.randn_like(graph.x[:, 2]) * 0.001
-        y_noise = torch.randn_like(graph.x[:, 3]) * 0.001
+        noise = 0.002
+        x_noise = torch.randn_like(graph.x[:, 2]) * noise
+        y_noise = torch.randn_like(graph.x[:, 3]) * noise
         graph.x[:, 2] += x_noise * c_mask
         graph.x[:, 3] += y_noise * c_mask
 
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph)
-        h = self.message_pass(graph) * self.acceleration_scale * torch.stack((c_mask, c_mask, c_mask, c_mask, c_mask, c_mask, c_mask), dim=1)
-        acceleration = h[:, :2]
+        h = self.message_pass(graph) * torch.stack((c_mask, c_mask, c_mask, c_mask, c_mask, c_mask, c_mask), dim=1)
+        acceleration = h[:, :2] * self.acceleration_scale
         graph.x[:, 5:] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity)
-        positions = update_positions(graph, velocity)
+        positions = update_positions(graph, velocity, self.wrap_around)
         graph.x[:, 2:4] = velocity
         graph.x[:, :2] = positions
         self.add_noise(graph, c_mask)
@@ -62,7 +64,7 @@ class GNCA(nn.Module):
 
     def update(self, graph):
         '''Update the graph a single time step'''
-        any_edges = add_edges(graph, self.radius, self.device) #dynamically add edges
+        any_edges = add_edges(graph, self.radius, self.device, self.wrap_around) #dynamically add edges
         if not any_edges:
             return graph, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, False
 
