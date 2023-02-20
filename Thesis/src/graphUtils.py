@@ -21,10 +21,11 @@ def add_edges(graph, radius, device, wrap_around):
             cell_to_cell = 0
 
         xy_dist = torch.abs(graph.x[i]-graph.x[j])[:2]
-        if xy_dist[0] > 1.0:
-            xy_dist[0] = 2.0 - xy_dist[0]
-        if xy_dist[1] > 1.0:
-            xy_dist[1] = 2.0 - xy_dist[1]
+        if wrap_around:
+            if xy_dist[0] > 1.0:
+                xy_dist[0] = 2.0 - xy_dist[0]
+            if xy_dist[1] > 1.0:
+                xy_dist[1] = 2.0 - xy_dist[1]
         dist = xy_dist.norm()
         if dist < radius_to_use:
             edges.append([i, j])

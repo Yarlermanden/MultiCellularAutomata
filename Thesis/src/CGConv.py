@@ -26,17 +26,13 @@ class CGConv1(GNCA):
         )
 
     def message_pass(self, graph):
-        x = graph.x.clone()
-        mask = x[:, :2].abs() > 1.0
-        x[:, :2] = x[:, :2] * mask
-        x = self.mlp_before(x)
+        x = self.mlp_before(graph.x[:, 2:])
 
         cell_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()]
         food_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()]
         cell_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()]
         food_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()]
         
-
         h1 = self.conv_layer_cells(x=x, edge_index=cell_edges, edge_attr=cell_attr)
         h2 = self.conv_layer_food(x=x, edge_index=food_edges, edge_attr=food_attr)
         h = torch.concat((h1,h2), dim=1)

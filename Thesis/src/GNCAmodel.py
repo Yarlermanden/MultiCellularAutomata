@@ -13,7 +13,7 @@ class GNCA(nn.Module):
         #batching?
         super(GNCA, self).__init__()
         self.device = device
-        self.input_channels = channels
+        self.input_channels = channels-2
         self.edge_dim=edge_dim
         self.output_channels = 7
 
@@ -33,9 +33,9 @@ class GNCA(nn.Module):
         ...
 
     def add_noise(self, graph, c_mask):
-        noise = 0.002
-        x_noise = torch.randn_like(graph.x[:, 2]) * noise
-        y_noise = torch.randn_like(graph.x[:, 3]) * noise
+        noise = 0.001
+        x_noise = (torch.rand(graph.x[:, 2].shape)*2-1.0) * noise
+        y_noise = (torch.rand(graph.x[:, 3].shape)*2-1.0) * noise
         graph.x[:, 2] += x_noise * c_mask
         graph.x[:, 3] += y_noise * c_mask
 

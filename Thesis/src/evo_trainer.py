@@ -23,7 +23,8 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(80, 100)
+        self.time_steps = np.random.randint(50, 60)
+        #self.time_steps = np.random.randint(80, 100)
         #self.time_steps = np.random.randint(150, 200)
         self.organism = generate_organism(self.n, self.device)
 
@@ -56,7 +57,7 @@ class Custom_NEProblem(NEProblem):
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
-        fitness = (food_reward**2)*10 - velocity_bonus.mean()*10 - border_cost + (visible_food/steps /(1+mean_food_dist/steps))*10 - dead_cost*10
+        fitness = (food_reward**2)*20 - velocity_bonus.mean()*500 + (visible_food/steps /(1+mean_food_dist*100/steps))*100 - dead_cost*10
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))

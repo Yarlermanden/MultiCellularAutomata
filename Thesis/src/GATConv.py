@@ -15,9 +15,7 @@ class GATConv(GNCA):
 
     def message_pass(self, graph):
         '''Convolves the graph for message passing'''
-        x = graph.x.clone()
-        mask = x[:, :2].abs() > 0.9
-        x[:, :2] = x[:, :2] * mask
+        x = graph.x[:, 2:]
         h = self.conv_layers(x=x, edge_index=graph.edge_index, edge_attr=graph.edge_attr)
         h = self.mlp(h)
         return h
