@@ -2,6 +2,8 @@ from evotorch.tools import dtype_of, device_of
 from evotorch.neuroevolution import NEProblem
 from evotorch.algorithms import PGPE, SNES, XNES, CMAES
 from evotorch.logging import PandasLogger, StdOutLogger
+from evotorch.algorithms import GeneticAlgorithm
+from evotorch.operators import GaussianMutation, SimulatedBinaryCrossOver
 import torch
 import numpy as np
 import ray
@@ -58,14 +60,14 @@ class Custom_NEProblem(NEProblem):
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
 
-        visible_dist = visible_food/steps / (1+mean_food_dist**3/steps) * 100
-        fitness = (food_reward**3) - velocity_bonus.mean()*10 + visible_dist - dead_cost*4
+        fitness = (food_reward**3)
 
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))
             fitness = -10000
-        return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
+        #return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
+        return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food, mean_food_dist], dtype=torch.float)
 
 class Evo_Trainer():
     def __init__(self, n, device, wrap_around, popsize=None):
@@ -77,7 +79,7 @@ class Evo_Trainer():
             n=n,
             global_var=global_var,
             device=device,
-            objective_sense=['max', 'max', 'max', 'max', 'max'],
+            objective_sense=['max', 'min', 'max', 'min', 'max', 'min'],
             network=CGConv1,
             #network=SpatioTemporal,
             #network=GATConv,
@@ -85,12 +87,20 @@ class Evo_Trainer():
             num_actors='max',
             num_gpus_per_actor = 'max',
         )
-        self.searcher = CMAES(
+        #self.searcher = CMAES(
+        #    self.problem,
+        #    stdev_init=torch.tensor(0.1, dtype=torch.float),
+        #    popsize=popsize,
+        #    limit_C_decomposition=False,
+        #    obj_index=0
+        #)
+        self.searcher = GeneticAlgorithm(
             self.problem,
-            stdev_init=torch.tensor(0.1, dtype=torch.float),
-            popsize=popsize,
-            limit_C_decomposition=False,
-            obj_index=0
+            popsize=200,
+            operators=[
+                SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
+                GaussianMutation(self.problem, stdev=0.03),
+            ],
         )
 
         def before_epoch():
@@ -107,7 +117,8 @@ class Evo_Trainer():
         self.searcher.run(n)
         self.logger_df = self.logger.to_dataframe()
         self.logger_df.to_csv('../logger/' + name + '.csv')
-        self.trained_network = self.problem.parameterize_net(self.searcher.status['center'][0])
+        #self.trained_network = self.problem.parameterize_net(self.searcher.status['center'][0])
+        self.trained_network = self.problem.parameterize_net(self.searcher.status['best'][0])
         torch.save(self.trained_network.state_dict(), '../models/' + name + '.pth')
 
     def visualize_training(self):
