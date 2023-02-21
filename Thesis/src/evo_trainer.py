@@ -23,8 +23,8 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        self.time_steps = np.random.randint(50, 60)
-        #self.time_steps = np.random.randint(80, 100)
+        #self.time_steps = np.random.randint(40, 50)
+        self.time_steps = np.random.randint(80, 100)
         #self.time_steps = np.random.randint(150, 200)
         self.organism = generate_organism(self.n, self.device)
 
@@ -57,7 +57,10 @@ class Custom_NEProblem(NEProblem):
         #fitness = velocity_bonus.sum() + food_reward*10*velocity_bonus.sum()/(1+border_cost/10+dead_cost/100)
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
-        fitness = (food_reward**2)*20 - velocity_bonus.mean()*500 + (visible_food/steps /(1+mean_food_dist*100/steps))*100 - dead_cost*10
+
+        visible_dist = visible_food/steps / (1+mean_food_dist**3/steps) * 100
+        fitness = (food_reward**3) - velocity_bonus.mean()*10 + visible_dist - dead_cost*4
+
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))
@@ -77,13 +80,14 @@ class Evo_Trainer():
             objective_sense=['max', 'max', 'max', 'max', 'max'],
             network=CGConv1,
             #network=SpatioTemporal,
+            #network=GATConv,
             network_args={'device': device, 'wrap_around': wrap_around},
             num_actors='max',
             num_gpus_per_actor = 'max',
         )
         self.searcher = CMAES(
             self.problem,
-            stdev_init=torch.tensor(1.0, dtype=torch.float),
+            stdev_init=torch.tensor(0.1, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
             obj_index=0

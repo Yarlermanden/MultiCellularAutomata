@@ -33,7 +33,7 @@ class GNCA(nn.Module):
         ...
 
     def add_noise(self, graph, c_mask):
-        noise = 0.001
+        noise = 0.004
         x_noise = (torch.rand(graph.x[:, 2].shape)*2-1.0) * noise
         y_noise = (torch.rand(graph.x[:, 3].shape)*2-1.0) * noise
         graph.x[:, 2] += x_noise * c_mask
@@ -42,9 +42,10 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph)
-        h = self.message_pass(graph) * torch.stack((c_mask, c_mask, c_mask, c_mask, c_mask, c_mask, c_mask), dim=1)
+        #h = self.message_pass(graph) * torch.stack((c_mask, c_mask, c_mask, c_mask, c_mask, c_mask, c_mask), dim=1)
+        h = self.message_pass(graph) * torch.stack((c_mask, c_mask), dim=1)
         acceleration = h[:, :2] * self.acceleration_scale
-        graph.x[:, 5:] = h[:, 2:]
+        #graph.x[:, 5:] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity)
         positions = update_positions(graph, velocity, self.wrap_around)
         graph.x[:, 2:4] = velocity

@@ -76,4 +76,4 @@ class Visualizer():
         return anim
 
     def save_animation_to_gif(self, anim, name, fps=30):
-        anim.save('../animation/' + name + '.gif', writer='imagemagick', fps=fps)
+        anim.save('../animation/' + name + '.gif', writer='imagemagick', fps=fps, bitrate=4096)
