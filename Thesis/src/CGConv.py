@@ -10,30 +10,31 @@ class CGConv1(GNCA):
         super().__init__(**kwargs)
         self.input_channels = 4
         self.output_channels = 4
-        self.hidden_size = self.input_channels*4
-        self.conv_layer_cells = CGConv(self.hidden_size, dim=self.edge_dim, aggr='add')
-        self.conv_layer_food = CGConv(self.hidden_size, dim=self.edge_dim, aggr='add')
+        self.hidden_size = self.input_channels*2
+        self.conv_layer_cells = CGConv(self.hidden_size, dim=self.edge_dim, aggr='mean')
+        self.conv_layer_food = CGConv(self.hidden_size, dim=self.edge_dim, aggr='mean')
 
         self.mlp_before = nn.Sequential(
-            nn.Linear(self.input_channels, self.input_channels*2),
-            nn.ReLU(),
-            nn.Linear(self.input_channels*2, self.hidden_size),
-            nn.ReLU()
+            #nn.Linear(self.input_channels, self.input_channels*2),
+            #nn.ReLU(),
+            nn.Linear(self.input_channels, self.hidden_size),
+            nn.Tanh()
         )
 
         self.mlp_middle = nn.Sequential(
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(self.hidden_size*2, self.hidden_size),
-            nn.ReLU(),
+            nn.Tanh(),
         )
 
         self.mlp = nn.Sequential(
-            nn.ReLU(), 
-            nn.Linear(self.hidden_size, self.input_channels*2),
-            nn.ReLU(), 
-            nn.Linear(self.input_channels*2, self.input_channels*2),
-            nn.ReLU(), 
-            nn.Linear(self.input_channels*2, self.output_channels),
+            nn.Tanh(), 
+            #nn.Linear(self.hidden_size, self.input_channels*2),
+            #nn.ReLU(), 
+            #nn.Linear(self.input_channels*2, self.input_channels*2),
+            #nn.ReLU(), 
+            #nn.Linear(self.input_channels*2, self.output_channels),
+            nn.Linear(self.hidden_size, self.output_channels),
             nn.Tanh()
         )
 

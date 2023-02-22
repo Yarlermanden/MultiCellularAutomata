@@ -33,11 +33,12 @@ class GNCA(nn.Module):
         ...
 
     def add_noise(self, graph, c_mask):
-        noise = 0.004
+        noise = 0.01
         x_noise = (torch.rand(graph.x[:, 2].shape)*2-1.0) * noise
         y_noise = (torch.rand(graph.x[:, 3].shape)*2-1.0) * noise
-        graph.x[:, 2] += x_noise * c_mask
-        graph.x[:, 3] += y_noise * c_mask
+        update_mask = torch.rand_like(x_noise) > 0.5
+        graph.x[:, 2] += x_noise * c_mask * update_mask
+        graph.x[:, 3] += y_noise * c_mask * update_mask
 
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
@@ -51,7 +52,7 @@ class GNCA(nn.Module):
         positions = update_positions(graph, velocity, self.wrap_around)
         graph.x[:, 2:4] = velocity
         graph.x[:, :2] = positions
-        self.add_noise(graph, c_mask)
+        #self.add_noise(graph, c_mask)
         return velocity
 
     def remove_nodes(self, graph):
@@ -102,7 +103,7 @@ class GNCA(nn.Module):
         for i in range(time_steps):
             graph, velocity, border_cost, food_reward, dead_cost, visible_food, food_avg_degree, mean_food_dist, viable = self.update(graph)
             if not viable: 
-                velocity_bonus, border_costs, food_reward, dead_costs, mean_food_dist = torch.tensor([0.0, 0.0]), 100.0, 0.0, 100.0, 100.0
+                velocity_bonus, border_costs, food_reward, dead_costs, mean_food_dist = torch.tensor([0.0, 0.0]), 100.0, 0.0, 10.0, 10.0
                 break
             velocity_bonus += velocity
             border_costs += border_cost

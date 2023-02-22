@@ -60,14 +60,19 @@ class Custom_NEProblem(NEProblem):
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
 
-        fitness = (food_reward**2)
+        norm = 0
+        for x in network.parameters():
+            for param in x:
+                norm += param.data.norm()
+
+        fitness = food_reward
 
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))
             fitness = -10000
-        #return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
-        return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food/1000, mean_food_dist/10], dtype=torch.float)
+        #return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food/1000, mean_food_dist/10], dtype=torch.float)
+        return torch.tensor([food_reward, norm, visible_food/1000, mean_food_dist/10, velocity_bonus.sum()], dtype=torch.float)
 
 class Evo_Trainer():
     def __init__(self, n, device, wrap_around, popsize=None):
@@ -79,7 +84,7 @@ class Evo_Trainer():
             n=n,
             global_var=global_var,
             device=device,
-            objective_sense=['max', 'min', 'max', 'min', 'max', 'min'],
+            objective_sense=['max', 'min', 'max', 'min', 'min'],
             network=CGConv1,
             #network=SpatioTemporal,
             #network=GATConv,
@@ -99,7 +104,7 @@ class Evo_Trainer():
             popsize=200,
             operators=[
                 SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
-                GaussianMutation(self.problem, stdev=0.03),
+                GaussianMutation(self.problem, stdev=0.02),
             ],
         )
 
