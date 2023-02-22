@@ -8,16 +8,16 @@ import torch
 class CGConv1(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.input_channels = 2
-        self.output_channels = 2
-        self.hidden_size = self.input_channels*8
+        self.input_channels = 4
+        self.output_channels = 4
+        self.hidden_size = self.input_channels*4
         self.conv_layer_cells = CGConv(self.hidden_size, dim=self.edge_dim, aggr='add')
         self.conv_layer_food = CGConv(self.hidden_size, dim=self.edge_dim, aggr='add')
 
         self.mlp_before = nn.Sequential(
-            nn.Linear(self.input_channels, self.input_channels*4),
+            nn.Linear(self.input_channels, self.input_channels*2),
             nn.ReLU(),
-            nn.Linear(self.input_channels*4, self.hidden_size),
+            nn.Linear(self.input_channels*2, self.hidden_size),
             nn.ReLU()
         )
 
@@ -29,9 +29,9 @@ class CGConv1(GNCA):
 
         self.mlp = nn.Sequential(
             nn.ReLU(), 
-            nn.Linear(self.hidden_size, self.input_channels*4),
+            nn.Linear(self.hidden_size, self.input_channels*2),
             nn.ReLU(), 
-            nn.Linear(self.input_channels*4, self.input_channels*2),
+            nn.Linear(self.input_channels*2, self.input_channels*2),
             nn.ReLU(), 
             nn.Linear(self.input_channels*2, self.output_channels),
             nn.Tanh()
@@ -44,7 +44,7 @@ class CGConv1(GNCA):
         #self.C = None
 
     def message_pass(self, graph):
-        x = self.mlp_before(graph.x[:, 2:4])
+        x = self.mlp_before(torch.concat((graph.x[:, 2:4], graph.x[:, 5:7]), dim=1))
         #if self.H is None:
             #self.H = torch.zeros(1, self.hidden_size)
 

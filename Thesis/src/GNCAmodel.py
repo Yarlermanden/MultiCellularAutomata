@@ -43,9 +43,10 @@ class GNCA(nn.Module):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph)
         #h = self.message_pass(graph) * torch.stack((c_mask, c_mask, c_mask, c_mask, c_mask, c_mask, c_mask), dim=1)
-        h = self.message_pass(graph) * torch.stack((c_mask, c_mask), dim=1)
+        #h = self.message_pass(graph) * torch.stack((c_mask, c_mask), dim=1)
+        h = self.message_pass(graph) * torch.stack((c_mask, c_mask, c_mask, c_mask), dim=1)
         acceleration = h[:, :2] * self.acceleration_scale
-        #graph.x[:, 5:] = h[:, 2:]
+        graph.x[:, 5:7] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity)
         positions = update_positions(graph, velocity, self.wrap_around)
         graph.x[:, 2:4] = velocity

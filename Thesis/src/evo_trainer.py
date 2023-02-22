@@ -60,14 +60,14 @@ class Custom_NEProblem(NEProblem):
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
 
-        fitness = (food_reward**3)
+        fitness = (food_reward**2)
 
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))
             fitness = -10000
         #return torch.tensor([fitness, velocity_bonus.sum(), -border_cost, food_reward, -dead_cost], dtype=torch.float)
-        return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food, mean_food_dist], dtype=torch.float)
+        return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food/1000, mean_food_dist/10], dtype=torch.float)
 
 class Evo_Trainer():
     def __init__(self, n, device, wrap_around, popsize=None):
