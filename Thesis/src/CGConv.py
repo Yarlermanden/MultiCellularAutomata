@@ -8,8 +8,8 @@ import torch
 class CGConv1(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.input_channels = 4
-        self.output_channels = 4
+        self.input_channels = 2
+        self.output_channels = 2
         self.hidden_size = self.input_channels*2
         self.conv_layer_cells = CGConv(self.hidden_size, dim=self.edge_dim, aggr='mean')
         self.conv_layer_food = CGConv(self.hidden_size, dim=self.edge_dim, aggr='mean')
@@ -45,7 +45,9 @@ class CGConv1(GNCA):
         #self.C = None
 
     def message_pass(self, graph):
-        x = self.mlp_before(torch.concat((graph.x[:, 2:4], graph.x[:, 5:7]), dim=1))
+        #x = self.mlp_before(torch.concat((graph.x[:, 2:4], graph.x[:, 5:7]), dim=1))
+        x = self.mlp_before(graph.x[:, 2:4])
+
         #if self.H is None:
             #self.H = torch.zeros(1, self.hidden_size)
 

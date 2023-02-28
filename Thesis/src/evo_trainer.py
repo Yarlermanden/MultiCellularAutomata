@@ -44,10 +44,14 @@ class Custom_NEProblem(NEProblem):
     def _evaluate_network(self, network: torch.nn.Module):
         steps, organism = ray.get(self.global_var.get_global_var.remote())
         #organism = generate_organism(self.n, self.device)
+        food_reward = 0.0
         graph = organism.toGraph()
 
         with torch.no_grad():
-            graph, velocity_bonus, border_cost, food_reward, dead_cost, visible_food, food_avg_degree, mean_food_dist = network(graph, steps)
+            for _ in range(4):
+                graph = organism.toGraph()
+                graph = network(graph, steps)
+                food_reward += graph.food_reward
 
         #G = to_networkx(graph, to_undirected=True)
         #largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
@@ -60,22 +64,23 @@ class Custom_NEProblem(NEProblem):
 
         #fitness = (visible_food+food_reward*1000) / (1+velocity_bonus.mean()*100 + border_cost*10) 
 
-        norm = 0
-        for x in network.parameters():
-            for param in x:
-                norm += param.data.norm()
+        #norm = 0
+        #for x in network.parameters():
+        #    for param in x:
+        #        norm += param.data.norm()
 
-        fitness = food_reward
+        fitness = graph.food_reward
 
         if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
-            print((food_reward, velocity_bonus.mean(), border_cost, dead_cost))
+            print((graph.food_reward, graph.velocity.mean(), graph.border_cost, graph.dead_cost))
             fitness = -10000
         #return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food/1000, mean_food_dist/10], dtype=torch.float)
-        return torch.tensor([food_reward, norm, visible_food/1000, mean_food_dist/10, velocity_bonus.sum()], dtype=torch.float)
+        #return torch.tensor([food_reward, visible_food/1000, mean_food_dist/10], dtype=torch.float)
+        return torch.tensor([food_reward, graph.food_avg_dist/10], dtype=torch.float)
 
 class Evo_Trainer():
-    def __init__(self, n, device, wrap_around, popsize=None):
+    def __init__(self, n, device, wrap_around, popsize=200):
         global_var = GlobalVarActor.remote(n, device)
         ray.get(global_var.set_global_var.remote())
         self.wrap_around = wrap_around
@@ -84,7 +89,7 @@ class Evo_Trainer():
             n=n,
             global_var=global_var,
             device=device,
-            objective_sense=['max', 'min', 'max', 'min', 'min'],
+            objective_sense=['max', 'min'],
             network=CGConv1,
             #network=SpatioTemporal,
             #network=GATConv,
@@ -92,21 +97,22 @@ class Evo_Trainer():
             num_actors='max',
             num_gpus_per_actor = 'max',
         )
-        #self.searcher = CMAES(
-        #    self.problem,
-        #    stdev_init=torch.tensor(0.1, dtype=torch.float),
-        #    popsize=popsize,
-        #    limit_C_decomposition=False,
-        #    obj_index=0
-        #)
-        self.searcher = GeneticAlgorithm(
+
+        self.searcher = CMAES(
             self.problem,
-            popsize=200,
-            operators=[
-                SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
-                GaussianMutation(self.problem, stdev=0.02),
-            ],
+            stdev_init=torch.tensor(0.1, dtype=torch.float),
+            popsize=popsize,
+            limit_C_decomposition=False,
+            obj_index=0
         )
+        #self.searcher = GeneticAlgorithm(
+        #    self.problem,
+        #    popsize=popsize,
+        #    operators=[
+        #        SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
+        #        GaussianMutation(self.problem, stdev=0.02),
+        #    ],
+        #)
 
         def before_epoch():
             ray.get(global_var.set_global_var.remote())

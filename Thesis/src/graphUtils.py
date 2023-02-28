@@ -64,10 +64,10 @@ def add_random_food(graph, device, n=1):
         food = generate_food(device)
         add_food(graph, food)
 
-def update_velocity(graph, acceleration, max_velocity):
+def update_velocity(graph, acceleration, max_velocity, c_mask):
     '''Updates the velocity of the nodes given the acceleration and previous velocity'''
     velocity = graph.x[:, 2:4] + acceleration
-    velocity = torch.clamp(velocity, -max_velocity, max_velocity)
+    velocity[c_mask] = torch.clamp(velocity[c_mask], -max_velocity, max_velocity)
     return velocity
 
 def update_positions(graph, velocity, wrap_around):

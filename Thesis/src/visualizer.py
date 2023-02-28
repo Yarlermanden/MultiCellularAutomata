@@ -69,7 +69,7 @@ class Visualizer():
 
         @torch.no_grad()
         def animate(i):
-            self.graph, *_ = model.update(self.graph)
+            self.graph = model.update(self.graph)
             self.plot_organism(self.graph.clone().detach().cpu())
 
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval)

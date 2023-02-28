@@ -20,5 +20,7 @@ def generate_food(device):
     d = 0.8
     x = random.uniform(-d, d)
     y = random.uniform(-d, d)
-    food = torch.tensor([[x,y, 0, 0, 0, 0, 0, 0, 0, 0]], device=device)
+    #food = torch.tensor([[x,y, 0, 0, 0, 0, 0, 0, 0, 0]], device=device)
+    val = random.randint(1,3)
+    food = torch.tensor([[x,y, val, 0, 0]], device=device)
     return food
