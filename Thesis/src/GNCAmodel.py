@@ -58,7 +58,7 @@ class GNCA(nn.Module):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
         dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
         consumed_mask = get_consume_food_mask(graph, self.consume_radius, self.consumption_edge_required)
-        food_val = graph.x[torch.nonzero(consumed_mask).flatten(), 2].sum()
+        #food_val = graph.x[torch.nonzero(consumed_mask).flatten(), 2].sum()
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
@@ -67,13 +67,16 @@ class GNCA(nn.Module):
         for i in range(self.batch_size):
             end_index = start_index + graph.subsize[i]
             graph.subsize[i] -= remove_mask[start_index:end_index].sum()
-            start_index = end_index+1
+            graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
+            #food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index]), 2].sum()
+            food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 2].sum()
+            graph.food_reward[i] += food_val
+            graph.energy[i] += food_val
+            start_index = end_index
 
         #TODO split the amounts into each batch and add/adjust accordingly
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
-        graph.dead_cost += dead_cells_mask.sum()
-        graph.food_reward += food_val
-        graph.energy += food_val
+
 
     def update(self, graph):
         '''Update the graph a single time step'''

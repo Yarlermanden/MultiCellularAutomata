@@ -16,7 +16,7 @@ class Organism():
         x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1] for cell in self.cells], device=self.device)
         edges = torch.tensor([[]], device=self.device)
         graph = Data(x=x, edge_index=edges, device=self.device, subsize=len(x))
-        add_random_food(graph, self.device, 50)
+        add_random_food(graph, self.device, 20)
         graph.energy = 0.0
         graph.velocity = 0.0
         graph.border_cost = 0.0

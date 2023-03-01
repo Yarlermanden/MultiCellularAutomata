@@ -46,7 +46,8 @@ class Visualizer():
                 graph.x[foodIndices, 1],
                 marker=".",
                 edgecolor="r",
-                lw=0.5,
+                #lw=0.5,
+                s=graph.x[foodIndices, 2]*3,
                 #**kwargs
             )
             self.edge_plot = self.axes.plot([[],[]], [[],[]], linewidth=0.1)
