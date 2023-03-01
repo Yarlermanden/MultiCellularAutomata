@@ -47,7 +47,7 @@ class Visualizer():
                 marker=".",
                 edgecolor="r",
                 #lw=0.5,
-                s=graph.x[foodIndices, 2]*3,
+                s=graph.x[foodIndices, 2]*5,
                 #**kwargs
             )
             self.edge_plot = self.axes.plot([[],[]], [[],[]], linewidth=0.1)
@@ -68,7 +68,6 @@ class Visualizer():
         @torch.no_grad()
         def animate(i):
             self.graph = model.update(self.graph)
-            #self.plot_organism(self.graph.clone().detach().cpu())
             self.plot_organism(self.graph.detach().cpu())
 
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval)

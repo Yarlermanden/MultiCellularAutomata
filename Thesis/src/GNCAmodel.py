@@ -35,9 +35,9 @@ class GNCA(nn.Module):
 
     def add_noise(self, graph, c_mask):
         noise = 0.005
-        x_noise = (torch.rand(graph.x[:, 2].shape)*2-1.0) * noise
-        y_noise = (torch.rand(graph.x[:, 3].shape)*2-1.0) * noise
-        update_mask = torch.rand_like(x_noise) > 0.5
+        x_noise = (torch.rand(graph.x[:, 2].shape, device=self.device)*2-1.0) * noise
+        y_noise = (torch.rand(graph.x[:, 3].shape, device=self.device)*2-1.0) * noise
+        update_mask = torch.rand_like(x_noise, device=self.device) > 0.5
         graph.x[:, 2] += x_noise * c_mask * update_mask
         graph.x[:, 3] += y_noise * c_mask * update_mask
 
@@ -106,6 +106,7 @@ class GNCA(nn.Module):
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
+        graph = graph.to(device=self.device)
         for _ in range(time_steps):
             if not cell_mask(graph).any():
                 break

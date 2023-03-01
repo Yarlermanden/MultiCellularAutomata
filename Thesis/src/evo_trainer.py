@@ -69,19 +69,19 @@ class Custom_NEProblem(NEProblem):
         #    for param in x:
         #        norm += param.data.norm()
 
-        fitness = graph.food_reward
+        food_reward = graph.food_reward.mean()
 
-        if torch.any(torch.isnan(fitness)): #TODO if this turned out to be the fix - should investigate why any network returns nan
+        if torch.any(torch.isnan(food_reward)): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((graph.food_reward, graph.velocity, graph.border_cost, graph.dead_cost))
-            fitness = -10000
         #return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food/1000, mean_food_dist/10], dtype=torch.float)
         #return torch.tensor([food_reward, visible_food/1000, mean_food_dist/10], dtype=torch.float)
-        return torch.tensor([graph.food_reward.mean(), graph.food_avg_dist.mean()/10], dtype=torch.float)
+        return torch.tensor([food_reward*100, graph.food_avg_dist.mean()/1000, graph.visible_food.mean()/(20-food_reward), graph.velocity.mean()/(1+food_reward)], dtype=torch.float).cpu()
 
 class Evo_Trainer():
     def __init__(self, n, device, batch_size, wrap_around, popsize=200):
-        global_var = GlobalVarActor.remote(n, device, batch_size)
+        cpu = torch.device('cpu')
+        global_var = GlobalVarActor.remote(n, cpu, batch_size)
         ray.get(global_var.set_global_var.remote())
         self.wrap_around = wrap_around
 
@@ -89,8 +89,8 @@ class Evo_Trainer():
             n=n,
             global_var=global_var,
             batch_size=batch_size,
-            device=device,
-            objective_sense=['max', 'min'],
+            device=cpu,
+            objective_sense=['max', 'min', 'max', 'min'],
             network=CGConv1,
             #network=SpatioTemporal,
             #network=GATConv,
@@ -99,21 +99,22 @@ class Evo_Trainer():
             num_gpus_per_actor = 'max',
         )
 
-        self.searcher = CMAES(
-            self.problem,
-            stdev_init=torch.tensor(0.1, dtype=torch.float),
-            popsize=popsize,
-            limit_C_decomposition=False,
-            obj_index=0
-        )
-        #self.searcher = GeneticAlgorithm(
+        #self.searcher = CMAES(
         #    self.problem,
+        #    stdev_init=torch.tensor(0.1, dtype=torch.float),
         #    popsize=popsize,
-        #    operators=[
-        #        SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
-        #        GaussianMutation(self.problem, stdev=0.02),
-        #    ],
+        #    limit_C_decomposition=False,
+        #    obj_index=0,
         #)
+
+        self.searcher = GeneticAlgorithm(
+            self.problem,
+            popsize=popsize,
+            operators=[
+                SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
+                GaussianMutation(self.problem, stdev=0.02),
+            ],
+        )
 
         def before_epoch():
             ray.get(global_var.set_global_var.remote())
@@ -123,7 +124,6 @@ class Evo_Trainer():
         self.logger = PandasLogger(self.searcher)
         self.logger_df = None
         self.trained_network = None
-
 
     def train(self, n=1000, name='test1'):
         self.searcher.run(n)

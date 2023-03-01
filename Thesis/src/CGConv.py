@@ -18,7 +18,7 @@ class CGConv1(GNCA):
             #nn.Linear(self.input_channels, self.input_channels*2),
             #nn.ReLU(),
             nn.Linear(self.input_channels, self.hidden_size),
-            nn.Tanh()
+            nn.Tanh(),
         )
 
         self.mlp_middle = nn.Sequential(
@@ -40,7 +40,7 @@ class CGConv1(GNCA):
 
         #self.lstm1 = nn.LSTM(input_size=self.input_channels*2, hidden_size=self.input_channels*2, num_layers=1)
         #self.rnn = nn.RNN(input_size=self.input_channels*8, hidden_size=self.hidden_size)
-        self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size, out_channels=self.hidden_size, K=1)
+        self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size, out_channels=self.hidden_size, K=1).to(self.device)
         self.H = None
         #self.C = None
 
@@ -65,22 +65,28 @@ class CGConv1(GNCA):
         
         x1 = self.conv_layer_cells(x=x, edge_index=cell_edges, edge_attr=cell_attr)
         x2 = self.conv_layer_food(x=x, edge_index=food_edges, edge_attr=food_attr)
+
         x = torch.concat((x1,x2), dim=1)
         x = self.mlp_middle(x)
 
         if self.H is None:
-            self.H = torch.zeros_like(x)
+            self.H = torch.zeros_like(x, device=self.device)
         if self.node_indices_to_keep is not None:
             self.H = self.H[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.H.shape[1])
 
         #x, self.H = self.rnn(x, self.H)
         self.H = self.gConvGRU(x, graph.edge_index, H=self.H)
 
-        x = self.mlp(x)
+        x = self.mlp(self.H)
         return x
 
     def forward(self, *args):
         self.H = None
         #self.C = None
         self.node_indices_to_keep = None
+        self.mlp_before = self.mlp_before.to(self.device)
+        self.mlp_middle = self.mlp_middle.to(self.device)
+        self.mlp = self.mlp.to(self.device)
+        #self.conv_layer_cells = self.conv_layer_cells.to(self.device)
+        #self.conv_layer_food = self.conv_layer_food.to(self.device)
         return super().forward(*args)
