@@ -4,14 +4,11 @@ import random
 import torch_geometric
 from torch_geometric import utils
 
-def add_edges(graph, radius, device, wrap_around):
+def add_edges(graph, radius, device, wrap_around, batch_size):
     '''Add edges dynamically according to radius. '''
     edges = []
     edge_attributes = []
     radius_food = radius*5
-    
-    cell_indices = torch.nonzero(graph.x[:, 4] == 1).flatten()
-    food_indices = torch.nonzero(graph.x[:, 4] == 0).flatten()
 
     def add_edge(i: int, j: int, with_food: bool, wrap_around: bool):
         radius_to_use = radius
@@ -36,21 +33,28 @@ def add_edges(graph, radius, device, wrap_around):
             edge_attribute2 = [dist, -xy_dist[0], -xy_dist[1], cell_to_cell]
             edge_attributes.append(edge_attribute2)
 
-    n = len(cell_indices)
-    for i_i in range(n):
-        for j in food_indices: #check distance to food sources
-            add_edge(cell_indices[i_i], j, True, wrap_around)
+    start_index = 0
+    for i in range(batch_size):
+        end_index = start_index + graph.subsize[i]
 
-        for i_j in range(i_i, n): #check distance to other cells
-            add_edge(cell_indices[i_i], cell_indices[i_j], False, wrap_around)
+        cell_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 1).flatten()
+        food_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 0).flatten()
+        n = len(cell_indices)
+        for i_i in range(n):
+            for j in food_indices: #check distance to food sources
+                add_edge(cell_indices[i_i], j, True, wrap_around)
 
-    if len(edges) == 0:
-        graph.x = graph.x[food_indices].view(food_indices.shape[0], graph.x.shape[1])
-        return False
-    edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
-    edge_attr = torch.tensor(edge_attributes, device=device)
-    graph.edge_index = edge_index
-    graph.edge_attr = edge_attr
+            for i_j in range(i_i, n): #check distance to other cells
+                add_edge(cell_indices[i_i], cell_indices[i_j], False, wrap_around)
+
+        if len(edges) == 0:
+            graph.x = graph.x[food_indices].view(food_indices.shape[0], graph.x.shape[1])
+            return False
+        edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
+        edge_attr = torch.tensor(edge_attributes, device=device)
+        graph.edge_index = edge_index
+        graph.edge_attr = edge_attr
+        start_index = end_index+1
     #graph.edge_index, graph.edge_attr = utils.to_undirected(edge_index, edge_attr)
     return True
 
@@ -70,9 +74,9 @@ def update_velocity(graph, acceleration, max_velocity, c_mask):
     velocity[c_mask] = torch.clamp(velocity[c_mask], -max_velocity, max_velocity)
     return velocity
 
-def update_positions(graph, velocity, wrap_around):
+def update_positions(graph, velocity, wrap_around, c_mask):
     '''Updates the position of the nodes given the velocity and previous positions'''
-    positions = torch.remainder(graph.x[:, :2] + velocity + 1.0, 2.0) - 1.0
+    positions = torch.remainder(graph.x[c_mask, :2] + velocity[c_mask] + 1.0, 2.0) - 1.0
     return positions
 
 def food_mask(graph):

@@ -2,7 +2,6 @@ from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
 from graphUtils import add_edges, add_random_food
-
 import torch
 
 class Visualizer():
@@ -19,9 +18,7 @@ class Visualizer():
         self.wrap_around = wrap_around
 
     def plot_organism(self, graph):
-        any_edges = add_edges(graph, 0.05, self.device, self.wrap_around)
-        if not any_edges:
-            return
+        any_edges = add_edges(graph, 0.05, self.device, self.wrap_around, batch_size=1)
         cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()
         foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
 
@@ -65,15 +62,16 @@ class Visualizer():
     def animate_organism(self, graph, model, food=100, frames=50, interval=150):
         self.graph = graph
         self.plot_organism(graph.clone().detach().cpu())
-        add_random_food(graph, self.device, food)
+        #add_random_food(graph, self.device, food)
 
         @torch.no_grad()
         def animate(i):
             self.graph = model.update(self.graph)
-            self.plot_organism(self.graph.clone().detach().cpu())
+            #self.plot_organism(self.graph.clone().detach().cpu())
+            self.plot_organism(self.graph.detach().cpu())
 
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval)
         return anim
 
     def save_animation_to_gif(self, anim, name, fps=30):
-        anim.save('../animation/' + name + '.gif', writer='imagemagick', fps=fps, bitrate=4096)
+        anim.save('../animation/' + name + '.gif', writer='imagemagick', fps=fps)

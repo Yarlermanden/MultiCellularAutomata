@@ -9,6 +9,7 @@ import numpy as np
 import ray
 from torch_geometric.utils import to_networkx
 import networkx as nx
+from torch_geometric.loader import DataLoader
 
 from generator import generate_organism
 from GNCAmodel import GNCA
@@ -19,39 +20,38 @@ from evotorch.decorators import vectorized, on_aux_device
 
 @ray.remote
 class GlobalVarActor():
-    def __init__(self, n, device):
+    def __init__(self, n, device, batch_size):
         self.n = n
         self.device = device
+        self.batch_size = batch_size
         self.set_global_var()
 
     def set_global_var(self):
         #self.time_steps = np.random.randint(40, 50)
         self.time_steps = np.random.randint(80, 100)
         #self.time_steps = np.random.randint(150, 200)
-        self.organism = generate_organism(self.n, self.device)
+        self.graphs = [generate_organism(self.n, self.device).toGraph() for _ in range(self.batch_size)]
 
     def get_global_var(self):
-        return self.time_steps, self.organism
+        return self.time_steps, self.graphs
 
 class Custom_NEProblem(NEProblem):
-    def __init__(self, n, global_var, **kwargs):
+    def __init__(self, n, global_var, batch_size, **kwargs):
         super(Custom_NEProblem, self).__init__(**kwargs)
         self.n = n
         self.global_var = global_var
+        self.batch_size = batch_size
 
     @vectorized
     @on_aux_device
     def _evaluate_network(self, network: torch.nn.Module):
-        steps, organism = ray.get(self.global_var.get_global_var.remote())
+        steps, graphs = ray.get(self.global_var.get_global_var.remote())
         #organism = generate_organism(self.n, self.device)
-        food_reward = 0.0
-        graph = organism.toGraph()
+        loader = DataLoader(graphs, batch_size=self.batch_size)
+        batch = next(iter(loader))
 
         with torch.no_grad():
-            for _ in range(4):
-                graph = organism.toGraph()
-                graph = network(graph, steps)
-                food_reward += graph.food_reward
+            graph = network(batch, steps)
 
         #G = to_networkx(graph, to_undirected=True)
         #largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
@@ -71,29 +71,30 @@ class Custom_NEProblem(NEProblem):
 
         fitness = graph.food_reward
 
-        if torch.isnan(fitness): #TODO if this turned out to be the fix - should investigate why any network returns nan
+        if torch.any(torch.isnan(fitness)): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
-            print((graph.food_reward, graph.velocity.mean(), graph.border_cost, graph.dead_cost))
+            print((graph.food_reward, graph.velocity, graph.border_cost, graph.dead_cost))
             fitness = -10000
         #return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food/1000, mean_food_dist/10], dtype=torch.float)
         #return torch.tensor([food_reward, visible_food/1000, mean_food_dist/10], dtype=torch.float)
-        return torch.tensor([food_reward, graph.food_avg_dist/10], dtype=torch.float)
+        return torch.tensor([graph.food_reward.mean(), graph.food_avg_dist.mean()/10], dtype=torch.float)
 
 class Evo_Trainer():
-    def __init__(self, n, device, wrap_around, popsize=200):
-        global_var = GlobalVarActor.remote(n, device)
+    def __init__(self, n, device, batch_size, wrap_around, popsize=200):
+        global_var = GlobalVarActor.remote(n, device, batch_size)
         ray.get(global_var.set_global_var.remote())
         self.wrap_around = wrap_around
 
         self.problem = Custom_NEProblem(
             n=n,
             global_var=global_var,
+            batch_size=batch_size,
             device=device,
             objective_sense=['max', 'min'],
             network=CGConv1,
             #network=SpatioTemporal,
             #network=GATConv,
-            network_args={'device': device, 'wrap_around': wrap_around},
+            network_args={'device': device, 'batch_size': batch_size, 'wrap_around': wrap_around},
             num_actors='max',
             num_gpus_per_actor = 'max',
         )

@@ -9,13 +9,14 @@ from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask
 
 class GNCA(nn.Module):
-    def __init__(self, device, wrap_around, channels=10, edge_dim=4):
+    def __init__(self, device, batch_size, wrap_around, channels=10, edge_dim=4):
         #batching?
         super(GNCA, self).__init__()
         self.device = device
         self.input_channels = channels-2
         self.edge_dim=edge_dim
         self.output_channels = 7
+        self.batch_size = batch_size
 
         self.radius = 0.05
         self.consume_radius = self.radius
@@ -47,11 +48,11 @@ class GNCA(nn.Module):
         acceleration = h[:, :2] * self.acceleration_scale
         #graph.x[:, 5:7] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity, c_mask)
-        positions = update_positions(graph, velocity, self.wrap_around)
+        positions = update_positions(graph, velocity, self.wrap_around, c_mask)
         graph.x[:, 2:4] = velocity
-        graph.x[:, :2] = positions
+        graph.x[c_mask, :2] = positions
         self.add_noise(graph, c_mask)
-        graph.velocity += velocity.abs().mean(dim=0)
+        graph.velocity += velocity.abs().mean()
 
     def remove_nodes(self, graph):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
@@ -61,16 +62,22 @@ class GNCA(nn.Module):
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
+
+        start_index = 0
+        for i in range(self.batch_size):
+            end_index = start_index + graph.subsize[i]
+            graph.subsize[i] -= remove_mask[start_index:end_index].sum()
+            start_index = end_index+1
+
+        #TODO split the amounts into each batch and add/adjust accordingly
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
         graph.dead_cost += dead_cells_mask.sum()
-
-        food_reward = consumed_mask.sum()
         graph.food_reward += food_val
-        graph.attr[0] += food_val
+        graph.energy += food_val
 
     def update(self, graph):
         '''Update the graph a single time step'''
-        any_edges = add_edges(graph, self.radius, self.device, self.wrap_around) #dynamically add edges
+        any_edges = add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
 
         self.update_graph(graph)
 
@@ -96,9 +103,7 @@ class GNCA(nn.Module):
 
     def forward(self, graph, time_steps = 1):
         '''update the graph n times for n time steps'''
-        add_random_food(graph, self.device, 50)
-
-        for i in range(time_steps):
+        for _ in range(time_steps):
             if not cell_mask(graph).any():
                 break
             graph = self.update(graph)
