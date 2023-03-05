@@ -6,11 +6,10 @@ import math
 import torch_geometric
 from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 
-from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask
+from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost
 
 class GNCA(nn.Module):
     def __init__(self, device, batch_size, wrap_around, channels=10, edge_dim=4):
-        #batching?
         super(GNCA, self).__init__()
         self.device = device
         self.input_channels = channels-2
@@ -20,11 +19,12 @@ class GNCA(nn.Module):
 
         self.radius = 0.05
         self.consume_radius = self.radius
-        self.acceleration_scale = 0.005
+        #self.acceleration_scale = 0.005
+        self.acceleration_scale = 0.02
         self.max_velocity = 0.02
         self.max_pos = 1
         self.consumption_edge_required = 1
-        self.edges_to_stay_alive = 2 #1 more than its self loop
+        self.edges_to_stay_alive = 3 #1 more than its self loop
         self.energy_required = 5
         self.node_indices_to_keep = None
         self.wrap_around = wrap_around
@@ -49,9 +49,9 @@ class GNCA(nn.Module):
         #graph.x[:, 5:7] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity, c_mask)
         positions = update_positions(graph, velocity, self.wrap_around, c_mask)
-        graph.x[:, 2:4] = velocity
+        graph.x[c_mask, 2:4] = velocity[c_mask]
         graph.x[c_mask, :2] = positions
-        self.add_noise(graph, c_mask)
+        #self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
     def remove_nodes(self, graph):
@@ -77,18 +77,8 @@ class GNCA(nn.Module):
         #TODO split the amounts into each batch and add/adjust accordingly
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
 
-
-    def update(self, graph):
-        '''Update the graph a single time step'''
-        any_edges = add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
-
-        self.update_graph(graph)
-
-        epsilon = 0.000001 #Used to prevent taking log of 0.0 resulting in nan values
-        mask = graph.x[:, :2].abs() > 1
-        border_costX = (graph.x[:, 0].abs()+epsilon).log() * mask[:,0].to(torch.float)
-        border_costY = (graph.x[:, 1].abs()+epsilon).log() * mask[:,1].to(torch.float)
-        graph.border_cost += (border_costX.sum() + border_costY.sum())
+    def compute_fitness_metrics(self, graph):
+        #compute_border_cost(graph)
 
         #Compute the number of food sources connected to the graph
         visible_food = (graph.edge_attr[:, 3] == 0).sum()
@@ -97,7 +87,32 @@ class GNCA(nn.Module):
 
         graph.food_avg_dist += graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten(), 0].sum()
         graph.visible_food += visible_food
-        
+
+        #TODO compute if nodes have moved closer or further away from food
+        s_idx = 0
+        for i in range(self.batch_size):
+            e_idx = s_idx + graph.subsize[i]
+            edge_indices = (torch.nonzero(graph.edge_attr[s_idx:e_idx, 3] == 0) + s_idx).view(-1)
+            edge_attr = graph.edge_attr[edge_indices]
+            nodes = graph.x[graph.edge_index[0, edge_indices]]
+            x1 = torch.abs(edge_attr[:, 1:3])
+            x2 = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
+            x3 = x1-x2
+            x4 = x3 * nodes[:,4].view(nodes.shape[0], 1)
+            x5 = x4.mean()
+            if x5.isnan():
+                #x5 = -0.02
+                x5 = -0.00001
+            graph.food_search_movement += x5
+            #graph.food_search_movement += ((torch.abs(edge_attr[:, 1:3]) - torch.abs(edge_attr[:, 1:3] - nodes[:, 2:4])) * nodes[:, 4]).mean() #positive is good and negative is bad - food nodes result in 0
+            s_idx = e_idx
+
+
+    def update(self, graph):
+        '''Update the graph a single time step'''
+        add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
+        self.update_graph(graph)
+        self.compute_fitness_metrics(graph)
         self.remove_nodes(graph)
         #TODO add a new cell node pr x graph energy
 
