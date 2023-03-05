@@ -27,8 +27,8 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        #self.time_steps = np.random.randint(40, 50)
-        self.time_steps = np.random.randint(80, 100)
+        self.time_steps = np.random.randint(50, 60)
+        #self.time_steps = np.random.randint(80, 100)
         #self.time_steps = np.random.randint(150, 200)
         self.graphs = [generate_organism(self.n, self.device).toGraph() for _ in range(self.batch_size)]
 
@@ -70,13 +70,22 @@ class Custom_NEProblem(NEProblem):
         #        norm += param.data.norm()
 
         food_reward = graph.food_reward.mean()
+        velocity = graph.velocity.mean()
+        fitness1 = (((food_reward)) / (1 + velocity*20))
+        fitness2 = velocity
+        fitness3 = graph.food_search_movement.mean()
+        fitness = fitness1 + fitness3*5
 
         if torch.any(torch.isnan(food_reward)): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
             print((graph.food_reward, graph.velocity, graph.border_cost, graph.dead_cost))
         #return torch.tensor([fitness, velocity_bonus.sum(), food_reward, dead_cost, visible_food/1000, mean_food_dist/10], dtype=torch.float)
         #return torch.tensor([food_reward, visible_food/1000, mean_food_dist/10], dtype=torch.float)
-        return torch.tensor([food_reward*100, graph.food_avg_dist.mean()/1000, graph.visible_food.mean()/(20-food_reward), graph.velocity.mean()/(1+food_reward)], dtype=torch.float).cpu()
+        #return torch.tensor([food_reward*100, graph.food_avg_dist.mean()/1000, graph.visible_food.mean()/(20-food_reward), graph.velocity.mean()/(1+food_reward)], dtype=torch.float).cpu()
+
+        #return torch.tensor([fitness, graph.food_avg_dist.mean()/1000, graph.visible_food.mean()/(20-food_reward), graph.velocity.mean()/(1+food_reward)], dtype=torch.float).cpu()
+        #return torch.tensor([fitness1, fitness2])
+        return torch.tensor([fitness, fitness2])
 
 class Evo_Trainer():
     def __init__(self, n, device, batch_size, wrap_around, popsize=200):
@@ -90,7 +99,8 @@ class Evo_Trainer():
             global_var=global_var,
             batch_size=batch_size,
             device=cpu,
-            objective_sense=['max', 'min', 'max', 'min'],
+            #objective_sense=['max', 'min', 'max', 'min'],
+            objective_sense=['max', 'max'],
             network=CGConv1,
             #network=SpatioTemporal,
             #network=GATConv,
@@ -99,15 +109,15 @@ class Evo_Trainer():
             num_gpus_per_actor = 'max',
         )
 
-        #self.searcher = CMAES(
-        #    self.problem,
-        #    stdev_init=torch.tensor(0.1, dtype=torch.float),
-        #    popsize=popsize,
-        #    limit_C_decomposition=False,
-        #    obj_index=0,
-        #)
+        self.distribution_searcher = CMAES(
+            self.problem,
+            stdev_init=torch.tensor(0.04, dtype=torch.float),
+            popsize=popsize,
+            limit_C_decomposition=False,
+            obj_index=0,
+        )
 
-        self.searcher = GeneticAlgorithm(
+        self.population_searcher = GeneticAlgorithm(
             self.problem,
             popsize=popsize,
             operators=[
@@ -115,6 +125,9 @@ class Evo_Trainer():
                 GaussianMutation(self.problem, stdev=0.02),
             ],
         )
+
+        self.searcher=self.distribution_searcher
+        #self.searcher=self.population_searcher
 
         def before_epoch():
             ray.get(global_var.set_global_var.remote())
