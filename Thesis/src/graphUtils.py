@@ -17,12 +17,16 @@ def add_edges(graph, radius, device, wrap_around, batch_size):
             radius_to_use = radius_food
             cell_to_cell = 0
 
-        xy_dist = torch.abs(graph.x[i]-graph.x[j])[:2]
+        xy_dist = (graph.x[i]-graph.x[j])[:2]
         if wrap_around:
             if xy_dist[0] > 1.0:
-                xy_dist[0] = 2.0 - xy_dist[0]
+                xy_dist[0] = -2.0 + xy_dist[0]
+            elif xy_dist[0] < -1.0:
+                xy_dist[0] = 2.0 + xy_dist[0]
             if xy_dist[1] > 1.0:
-                xy_dist[1] = 2.0 - xy_dist[1]
+                xy_dist[1] = -2.0 + xy_dist[1]
+            elif xy_dist[1] < -1.0:
+                xy_dist[1] = 2.0 + xy_dist[1]
         dist = xy_dist.norm()
         if dist < radius_to_use:
             edges.append([i, j])
@@ -38,13 +42,7 @@ def add_edges(graph, radius, device, wrap_around, batch_size):
     edge_attr = []
     for i in range(batch_size):
         end_index = start_index + graph.subsize[i]
-        #print('i: ', i)
-        #print('start_index: ', start_index)
-        #print('end_index: ', end_index)
-        #print('subsize: ', graph.subsize[i])
-
         cell_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 1).flatten()+start_index
-        #print('cell_indices: ', cell_indices)
         food_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 0).flatten()+start_index
         n = len(cell_indices)
         for i_i in range(n):
@@ -61,7 +59,6 @@ def add_edges(graph, radius, device, wrap_around, batch_size):
         start_index = end_index
     graph.edge_index = torch.cat(edge_index, dim=1)
     graph.edge_attr = torch.cat(edge_attr)
-    #graph.edge_index, graph.edge_attr = utils.to_undirected(edge_index, edge_attr)
     return True
 
 def add_food(graph, food):
@@ -76,7 +73,9 @@ def add_random_food(graph, device, n=1):
 
 def update_velocity(graph, acceleration, max_velocity, c_mask):
     '''Updates the velocity of the nodes given the acceleration and previous velocity'''
-    velocity = graph.x[:, 2:4] + acceleration
+    #TODO change back to accumulate velocity
+    #velocity = graph.x[:, 2:4] + acceleration
+    velocity = acceleration
     velocity[c_mask] = torch.clamp(velocity[c_mask], -max_velocity, max_velocity)
     return velocity
 
@@ -102,7 +101,6 @@ def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
     edge_mask = edges_pr_node >= consumption_edge_required
     consumption_mask = torch.bitwise_and(f_mask, edge_mask)
-
     return consumption_mask
 
 def get_island_cells_mask(graph, edges_to_stay_alive):
@@ -112,3 +110,10 @@ def get_island_cells_mask(graph, edges_to_stay_alive):
     zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
     mask = torch.bitwise_and(c_mask, zero_edge_mask)
     return mask
+
+def compute_border_cost(graph):
+    epsilon = 0.000001 #Used to prevent taking log of 0.0 resulting in nan values
+    mask = graph.x[:, :2].abs() > 1
+    border_costX = (graph.x[:, 0].abs()+epsilon).log() * mask[:,0].to(torch.float)
+    border_costY = (graph.x[:, 1].abs()+epsilon).log() * mask[:,1].to(torch.float)
+    graph.border_cost += (border_costX.sum() + border_costY.sum())
