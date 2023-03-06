@@ -55,8 +55,10 @@ class Visualizer():
 
         self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
         self.scatter_food.set_offsets(graph.x[foodIndices, :2])
-        [plot.remove() for plot in self.edge_plot]
-        self.edge_plot = self.axes.plot(edges_x, edges_y, linewidth=0.1)
+        if len(self.edge_plot) > 0:
+            [plot.remove() for plot in self.edge_plot]
+        if any_edges:
+            self.edge_plot = self.axes.plot(edges_x, edges_y, linewidth=0.1)
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
