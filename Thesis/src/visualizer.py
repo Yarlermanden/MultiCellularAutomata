@@ -18,16 +18,9 @@ class Visualizer():
         self.wrap_around = wrap_around
 
     def plot_organism(self, graph):
-        any_edges = add_edges(graph, 0.05, self.device, self.wrap_around, batch_size=1)
+        any_edges = add_edges(graph, 0.04, self.device, self.wrap_around, batch_size=1)
         cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()
         foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
-
-        edge_from = graph.edge_index[0, :]
-        edge_to = graph.edge_index[1, :]
-        node_from = graph.x[edge_from, :2].detach().cpu().numpy()
-        node_to = graph.x[edge_to, :2].detach().cpu().numpy()
-        edges_x = [node_from[:,0], node_to[:,0]]
-        edges_y = [node_from[:,1], node_to[:,1]]
 
         if self.figure is None:
             plt.ion()
@@ -55,10 +48,14 @@ class Visualizer():
 
         self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
         self.scatter_food.set_offsets(graph.x[foodIndices, :2])
-        if len(self.edge_plot) > 0:
-            [plot.remove() for plot in self.edge_plot]
-        if any_edges:
-            self.edge_plot = self.axes.plot(edges_x, edges_y, linewidth=0.1)
+        [plot.remove() for plot in self.edge_plot]
+        edge_from = graph.edge_index[0, :]
+        edge_to = graph.edge_index[1, :]
+        node_from = graph.x[edge_from, :2].detach().cpu().numpy()
+        node_to = graph.x[edge_to, :2].detach().cpu().numpy()
+        edges_x = [node_from[:,0], node_to[:,0]]
+        edges_y = [node_from[:,1], node_to[:,1]]
+        self.edge_plot = self.axes.plot(edges_x, edges_y, linewidth=0.1)
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
@@ -69,8 +66,11 @@ class Visualizer():
 
         @torch.no_grad()
         def animate(i):
-            self.graph = model.update(self.graph)
-            self.plot_organism(self.graph.detach().cpu())
+            try:
+                self.graph = model.update(self.graph)
+                self.plot_organism(self.graph.detach().cpu())
+            except Exception:
+                print("can't update ")
 
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval)
         return anim
