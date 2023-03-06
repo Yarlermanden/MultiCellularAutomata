@@ -10,6 +10,7 @@ import ray
 from torch_geometric.utils import to_networkx
 import networkx as nx
 from torch_geometric.loader import DataLoader
+from torch_geometric.data import Data
 
 from generator import generate_organism
 from GNCAmodel import GNCA
@@ -53,10 +54,24 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph = network(batch, steps)
 
-        #G = to_networkx(graph, to_undirected=True)
-        #largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
-        #G2 = G.subgraph(largest_component) 
-        #diameter = nx.diameter(G2) #shortest longest path
+        s_idx = 0
+        diameters = []
+        for i in range(self.batch_size):
+            e_idx = graph.subsize[i]
+            nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] < 2.0) + s_idx
+            edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1)
+            nodes = graph.x[nodes_in_batch]
+            edges = graph.edge_index[:, edges_in_batch]
+            if len(edges == 0):
+                diameters.append(0)
+                continue
+            data = Data(x=nodes, edge_index=edges)
+            G = to_networkx(data, to_undirected=True)
+            largest_component = max(nx.connected_components(G), key=len) #subgraph with organism
+            G2 = G.subgraph(largest_component) 
+            diameters.append(nx.diameter(G2)) #shortest longest path
+            s_idx = e_idx
+        diameters = torch.tensor(diameters, dtype=torch.float)
 
         #TODO add reward for the average degree of each visible food - encourage more nodes seeing the same food - hopefully going towards it...
         #fitness = (velocity_bonus.sum() + visible_food/10 + food_avg_degree*diameter*food_reward*100/(1+velocity_bonus.mean()*100)) / (1+dead_cost+border_cost + visible_food/100) - border_cost/4
@@ -74,7 +89,8 @@ class Custom_NEProblem(NEProblem):
         fitness1 = (((food_reward)) / (1 + velocity*20))
         fitness2 = velocity
         fitness3 = graph.food_search_movement.mean()
-        fitness = fitness1 + fitness3*5
+        fitness4 = diameters.mean()/self.n*10
+        fitness = fitness1 + fitness3*4 + fitness4
 
         if torch.any(torch.isnan(food_reward)): #TODO if this turned out to be the fix - should investigate why any network returns nan
             print("fitness function returned nan")
@@ -147,7 +163,7 @@ class Evo_Trainer():
         torch.save(self.trained_network.state_dict(), '../models/' + name + '.pth')
 
     def visualize_training(self):
-        logger_df = self.logger_df.groupby(np.arange(len(logger_df))).mean()
+        logger_df = self.logger_df.groupby(np.arange(len(self.logger_df))).mean()
         logger_df.plot(y='mean_eval')
 
     def get_trained_network(self):
