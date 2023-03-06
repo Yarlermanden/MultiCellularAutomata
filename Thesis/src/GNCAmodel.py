@@ -17,7 +17,7 @@ class GNCA(nn.Module):
         self.output_channels = 7
         self.batch_size = batch_size
 
-        self.radius = 0.05
+        self.radius = 0.04
         self.consume_radius = self.radius
         #self.acceleration_scale = 0.005
         self.acceleration_scale = 0.02
@@ -74,7 +74,6 @@ class GNCA(nn.Module):
             graph.energy[i] += food_val
             start_index = end_index
 
-        #TODO split the amounts into each batch and add/adjust accordingly
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
 
     def compute_fitness_metrics(self, graph):
@@ -88,17 +87,17 @@ class GNCA(nn.Module):
         graph.food_avg_dist += graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten(), 0].sum()
         graph.visible_food += visible_food
 
-        #TODO compute if nodes have moved closer or further away from food
         s_idx = 0
         for i in range(self.batch_size):
             e_idx = s_idx + graph.subsize[i]
-            edge_indices = (torch.nonzero(graph.edge_attr[s_idx:e_idx, 3] == 0) + s_idx).view(-1)
-            edge_attr = graph.edge_attr[edge_indices]
-            nodes = graph.x[graph.edge_index[0, edge_indices]]
+            food_nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0) + s_idx
+            food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], food_nodes_in_batch)).view(-1) #only edges going from cell to food
+            edge_attr = graph.edge_attr[food_edges_in_batch]
+            nodes = graph.x[graph.edge_index[0, food_edges_in_batch]]
             x1 = torch.abs(edge_attr[:, 1:3])
             x2 = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
             x3 = x1-x2
-            x4 = x3 * nodes[:,4].view(nodes.shape[0], 1)
+            x4 = x3 * nodes[:,4].view(nodes.shape[0], 1) #view(-1, 1)
             x5 = x4.mean()
             if x5.isnan():
                 #x5 = -0.02
