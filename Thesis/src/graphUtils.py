@@ -53,6 +53,9 @@ def add_edges(graph, radius, device, wrap_around, batch_size):
                 add_edge(cell_indices[i_i], cell_indices[i_j], False, wrap_around)
 
         if len(edges) == 0:
+            print('no edges')
+            graph.edge_index = torch.tensor([[]], dtype=torch.long, device=device)
+            graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=device)
             return False
         edge_index.append(torch.tensor(edges, dtype=torch.long, device=device).T)
         edge_attr.append(torch.tensor(edge_attributes, device=device))
