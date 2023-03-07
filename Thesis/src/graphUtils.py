@@ -49,11 +49,10 @@ def add_edges(graph, radius, device, wrap_around, batch_size):
             for j in food_indices: #check distance to food sources
                 add_edge(cell_indices[i_i], j, True, wrap_around)
 
-            for i_j in range(i_i, n): #check distance to other cells
+            for i_j in range(i_i+1, n): #check distance to other cells
                 add_edge(cell_indices[i_i], cell_indices[i_j], False, wrap_around)
 
         if len(edges) == 0:
-            print('no edges')
             graph.edge_index = torch.tensor([[]], dtype=torch.long, device=device)
             graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=device)
             return False
