@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import math
 import torch_geometric
 from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
+import time
 
 from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost
 
@@ -24,7 +25,7 @@ class GNCA(nn.Module):
         self.max_velocity = 0.02
         self.max_pos = 1
         self.consumption_edge_required = 1
-        self.edges_to_stay_alive = 3 #1 more than its self loop
+        self.edges_to_stay_alive = 1 #1 more than its self loop
         self.energy_required = 5
         self.node_indices_to_keep = None
         self.wrap_around = wrap_around
@@ -34,7 +35,7 @@ class GNCA(nn.Module):
         ...
 
     def add_noise(self, graph, c_mask):
-        noise = 0.005
+        noise = 0.002
         x_noise = (torch.rand(graph.x[:, 2].shape, device=self.device)*2-1.0) * noise
         y_noise = (torch.rand(graph.x[:, 3].shape, device=self.device)*2-1.0) * noise
         update_mask = torch.rand_like(x_noise, device=self.device) > 0.5
@@ -51,7 +52,7 @@ class GNCA(nn.Module):
         positions = update_positions(graph, velocity, self.wrap_around, c_mask)
         graph.x[c_mask, 2:4] = velocity[c_mask]
         graph.x[c_mask, :2] = positions
-        #self.add_noise(graph, c_mask)
+        self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
     def remove_nodes(self, graph):
@@ -79,13 +80,11 @@ class GNCA(nn.Module):
     def compute_fitness_metrics(self, graph):
         #compute_border_cost(graph)
 
-        #Compute the number of food sources connected to the graph
-        visible_food = (graph.edge_attr[:, 3] == 0).sum()
-        count_visible_food = len(torch.nonzero(graph.edge_attr[:, 3] == 0).flatten())
-        graph.food_avg_degree += visible_food/count_visible_food
-
-        graph.food_avg_dist += graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten(), 0].sum()
-        graph.visible_food += visible_food
+        #visible_food = (graph.edge_attr[:, 3] == 0).sum()
+        #count_visible_food = len(torch.nonzero(graph.edge_attr[:, 3] == 0).flatten())
+        #graph.food_avg_degree += visible_food/count_visible_food
+        #graph.food_avg_dist += graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten(), 0].sum()
+        #graph.visible_food += visible_food
 
         s_idx = 0
         for i in range(self.batch_size):
@@ -94,27 +93,32 @@ class GNCA(nn.Module):
             food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], food_nodes_in_batch)).view(-1) #only edges going from cell to food
             edge_attr = graph.edge_attr[food_edges_in_batch]
             nodes = graph.x[graph.edge_index[0, food_edges_in_batch]]
-            x1 = torch.abs(edge_attr[:, 1:3])
-            x2 = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
-            x3 = x1-x2
-            x4 = x3 * nodes[:,4].view(nodes.shape[0], 1) #view(-1, 1)
-            x5 = x4.mean()
-            if x5.isnan():
-                #x5 = -0.02
-                x5 = -0.00001
+            dist = torch.abs(edge_attr[:, 1:3])
+            dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
+            x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
+            if x5.isnan(): x5 = -0.00001
             graph.food_search_movement += x5
-            #graph.food_search_movement += ((torch.abs(edge_attr[:, 1:3]) - torch.abs(edge_attr[:, 1:3] - nodes[:, 2:4])) * nodes[:, 4]).mean() #positive is good and negative is bad - food nodes result in 0
             s_idx = e_idx
-
 
     def update(self, graph):
         '''Update the graph a single time step'''
-        add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
+        time1 = time.perf_counter()
+        any_edges = add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
+        if not any_edges:
+            return graph
+        time2 = time.perf_counter()
         self.update_graph(graph)
+        time3 = time.perf_counter()
         self.compute_fitness_metrics(graph)
+        time4 = time.perf_counter()
         self.remove_nodes(graph)
+        time5 = time.perf_counter()
         #TODO add a new cell node pr x graph energy
 
+        #print('dynamic edges: ', time2-time1)
+        #print('update graph: ', time3-time2)
+        #print('metrics: ', time4-time3)
+        #print('remove nodes: ', time5-time4)
         graph = graph.to(device=self.device)
         return graph
 

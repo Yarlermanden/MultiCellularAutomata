@@ -53,7 +53,7 @@ class CustomConv(MessagePassing):
             z = torch.cat([x_i, x_j], dim=-1)
         else:
             z = torch.cat([x_i, x_j, edge_attr], dim=-1)
-        return self.lin_f(z).sigmoid() * F.tanh(self.lin_s(z))
+        return self.lin_f(z).sigmoid() * torch.tanh(self.lin_s(z))
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.channels}, dim={self.dim})'
