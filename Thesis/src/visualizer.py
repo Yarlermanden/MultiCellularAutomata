@@ -19,6 +19,8 @@ class Visualizer():
 
     def plot_organism(self, graph):
         any_edges = add_edges(graph, 0.04, self.device, self.wrap_around, batch_size=1)
+        if not any_edges:
+            return
         cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()
         foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
 
@@ -32,7 +34,6 @@ class Visualizer():
                 marker=".",
                 edgecolor="k",
                 lw=0.5,
-                #**kwargs
             )
             self.scatter_food = self.axes.scatter(
                 graph.x[foodIndices, 0],
@@ -41,7 +42,6 @@ class Visualizer():
                 edgecolor="r",
                 #lw=0.5,
                 s=graph.x[foodIndices, 2]*5,
-                #**kwargs
             )
             self.edge_plot = self.axes.plot([[],[]], [[],[]], linewidth=0.1)
             plt.show()
@@ -62,7 +62,6 @@ class Visualizer():
     def animate_organism(self, graph, model, food=100, frames=50, interval=150):
         self.graph = graph
         self.plot_organism(graph.clone().detach().cpu())
-        #add_random_food(graph, self.device, food)
 
         @torch.no_grad()
         def animate(i):
