@@ -61,7 +61,6 @@ class GNCA(nn.Module):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
         dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
         consumed_mask = get_consume_food_mask(graph, self.consume_radius, self.consumption_edge_required)
-        #food_val = graph.x[torch.nonzero(consumed_mask).flatten(), 2].sum()
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
@@ -71,7 +70,6 @@ class GNCA(nn.Module):
             end_index = start_index + graph.subsize[i]
             graph.subsize[i] -= remove_mask[start_index:end_index].sum()
             graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
-            #food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index]), 2].sum()
             food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 2].sum()
             graph.food_reward[i] += food_val
             graph.energy[i] += food_val
@@ -100,6 +98,8 @@ class GNCA(nn.Module):
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
             if x5.isnan(): x5 = -0.00001
             graph.food_search_movement += x5
+            if (graph.x[s_idx:e_idx, 4] == 0).sum() == 0: #no more food in batch
+                graph.food_reward[i] += 1
             s_idx = e_idx
 
     def update(self, graph):
@@ -107,12 +107,6 @@ class GNCA(nn.Module):
         time1 = time.perf_counter()
         #any_edges = add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
         any_edges = self.datastructure.add_edges(graph)
-        #print(edge1)
-        #print(edge2)
-        #print(graph.x)
-        #print('edges match: ', torch.equal(edge1, edge2))
-        #print('old edge length', edge1.shape)
-        #print('new edge length', edge2.shape)
         if not any_edges:
             return graph
         time2 = time.perf_counter()

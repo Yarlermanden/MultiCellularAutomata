@@ -29,12 +29,12 @@ class GlobalVarActor():
         self.set_global_var()
 
     def set_global_var(self):
-        #self.time_steps = np.random.randint(50, 60)
-        #self.time_steps = np.random.randint(80, 90)
-        #self.time_steps = np.random.randint(100, 200)
         self.i += 1
         if self.i % 100 == 0:
-            self.steps += 10
+            if self.i % 2000 == 0:
+                self.steps = 60
+            else:
+                self.steps += 10
             print(self.steps)
         self.time_steps = np.random.randint(self.steps, self.steps+10)
         self.graphs = [generate_organism(self.n, self.device).toGraph() for _ in range(self.batch_size)]
@@ -90,10 +90,11 @@ class Custom_NEProblem(NEProblem):
         velocity = graph.velocity.mean()
         fitness1 = (((food_reward)) / (1 + velocity*20))
         fitness2 = velocity
-        fitness3 = graph.food_search_movement.mean()
+        fitness3 = graph.food_search_movement.mean() * 10
         fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1
-        fitness5 = graph.x[graph.x[:, 4] == 1].sum()/(self.n*self.batch_size) * 3 #cells alive ratio
-        fitness = fitness1 + fitness3*4 + fitness4 + fitness5
+        fitness5 = (graph.x[:, 4] == 1).sum()/(self.n*self.batch_size) * 3 #cells alive ratio
+        fitness = fitness1 + fitness3 + fitness4 + fitness5
+
         #print((fitness1, fitness3, fitness4, fitness5))
 
         if torch.any(torch.isnan(food_reward)):
