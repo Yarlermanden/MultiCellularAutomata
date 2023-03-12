@@ -69,7 +69,7 @@ class Custom_NEProblem(NEProblem):
             for i in range(self.batch_size):
                 e_idx = graph.subsize[i]
                 nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1) + s_idx
-                edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1) #TODO optional reverse
+                edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1)
                 nodes = graph.x[nodes_in_batch]
                 edges = graph.edge_index[:, edges_in_batch]
                 if len(nodes) == 0:

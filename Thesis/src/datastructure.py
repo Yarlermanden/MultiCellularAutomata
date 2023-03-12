@@ -52,33 +52,12 @@ class DataStructure(object):
                     xy_dist[1] = 2.0 + xy_dist[1]
             dist = xy_dist.norm()
             if dist <= radius_to_use:
-                edges.append([i, j])
+                edges.append([j, i])
                 edge_attribute1 = [dist, xy_dist[0], xy_dist[1], cell_to_cell]
                 edge_attributes.append(edge_attribute1)
-
-                edges.append([j, i])
-                edge_attribute2 = [dist, -xy_dist[0], -xy_dist[1], cell_to_cell]
-                edge_attributes.append(edge_attribute2)
             #else its cells...
             else:
                 print('something is wrong')
-
-        #batch_index = torch.zeros(graph.x.shape[0])
-        #prev_idx = 0 
-        #for i in range(self.batch_size):
-        #    batch_index[prev_idx:prev_idx+graph.subsize[i]] = i+1
-        #    prev_idx += graph.subsize[i]
-
-        #nodes = torch.concat((graph.x[:, :2], batch_index.view(-1, 1)), dim=1)
-        #nodes = graph.x[:, :2]
-        #frnn = FixedRadiusNearestNeighbors(nodes)
-        #cell_indices = torch.nonzero(graph.x[:, 4] == 1).flatten()
-        #cells = nodes[cell_indices]
-        #dists, indices = frnn.get_neighbors(cells, self.radius_food)
-        #for ii, i in enumerate(cell_indices):
-        #    for j in indices[ii]:
-        #        if batch_index[i]==batch_index[j] and i != j:
-        #            add_edge(i, j, self.wrap_around)
 
         s_idx = 0
         for i in range(self.batch_size):

@@ -52,7 +52,7 @@ class Visualizer():
             [plot.remove() for plot in self.edge_plot]
 
             nodes_in_batch = torch.nonzero(graph.x[:b1, 4] == 1)
-            edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1) #TODO potentially reverse
+            edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1)
 
             edge_from = graph.edge_index[0, edges_in_batch]
             edge_to = graph.edge_index[1, edges_in_batch]

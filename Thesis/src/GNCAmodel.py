@@ -92,9 +92,9 @@ class GNCA(nn.Module):
         for i in range(self.batch_size):
             e_idx = s_idx + graph.subsize[i]
             food_nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0) + s_idx
-            food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], food_nodes_in_batch)).view(-1) #only edges going from cell to food #TODO reverse in case we want to remove the rest
+            food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
             edge_attr = graph.edge_attr[food_edges_in_batch]
-            nodes = graph.x[graph.edge_index[0, food_edges_in_batch]] #TODO remove in case of making directional
+            nodes = graph.x[graph.edge_index[1, food_edges_in_batch]]
             dist = torch.abs(edge_attr[:, 1:3])
             dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
