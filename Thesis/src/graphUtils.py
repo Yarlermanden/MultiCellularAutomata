@@ -38,29 +38,27 @@ def add_edges(graph, radius, device, wrap_around, batch_size):
             edge_attributes.append(edge_attribute2)
 
     start_index = 0
-    edge_index = []
-    edge_attr = []
     for i in range(batch_size):
         end_index = start_index + graph.subsize[i]
         cell_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 1).flatten()+start_index
         food_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 0).flatten()+start_index
         n = len(cell_indices)
+
         for i_i in range(n):
             for j in food_indices: #check distance to food sources
                 add_edge(cell_indices[i_i], j, True, wrap_around)
 
             for i_j in range(i_i+1, n): #check distance to other cells
                 add_edge(cell_indices[i_i], cell_indices[i_j], False, wrap_around)
-
-        if len(edges) == 0:
-            graph.edge_index = torch.tensor([[]], dtype=torch.long, device=device)
-            graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=device)
-            return False
-        edge_index.append(torch.tensor(edges, dtype=torch.long, device=device).T)
-        edge_attr.append(torch.tensor(edge_attributes, device=device))
         start_index = end_index
-    graph.edge_index = torch.cat(edge_index, dim=1)
-    graph.edge_attr = torch.cat(edge_attr)
+    if len(edges) == 0:
+        graph.edge_index = torch.tensor([[]], dtype=torch.long, device=device)
+        graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=device)
+        return False
+    edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
+    edge_attr = torch.tensor(edge_attributes, dtype=torch.float, device=device)
+    graph.edge_index = edge_index
+    graph.edge_attr = edge_attr
     return True
 
 def add_food(graph, food):

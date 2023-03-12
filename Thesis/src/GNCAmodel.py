@@ -8,6 +8,7 @@ from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 import time
 
 from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost
+from datastructure import DataStructure
 
 class GNCA(nn.Module):
     def __init__(self, device, batch_size, wrap_around, channels=10, edge_dim=4):
@@ -29,6 +30,7 @@ class GNCA(nn.Module):
         self.energy_required = 5
         self.node_indices_to_keep = None
         self.wrap_around = wrap_around
+        self.datastructure = DataStructure(self.radius, self.device, self.wrap_around, self.batch_size)
 
     def message_pass(self, graph):
         '''Convolves the graph for message passing'''
@@ -90,9 +92,9 @@ class GNCA(nn.Module):
         for i in range(self.batch_size):
             e_idx = s_idx + graph.subsize[i]
             food_nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0) + s_idx
-            food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], food_nodes_in_batch)).view(-1) #only edges going from cell to food
+            food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], food_nodes_in_batch)).view(-1) #only edges going from cell to food #TODO reverse in case we want to remove the rest
             edge_attr = graph.edge_attr[food_edges_in_batch]
-            nodes = graph.x[graph.edge_index[0, food_edges_in_batch]]
+            nodes = graph.x[graph.edge_index[0, food_edges_in_batch]] #TODO remove in case of making directional
             dist = torch.abs(edge_attr[:, 1:3])
             dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
@@ -103,7 +105,14 @@ class GNCA(nn.Module):
     def update(self, graph):
         '''Update the graph a single time step'''
         time1 = time.perf_counter()
-        any_edges = add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
+        #any_edges = add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
+        any_edges = self.datastructure.add_edges(graph)
+        #print(edge1)
+        #print(edge2)
+        #print(graph.x)
+        #print('edges match: ', torch.equal(edge1, edge2))
+        #print('old edge length', edge1.shape)
+        #print('new edge length', edge2.shape)
         if not any_edges:
             return graph
         time2 = time.perf_counter()

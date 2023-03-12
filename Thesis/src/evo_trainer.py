@@ -24,12 +24,19 @@ class GlobalVarActor():
         self.n = n
         self.device = device
         self.batch_size = batch_size
+        self.i = 0
+        self.steps = 60
         self.set_global_var()
 
     def set_global_var(self):
         #self.time_steps = np.random.randint(50, 60)
-        self.time_steps = np.random.randint(80, 90)
+        #self.time_steps = np.random.randint(80, 90)
         #self.time_steps = np.random.randint(100, 200)
+        self.i += 1
+        if self.i % 100 == 0:
+            self.steps += 10
+            print(self.steps)
+        self.time_steps = np.random.randint(self.steps, self.steps+10)
         self.graphs = [generate_organism(self.n, self.device).toGraph() for _ in range(self.batch_size)]
 
     def get_global_var(self):
@@ -62,7 +69,7 @@ class Custom_NEProblem(NEProblem):
             for i in range(self.batch_size):
                 e_idx = graph.subsize[i]
                 nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1) + s_idx
-                edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1)
+                edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1) #TODO optional reverse
                 nodes = graph.x[nodes_in_batch]
                 edges = graph.edge_index[:, edges_in_batch]
                 if len(nodes) == 0:
@@ -86,7 +93,8 @@ class Custom_NEProblem(NEProblem):
         fitness3 = graph.food_search_movement.mean()
         fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1
         fitness5 = graph.x[graph.x[:, 4] == 1].sum()/(self.n*self.batch_size) * 3 #cells alive ratio
-        fitness = fitness1 + fitness3*4 #+ fitness4 + fitness5
+        fitness = fitness1 + fitness3*4 + fitness4 + fitness5
+        #print((fitness1, fitness3, fitness4, fitness5))
 
         if torch.any(torch.isnan(food_reward)):
             print("fitness function returned nan")
@@ -124,8 +132,7 @@ class Evo_Trainer():
 
         self.distribution_searcher = CMAES(
             self.problem,
-            #stdev_init=torch.tensor(0.04, dtype=torch.float),
-            stdev_init=torch.tensor(0.1, dtype=torch.float),
+            stdev_init=torch.tensor(0.04, dtype=torch.float),
             popsize=popsize,
             limit_C_decomposition=False,
             obj_index=0,

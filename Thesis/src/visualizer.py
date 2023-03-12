@@ -5,7 +5,7 @@ from graphUtils import add_edges, add_random_food
 import torch
 
 class Visualizer():
-    def __init__(self, wrap_around):
+    def __init__(self, wrap_around, batch_size):
         self.figure = None
         self.graph = None
         canvas_scale = 1
@@ -16,13 +16,13 @@ class Visualizer():
         self.axes = None
         self.device = torch.device('cpu')
         self.wrap_around = wrap_around
+        self.batch_size = batch_size
 
     def plot_organism(self, graph):
-        any_edges = add_edges(graph, 0.04, self.device, self.wrap_around, batch_size=1)
-        if not any_edges:
-            return
-        cellIndices = torch.nonzero(graph.x[:, 4] == 1).flatten()
-        foodIndices = torch.nonzero(graph.x[:, 4] == 0).flatten()
+        any_edges = add_edges(graph, 0.04, self.device, self.wrap_around, batch_size=self.batch_size)
+        b1 = graph.subsize[0]
+        cellIndices = torch.nonzero(graph.x[:b1, 4] == 1).flatten()
+        foodIndices = torch.nonzero(graph.x[:b1, 4] == 0).flatten()
 
         if self.figure is None:
             plt.ion()
@@ -48,13 +48,21 @@ class Visualizer():
 
         self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
         self.scatter_food.set_offsets(graph.x[foodIndices, :2])
-        [plot.remove() for plot in self.edge_plot]
-        edge_from = graph.edge_index[0, :]
-        edge_to = graph.edge_index[1, :]
-        node_from = graph.x[edge_from, :2].detach().cpu().numpy()
-        node_to = graph.x[edge_to, :2].detach().cpu().numpy()
-        edges_x = [node_from[:,0], node_to[:,0]]
-        edges_y = [node_from[:,1], node_to[:,1]]
+        if any_edges:
+            [plot.remove() for plot in self.edge_plot]
+
+            nodes_in_batch = torch.nonzero(graph.x[:b1, 4] == 1)
+            edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1) #TODO potentially reverse
+
+            edge_from = graph.edge_index[0, edges_in_batch]
+            edge_to = graph.edge_index[1, edges_in_batch]
+            node_from = graph.x[edge_from, :2].detach().cpu().numpy()
+            node_to = graph.x[edge_to, :2].detach().cpu().numpy()
+            edges_x = [node_from[:,0], node_to[:,0]]
+            edges_y = [node_from[:,1], node_to[:,1]]
+        else:
+            edges_x = [[]]
+            edges_y = [[]]
         self.edge_plot = self.axes.plot(edges_x, edges_y, linewidth=0.1)
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
@@ -65,11 +73,8 @@ class Visualizer():
 
         @torch.no_grad()
         def animate(i):
-            try:
-                self.graph = model.update(self.graph)
-                self.plot_organism(self.graph.detach().cpu())
-            except Exception:
-                print("can't update ")
+            self.graph = model.update(self.graph)
+            self.plot_organism(self.graph.detach().cpu())
 
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval)
         return anim
