@@ -33,7 +33,7 @@ class DataStructure(object):
         edges = []
         edge_attributes = []
 
-        def add_edge(i: int, j: int, wrap_around: bool, with_food: bool):
+        def add_edge(i: int, j: int, wrap_around: bool, with_food: bool, dist: float):
             radius_to_use = self.radius
             cell_to_cell = 1
             if with_food:
@@ -50,7 +50,6 @@ class DataStructure(object):
                     xy_dist[1] = -2.0 + xy_dist[1]
                 elif xy_dist[1] < -1.0:
                     xy_dist[1] = 2.0 + xy_dist[1]
-            dist = xy_dist.norm()
             if dist <= radius_to_use:
                 edges.append([j, i])
                 edge_attribute1 = [dist, xy_dist[0], xy_dist[1], cell_to_cell]
@@ -73,12 +72,12 @@ class DataStructure(object):
                 for ii, i in enumerate(cell_indices): #for each cell
                     indices[ii] += s_idx
                     for jj, j in enumerate(indices[ii]): #for each neighbor below food radius
-                        if i != j: #not itself
+                        if i != j: #not itself #TODO could experiment with adding self loops
                             if graph.x[j, 4] == 1: #is cell
                                 if dists[ii][jj] <= self.radius: #is below cell radius
-                                    add_edge(i+s_idx, j, self.wrap_around, False)
+                                    add_edge(i+s_idx, j, self.wrap_around, False, dists[ii][jj])
                             else:
-                                add_edge(i+s_idx, j, self.wrap_around, True)
+                                add_edge(i+s_idx, j, self.wrap_around, True, dists[ii][jj])
                 time3 = time.perf_counter()
             s_idx = e_idx
             #print('find: ', time2-time1)
