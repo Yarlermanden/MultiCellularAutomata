@@ -63,6 +63,8 @@ class DataStructure(object):
             time1 = time.perf_counter()
             e_idx = s_idx + graph.subsize[i].detach().cpu().numpy()
             nodes = graph.x[s_idx:e_idx, :2]
+            if len(nodes) == 0:
+                continue
             frnn = FixedRadiusNearestNeighbors(nodes)
             cell_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1).flatten()
             cells = nodes[cell_indices]
