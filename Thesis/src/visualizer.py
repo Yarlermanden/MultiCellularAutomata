@@ -26,6 +26,7 @@ class Visualizer():
         if self.figure is None:
             plt.ion()
             self.figure, self.axes = plt.subplots(2, int(self.batch_size // 2), figsize=(10,5))
+            self.figure.set_size_inches(20, 10, True)
             #self.figure, self.axes = plt.subplots(self.batch_size, figsize=(20,4))
             #[ax.set_xlim(self.borders[::2]) for ax in self.axes]
             [ax.set_xlim(self.borders[::2]) for ax_list in self.axes for ax in ax_list]
@@ -88,5 +89,5 @@ class Visualizer():
         anim = animation.FuncAnimation(self.figure, animate, frames=frames, interval=interval)
         return anim
 
-    def save_animation_to_gif(self, anim, name, fps=30):
-        anim.save('../animation/' + name + '.gif', writer='imagemagick', fps=fps)
+    def save_animation_to_gif(self, anim, name, fps=30, dpi=200):
+        anim.save('../animation/' + name + '.gif', writer='imagemagick', fps=fps, dpi=dpi)

@@ -68,7 +68,7 @@ class DataStructure(object):
                 for ii, i in enumerate(cell_indices): #for each cell
                     indices[ii] += s_idx
                     for jj, j in enumerate(indices[ii]): #for each neighbor below food radius
-                        if i != j: #not itself #TODO could experiment with adding self loops
+                        if i+s_idx != j: #not itself #TODO could experiment with adding self loops
                             if graph.x[j, 4] == 1: #is cell
                                 if dists[ii][jj] <= self.radius: #is below cell radius
                                     add_edge(i+s_idx, j, self.wrap_around, False, dists[ii][jj])

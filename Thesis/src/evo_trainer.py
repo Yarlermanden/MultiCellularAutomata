@@ -14,7 +14,6 @@ import time
 
 from generator import generate_organism
 from GNCAmodel import GNCA
-from GATConv import GATConv
 from GNCAConv import Conv
 from evotorch.decorators import vectorized, on_aux_device
 
@@ -123,8 +122,6 @@ class Evo_Trainer():
             #objective_sense=['max', 'min', 'max', 'min'],
             objective_sense=['max', 'max'],
             network=Conv,
-            #network=SpatioTemporal,
-            #network=GATConv,
             network_args={'device': device, 'batch_size': batch_size, 'wrap_around': wrap_around},
             num_actors='max',
             num_gpus_per_actor = 'max',

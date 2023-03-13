@@ -50,8 +50,8 @@ def get_island_cells_mask(graph, edges_to_stay_alive):
     '''Remove cells without any edges'''
     c_mask = cell_mask(graph)
     cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
-    zero_edge_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
-    mask = torch.bitwise_and(c_mask, zero_edge_mask)
+    too_few_edges_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
+    mask = torch.bitwise_and(c_mask, too_few_edges_mask)
     return mask
 
 def compute_border_cost(graph):
