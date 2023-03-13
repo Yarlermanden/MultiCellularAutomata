@@ -4,15 +4,11 @@ import torch
 import time
 
 class FixedRadiusNearestNeighbors(object):
-    def __init__(self, nodes):
-        blocks = 10 # 10x10
-        #grid = gsp.GriSPy(nodes, N_cells=blocks)
+    def __init__(self, nodes, food_radius):
         Lbox = 1.0
+        blocks = int(Lbox/food_radius) # 10x10
         periodic = {0: (-Lbox, Lbox), 1: (-Lbox, Lbox), 2: None}
-        #grid = gsp.GriSPy(nodes, periodic=0.2)
-
         self.grid = gsp.GriSPy(nodes.detach().cpu().numpy(), periodic=periodic, N_cells=blocks)
-        #self.grid = gsp.GriSPy(nodes.detach().cpu().numpy(), N_cells=blocks)
 
     def get_neighbors(self, node, radius):
         bubble_dist, bubble_ind = self.grid.bubble_neighbors(
@@ -54,18 +50,16 @@ class DataStructure(object):
                 edges.append([j, i])
                 edge_attribute1 = [dist, xy_dist[0], xy_dist[1], cell_to_cell]
                 edge_attributes.append(edge_attribute1)
-            #else its cells...
-            else:
-                print('something is wrong')
+            else: print('something is wrong')
 
         s_idx = 0
-        for i in range(self.batch_size):
+        for i in range(self.batch_size): #TODO could we simply just vectorize this entire thing?
             time1 = time.perf_counter()
             e_idx = s_idx + graph.subsize[i].detach().cpu().numpy()
             nodes = graph.x[s_idx:e_idx, :2]
             if len(nodes) == 0:
                 continue
-            frnn = FixedRadiusNearestNeighbors(nodes)
+            frnn = FixedRadiusNearestNeighbors(nodes, self.radius_food)
             cell_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1).flatten()
             cells = nodes[cell_indices]
             if len(cells) != 0:
@@ -81,6 +75,11 @@ class DataStructure(object):
                             else:
                                 add_edge(i+s_idx, j, self.wrap_around, True, dists[ii][jj])
                 time3 = time.perf_counter()
+
+                #zip all dists and indices
+                #combine all ii and jj into tuples
+                #iterate this single thing - check dist, add edge if constraint
+
             s_idx = e_idx
             #print('find: ', time2-time1)
             #print('add: ', time3-time2)

@@ -15,7 +15,7 @@ import time
 from generator import generate_organism
 from GNCAmodel import GNCA
 from GATConv import GATConv
-from CGConv import CGConv1
+from GNCAConv import Conv
 from evotorch.decorators import vectorized, on_aux_device
 
 @ray.remote
@@ -54,7 +54,6 @@ class Custom_NEProblem(NEProblem):
     def _evaluate_network(self, network: torch.nn.Module):
         time1 = time.perf_counter()
         steps, graphs = ray.get(self.global_var.get_global_var.remote())
-        #organism = generate_organism(self.n, self.device)
         loader = DataLoader(graphs, batch_size=self.batch_size)
         batch = next(iter(loader))
         time2 = time.perf_counter()
@@ -123,7 +122,7 @@ class Evo_Trainer():
             device=cpu,
             #objective_sense=['max', 'min', 'max', 'min'],
             objective_sense=['max', 'max'],
-            network=CGConv1,
+            network=Conv,
             #network=SpatioTemporal,
             #network=GATConv,
             network_args={'device': device, 'batch_size': batch_size, 'wrap_around': wrap_around},

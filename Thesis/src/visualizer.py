@@ -1,8 +1,9 @@
 from matplotlib import pyplot as plt
 import matplotlib.animation as animation
 import numpy as np
-from graphUtils import add_edges, add_random_food
+from graphUtils import add_random_food
 import torch
+from datastructure import DataStructure
 
 class Visualizer():
     def __init__(self, wrap_around, batch_size):
@@ -17,55 +18,63 @@ class Visualizer():
         self.device = torch.device('cpu')
         self.wrap_around = wrap_around
         self.batch_size = batch_size
+        self.datastructure = DataStructure(0.04, self.device, self.wrap_around, self.batch_size)
 
     def plot_organism(self, graph):
-        any_edges = add_edges(graph, 0.04, self.device, self.wrap_around, batch_size=self.batch_size)
-        b1 = graph.subsize[0]
-        cellIndices = torch.nonzero(graph.x[:b1, 4] == 1).flatten()
-        foodIndices = torch.nonzero(graph.x[:b1, 4] == 0).flatten()
+        any_edges = self.datastructure.add_edges(graph)
 
         if self.figure is None:
             plt.ion()
-            self.figure = plt.figure()
-            self.axes = plt.axes(xlim=self.borders[::2], ylim=self.borders[1::2])
-            self.scatter_cell = self.axes.scatter(
-                graph.x[cellIndices, 0],
-                graph.x[cellIndices, 1],
+            self.figure, self.axes = plt.subplots(2, int(self.batch_size // 2), figsize=(10,5))
+            #self.figure, self.axes = plt.subplots(self.batch_size, figsize=(20,4))
+            #[ax.set_xlim(self.borders[::2]) for ax in self.axes]
+            [ax.set_xlim(self.borders[::2]) for ax_list in self.axes for ax in ax_list]
+            #[ax.set_ylim(self.borders[1::2]) for ax in self.axes]
+            [ax.set_ylim(self.borders[1::2]) for ax_list in self.axes for ax in ax_list]
+            self.scatter_cell = [ax.scatter(
+                [],
+                [],
                 marker=".",
                 edgecolor="k",
                 lw=0.5,
-            )
-            self.scatter_food = self.axes.scatter(
-                graph.x[foodIndices, 0],
-                graph.x[foodIndices, 1],
+            ) for ax_list in self.axes for ax in ax_list]
+            self.scatter_food = [ax.scatter(
+                [],
+                [],
                 marker=".",
                 edgecolor="r",
                 #lw=0.5,
-                s=graph.x[foodIndices, 2]*5,
-            )
-            self.edge_plot = self.axes.plot([[],[]], [[],[]], linewidth=0.1)
+            ) for ax_list in self.axes for ax in ax_list]
+            self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1) for ax_list in self.axes for ax in ax_list]
             plt.show()
 
-        self.scatter_cell.set_offsets(graph.x[cellIndices, :2])
-        self.scatter_food.set_offsets(graph.x[foodIndices, :2])
-        if any_edges:
-            [plot.remove() for plot in self.edge_plot]
+        s_idx = 0
+        for i in range(self.batch_size):
+            e_idx = graph.subsize[i] + s_idx
+            cellIndices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1).flatten() + s_idx
+            foodIndices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0).flatten() + s_idx
 
-            nodes_in_batch = torch.nonzero(graph.x[:b1, 4] == 1)
-            edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], nodes_in_batch)).view(-1)
+            self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
+            self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])
+            self.scatter_food[i].set_sizes(graph.x[foodIndices, 2]*5)
+            if any_edges:
+                [plot.remove() for plot in self.edge_plot[i]]
 
-            edge_from = graph.edge_index[0, edges_in_batch]
-            edge_to = graph.edge_index[1, edges_in_batch]
-            node_from = graph.x[edge_from, :2].detach().cpu().numpy()
-            node_to = graph.x[edge_to, :2].detach().cpu().numpy()
-            edges_x = [node_from[:,0], node_to[:,0]]
-            edges_y = [node_from[:,1], node_to[:,1]]
-        else:
-            edges_x = [[]]
-            edges_y = [[]]
-        self.edge_plot = self.axes.plot(edges_x, edges_y, linewidth=0.1)
-        self.figure.canvas.draw()
-        self.figure.canvas.flush_events()
+                edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], cellIndices)).view(-1)
+
+                edge_from = graph.edge_index[0, edges_in_batch]
+                edge_to = graph.edge_index[1, edges_in_batch]
+                node_from = graph.x[edge_from, :2].detach().cpu().numpy()
+                node_to = graph.x[edge_to, :2].detach().cpu().numpy()
+                edges_x = [node_from[:,0], node_to[:,0]]
+                edges_y = [node_from[:,1], node_to[:,1]]
+            else:
+                edges_x = [[]]
+                edges_y = [[]]
+            self.edge_plot[i] = self.axes[i//4][i%4].plot(edges_x, edges_y, linewidth=0.1)
+            self.figure.canvas.draw()
+            self.figure.canvas.flush_events()
+            s_idx = e_idx
 
     def animate_organism(self, graph, model, food=100, frames=50, interval=150):
         self.graph = graph

@@ -7,7 +7,7 @@ import torch_geometric
 from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 import time
 
-from graphUtils import add_edges, add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost
+from graphUtils import add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost
 from datastructure import DataStructure
 
 class GNCA(nn.Module):
@@ -78,6 +78,7 @@ class GNCA(nn.Module):
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
 
     def compute_fitness_metrics(self, graph):
+        '''Computes the fitness metrics of each batch used for evaluating the network'''
         #compute_border_cost(graph)
 
         #visible_food = (graph.edge_attr[:, 3] == 0).sum()
@@ -98,14 +99,13 @@ class GNCA(nn.Module):
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
             if x5.isnan(): x5 = -0.00001
             graph.food_search_movement += x5
-            if (graph.x[s_idx:e_idx, 4] == 0).sum() == 0: #no more food in batch
+            if (graph.x[s_idx:e_idx, 4] == 0).sum() == 0 and (graph.x[s_idx:e_idx, 4] == 1).sum() != 0: #no more food but still cells in batch
                 graph.food_reward[i] += 1
             s_idx = e_idx
 
     def update(self, graph):
         '''Update the graph a single time step'''
         time1 = time.perf_counter()
-        #any_edges = add_edges(graph, self.radius, self.device, self.wrap_around, self.batch_size) #dynamically add edges
         any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
             return graph

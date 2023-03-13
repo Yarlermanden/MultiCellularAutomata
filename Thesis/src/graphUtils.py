@@ -4,63 +4,6 @@ import random
 import torch_geometric
 from torch_geometric import utils
 
-def add_edges(graph, radius, device, wrap_around, batch_size):
-    '''Add edges dynamically according to radius. '''
-    edges = []
-    edge_attributes = []
-    radius_food = radius*5
-
-    def add_edge(i: int, j: int, with_food: bool, wrap_around: bool):
-        radius_to_use = radius
-        cell_to_cell = 1
-        if with_food:
-            radius_to_use = radius_food
-            cell_to_cell = 0
-
-        xy_dist = (graph.x[i]-graph.x[j])[:2]
-        if wrap_around:
-            if xy_dist[0] > 1.0:
-                xy_dist[0] = -2.0 + xy_dist[0]
-            elif xy_dist[0] < -1.0:
-                xy_dist[0] = 2.0 + xy_dist[0]
-            if xy_dist[1] > 1.0:
-                xy_dist[1] = -2.0 + xy_dist[1]
-            elif xy_dist[1] < -1.0:
-                xy_dist[1] = 2.0 + xy_dist[1]
-        dist = xy_dist.norm()
-        if dist < radius_to_use:
-            edges.append([i, j])
-            edge_attribute1 = [dist, xy_dist[0], xy_dist[1], cell_to_cell]
-            edge_attributes.append(edge_attribute1)
-
-            edges.append([j, i])
-            edge_attribute2 = [dist, -xy_dist[0], -xy_dist[1], cell_to_cell]
-            edge_attributes.append(edge_attribute2)
-
-    start_index = 0
-    for i in range(batch_size):
-        end_index = start_index + graph.subsize[i]
-        cell_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 1).flatten()+start_index
-        food_indices = torch.nonzero(graph.x[start_index:end_index, 4] == 0).flatten()+start_index
-        n = len(cell_indices)
-
-        for i_i in range(n):
-            for j in food_indices: #check distance to food sources
-                add_edge(cell_indices[i_i], j, True, wrap_around)
-
-            for i_j in range(i_i+1, n): #check distance to other cells
-                add_edge(cell_indices[i_i], cell_indices[i_j], False, wrap_around)
-        start_index = end_index
-    if len(edges) == 0:
-        graph.edge_index = torch.tensor([[]], dtype=torch.long, device=device)
-        graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=device)
-        return False
-    edge_index = torch.tensor(edges, dtype=torch.long, device=device).T
-    edge_attr = torch.tensor(edge_attributes, dtype=torch.float, device=device)
-    graph.edge_index = edge_index
-    graph.edge_attr = edge_attr
-    return True
-
 def add_food(graph, food):
     '''Add food source as node to graph'''
     graph.x = torch.cat((graph.x, food))
