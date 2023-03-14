@@ -45,6 +45,9 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
+        for param in self.parameters():
+            param.grad = None
+
     def message_pass(self, graph):
         food_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()]
         food_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()][:, :3]
