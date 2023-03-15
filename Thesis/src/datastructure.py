@@ -31,6 +31,14 @@ class DataStructure(object):
         edges = []
         edge_attributes = []
 
+        def update_dist1(dist):
+            if dist > 1.0:
+                return -2.0 + dist
+            elif dist < -1.0:
+                return 2.0 + dist
+            return dist
+        vupdate = np.vectorize(update_dist1)
+
         #@torch.jit.script
         def update_dist(edge_attr1):
             if edge_attr1[1] > 1.0:
@@ -45,14 +53,6 @@ class DataStructure(object):
 
         def add_edge1(dist, xy_dist, isCell):
             edge_attr1 = [dist, xy_dist[0], xy_dist[1], isCell]
-            if edge_attr1[1] > 1.0:
-                edge_attr1[1] = -2.0 + edge_attr1[1]
-            elif edge_attr1[1] < -1.0:
-                edge_attr1[1] = 2.0 + edge_attr1[1]
-            if edge_attr1[2] > 1.0:
-                edge_attr1[2] = -2.0 + edge_attr1[2]
-            elif edge_attr1[2] < -1.0:
-                edge_attr1[2] = 2.0 + edge_attr1[2]
             edges.append([j, i])
             edge_attributes.append(edge_attr1)
             
@@ -68,29 +68,23 @@ class DataStructure(object):
             cell_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1).flatten()
             cells = nodes[cell_indices]
             cell_indices += s_idx
+            cell_indices = cell_indices.detach().cpu().numpy()
             if len(cells) != 0:
                 dists, indices = frnn.get_neighbors(cells, self.radius_food)
+                indices = [x + s_idx for x in indices]
                 time2 = time.perf_counter()
+
+                #matrix of whether i == j
+                #matrix of xy_dist from x[i]-x[j]
                 for ii, i in enumerate(cell_indices): #for each cell
-                    indices[ii] += s_idx
                     for jj, j in enumerate(indices[ii]): #for each neighbor below food radius
                         if i != j: #not itself #TODO could experiment with adding self loops
                             if graph.x[j, 4] == 0: #is food
                                 xy_dist = (x[i]-x[j])[:2]
                                 add_edge1(dists[ii][jj], xy_dist, 0)
-                                ##edge_attr1 = torch.tensor([dists[ii][jj], xy_dist[0], xy_dist[1], 0], dtype=torch.float, device=self.device)
-                                #edge_attr1 = [dists[ii][jj], xy_dist[0], xy_dist[1], 0]
-                                #edge_attr1 = update_dist(edge_attr1)
-                                #edges.append([j, i])
-                                #edge_attributes.append(edge_attr1)
                             elif dists[ii][jj] <= self.radius: #is below cell radius
                                 xy_dist = (x[i]-x[j])[:2]
                                 add_edge1(dists[ii][jj], xy_dist, 1)
-                                ##edge_attr1 = torch.tensor([dists[ii][jj], xy_dist[0], xy_dist[1], 1], dtype=torch.float, device=self.device)
-                                #edge_attr1 = [dists[ii][jj], xy_dist[0], xy_dist[1], 1]
-                                #edge_attr1 = update_dist(edge_attr1)
-                                #edges.append([j, i])
-                                #edge_attributes.append(edge_attr1)
 
                 time3 = time.perf_counter()
 
@@ -99,15 +93,16 @@ class DataStructure(object):
                 #iterate this single thing - check dist, add edge if constraint
 
             s_idx = e_idx
-            print('find: ', time2-time1)
-            print('add: ', time3-time2)
+            #print('find: ', time2-time1)
+            #print('add: ', time3-time2)
 
         if len(edges) == 0:
             graph.edge_index = torch.tensor([[]], dtype=torch.long, device=self.device)
             graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=self.device)
             return False
-        edge_index = torch.tensor(edges, dtype=torch.long, device=self.device).T
-        #edge_attr = torch.stack(edge_attributes)
+        edge_index = torch.tensor(np.array(edges), dtype=torch.long, device=self.device).T
+        edge_attributes = np.array(edge_attributes)
+        edge_attributes[:, 1:3] = vupdate(edge_attributes[:, 1:3])
         edge_attr = torch.tensor(edge_attributes, dtype=torch.float, device=self.device)
         graph.edge_index = edge_index
         graph.edge_attr = edge_attr
