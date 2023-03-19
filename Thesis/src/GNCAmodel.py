@@ -20,6 +20,7 @@ class GNCA(nn.Module):
         self.batch_size = batch_size
 
         self.radius = 0.04
+        self.radius_food = self.radius*5
         self.consume_radius = self.radius
         #self.acceleration_scale = 0.005
         self.acceleration_scale = 0.02
@@ -31,15 +32,15 @@ class GNCA(nn.Module):
         self.node_indices_to_keep = None
         self.wrap_around = wrap_around
         self.datastructure = DataStructure(self.radius, self.device, self.wrap_around, self.batch_size)
+        self.noise = 0.002
 
     def message_pass(self, graph):
         '''Convolves the graph for message passing'''
         ...
 
     def add_noise(self, graph, c_mask):
-        noise = 0.002
-        x_noise = (torch.rand(graph.x[:, 2].shape, device=self.device)*2-1.0) * noise
-        y_noise = (torch.rand(graph.x[:, 3].shape, device=self.device)*2-1.0) * noise
+        x_noise = (torch.rand(graph.x[:, 2].shape, device=self.device)*2-1.0) * self.noise
+        y_noise = (torch.rand(graph.x[:, 3].shape, device=self.device)*2-1.0) * self.noise
         update_mask = torch.rand_like(x_noise, device=self.device) > 0.5
         graph.x[:, 2] += x_noise * c_mask * update_mask
         graph.x[:, 3] += y_noise * c_mask * update_mask
@@ -47,7 +48,7 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph)
-        h = self.message_pass(graph) * c_mask.view(c_mask.shape[0], 1)
+        h = self.message_pass(graph) * c_mask.view(-1, 1)
         acceleration = h[:, :2] * self.acceleration_scale
         #graph.x[:, 5:7] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity, c_mask)

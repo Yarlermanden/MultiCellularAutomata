@@ -66,73 +66,9 @@ class DataStructure(object):
                 if len(l) > 0:
                     edges.extend(l[0])
                     attributes.extend(l[1])
-
-                #for ii, i in enumerate(cell_indices): #for each cell
-                #    for jj, j in enumerate(indices[ii]): #for each neighbor below food radius
-                #        if i != j: #not itself #TODO could experiment with adding self loops
-                #            if graph.x[j, 4] == 0: #is food
-                #                xy_dist = (x[i]-x[j])[:2]
-                #                add_edge1(dists[ii][jj], xy_dist, 0)
-                #            elif dists[ii][jj] <= self.radius: #is below cell radius
-                #                xy_dist = (x[i]-x[j])[:2]
-                #                add_edge1(dists[ii][jj], xy_dist, 1)
-
                 time3 = time.perf_counter()
             s_idx = e_idx
          
-
-
-
-            
-        #x = graph.x.clone()[:, :2]
-        #batch_bias = torch.zeros(graph.x.shape[0])
-        #s_idx = 0
-        #for i in range(self.batch_size):
-        #    e_idx = s_idx + graph.subsize[i]
-        #    #batch_bias[s_idx:e_idx] += i*3
-        #    batch_bias[s_idx:e_idx] += i
-        #    s_idx = e_idx
-
-        ##x += batch_bias.view(-1,1)
-        #nodes = x
-        #x = x.detach().cpu().numpy()
-        
-
-        ##### NEW OLD WAY
-        #time1 = time.perf_counter()
-        #frnn = FixedRadiusNearestNeighbors(nodes, self.radius_food, self.batch_size)
-        #cell_indices = torch.nonzero(graph.x[:, 4] == 1).flatten()
-        #cells = nodes[cell_indices]
-        #cell_indices1 = cell_indices.detach().cpu().numpy()
-        #if len(cells) != 0:
-        #    dists, indices = frnn.get_neighbors(cells, self.radius_food)
-        #    time2 = time.perf_counter()
-
-        #    #TODO need to prevent selfloops
-        #    tup = [([j,i], [dists[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 1]) for ii, i in enumerate(cell_indices1) for jj, j in enumerate(indices[ii]) if i!=j and (dists[ii][jj] < self.radius or graph.x[j,4] == 0) and batch_bias[i] == batch_bias[j]]
-        #    l = [list(t) for t in zip(*tup)]
-        #    #print('old len: ', len(l[0]))
-
-        #    time3 = time.perf_counter()
-
-        #    #### NEW NEW WAY
-        #    isCell = graph.x[:, 4] == 1
-        #    cell_indices = torch.nonzero(isCell).flatten()
-        #    cells = nodes[isCell]
-        #    frnn_food = FixedRadiusNearestNeighbors(nodes[torch.bitwise_not(isCell)], self.radius_food, self.batch_size)
-        #    frnn_cell = FixedRadiusNearestNeighbors(cells, self.radius, self.batch_size)
-        #    dists_food, indices_food = frnn_food.get_neighbors(cells, self.radius_food)
-        #    dists_cell, indices_cell = frnn_cell.get_neighbors(cells, self.radius)
-        #    
-        #    cell_indices1 = cell_indices.detach().cpu().numpy()
-        #    tup_food = [([j,i], [dists_food[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 0]) for ii, i in enumerate(cell_indices1) for jj, j in enumerate(indices_food[ii]) if batch_bias[i] == batch_bias[j]]
-        #    tup_cell = [([j,i], [dists_cell[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 1]) for ii, i in enumerate(cell_indices1) for jj, j in enumerate(indices_cell[ii]) if i!=j and batch_bias[i] == batch_bias[j]]
-        #    tup_food.extend(tup_cell)
-        #    l2 = [list(t) for t in zip(*tup_food)]
-        #    #print('new len: ', len(l2[0]))
-
-        #time4 = time.perf_counter()
-
         if len(edges) == 0:
             graph.edge_index = torch.tensor([[]], dtype=torch.long, device=self.device)
             graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=self.device)

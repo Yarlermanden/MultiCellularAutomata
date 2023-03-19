@@ -11,6 +11,9 @@ class Conv(GNCA):
         self.input_channels = 2
         self.output_channels = 2
         self.hidden_size = self.input_channels*1
+
+        self.velNorm = 1.0/self.max_velocity
+        self.attrNorm = 1.0/self.radius_food
         
         self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
@@ -54,9 +57,9 @@ class Conv(GNCA):
         cell_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()]
         cell_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()][:, :3]
 
-        x = graph.x[:, 2:4] * 50
-        food_attr *= 4
-        cell_attr *= 4
+        x = graph.x[:, 2:4] * self.velNorm
+        food_attr *= self.attrNorm
+        cell_attr *= self.attrNorm
         
         #food_attr = self.mlp_edge(food_attr)
         x = self.mlp_before(x)
