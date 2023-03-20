@@ -65,6 +65,7 @@ class Custom_NEProblem(NEProblem):
 
         s_idx = 0
         diameters = []
+        subgraph_counts = []
         if graph.edge_index.shape[0] == 2:
             for i in range(self.batch_size):
                 e_idx = graph.subsize[i]
@@ -74,6 +75,7 @@ class Custom_NEProblem(NEProblem):
                 edges = graph.edge_index[:, edges_in_batch]
                 if len(nodes) == 0:
                     diameters.append(0)
+                    subgraph_counts.append(1)
                 else:
                     data = Data(x=nodes, edge_index=edges)
                     G = to_networkx(data, to_undirected=True)
@@ -81,10 +83,14 @@ class Custom_NEProblem(NEProblem):
                     largest_component = max(G1, key=len) #subgraph with organism
                     G2 = G.subgraph(largest_component) 
                     diameters.append(nx.diameter(G2)) #shortest longest path
+                    x = [0 for _ in enumerate(G1)]
+                    subgraph_counts.append(len(x))
                 s_idx = e_idx
         else:
+            subgraph_counts.append(1)
             diameters.append(0)
         diameters = torch.tensor(diameters, dtype=torch.float)
+        subgraph_counts = torch.tensor(subgraph_counts, dtype=torch.float)
 
         food_reward = graph.food_reward.mean()
         velocity = graph.velocity.mean()
@@ -94,15 +100,12 @@ class Custom_NEProblem(NEProblem):
         fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1
         fitness5 = (graph.x[:, 4] == 1).sum()/(self.n*self.batch_size) * 3 #cells alive ratio
         fitness = fitness1 + fitness3 + fitness4 + fitness5
-
-        #print((fitness1, fitness3, fitness4, fitness5))
+        fitness /= subgraph_counts.mean()**0.5
 
         if torch.any(torch.isnan(food_reward)):
             print("fitness function returned nan")
             print((graph.food_reward, graph.velocity, graph.border_cost, graph.dead_cost))
 
-        #return torch.tensor([fitness, graph.food_avg_dist.mean()/1000, graph.visible_food.mean()/(20-food_reward), graph.velocity.mean()/(1+food_reward)], dtype=torch.float).cpu()
-        #return torch.tensor([fitness1, fitness2])
         time4 = time.perf_counter()
         #print('setup: ', time2-time1)
         #print('all graph computations: ', time3-time2)
