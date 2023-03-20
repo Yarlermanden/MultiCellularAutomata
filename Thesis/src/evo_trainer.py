@@ -83,11 +83,13 @@ class Custom_NEProblem(NEProblem):
                     largest_component = max(G1, key=len) #subgraph with organism
                     G2 = G.subgraph(largest_component) 
                     diameters.append(nx.diameter(G2)) #shortest longest path
-                    x = [0 for _ in enumerate(G1)]
-                    subgraph_counts.append(len(x))
+                    x = len([0 for _ in enumerate(G1)])
+                    if x == 0:
+                        x = 1
+                    subgraph_counts.append(x)
                 s_idx = e_idx
         else:
-            subgraph_counts.append(1)
+            [subgraph_counts.append(1) for _ in range(self.batch_size)]
             diameters.append(0)
         diameters = torch.tensor(diameters, dtype=torch.float)
         subgraph_counts = torch.tensor(subgraph_counts, dtype=torch.float)
