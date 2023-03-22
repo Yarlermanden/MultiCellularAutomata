@@ -14,10 +14,15 @@ def add_random_food(graph, device, n=1):
         food = generate_food(device)
         add_food(graph, food)
 
+def add_global_node(graph, device):
+    '''Adds a global node to the graph. 
+    Call this before creating batches to ensure a global node exists in all batches'''
+    global_node = torch.tensor([[0, 0, 0, 0, 2]], dtype=torch.float, device=device) #TODO Ensure that everywhere checks type specifically for food and cell
+    graph.x = torch.cat((graph.x, global_node))
+
 def update_velocity(graph, acceleration, max_velocity, c_mask):
     '''Updates the velocity of the nodes given the acceleration and previous velocity'''
-    #TODO change back to accumulate velocity
-    #velocity = graph.x[:, 2:4] + acceleration
+    #velocity = graph.x[:, 2:4] + acceleration #Seems to difficult to learn as it's simply just another complexity on top of basic movement
     velocity = acceleration
     velocity[c_mask] = torch.clamp(velocity[c_mask], -max_velocity, max_velocity)
     return velocity

@@ -11,7 +11,7 @@ from graphUtils import add_random_food, update_velocity, update_positions, food_
 from datastructure import DataStructure
 
 class GNCA(nn.Module):
-    def __init__(self, device, batch_size, wrap_around, channels=10, edge_dim=4):
+    def __init__(self, device, batch_size, wrap_around, with_global_node, channels=10, edge_dim=4):
         super(GNCA, self).__init__()
         self.device = device
         self.input_channels = channels-2
@@ -28,9 +28,12 @@ class GNCA(nn.Module):
         self.max_pos = 1
         self.consumption_edge_required = 1
         self.edges_to_stay_alive = 1 #1 more than its self loop
+        if with_global_node:
+            self.edges_to_stay_alive += 1
         self.energy_required = 5
         self.node_indices_to_keep = None
         self.wrap_around = wrap_around
+        self.with_global_node = with_global_node
         self.datastructure = DataStructure(self.radius, self.device, self.wrap_around, self.batch_size)
         self.noise = 0.002
 
@@ -48,13 +51,15 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph)
-        h = self.message_pass(graph) * c_mask.view(-1, 1)
+        moveable_mask = torch.bitwise_or(c_mask, graph.x[:,4] == 2)
+        
+        h = self.message_pass(graph) * moveable_mask.view(-1,1)
         acceleration = h[:, :2] * self.acceleration_scale
         #graph.x[:, 5:7] = h[:, 2:]
-        velocity = update_velocity(graph, acceleration, self.max_velocity, c_mask)
-        positions = update_positions(graph, velocity, self.wrap_around, c_mask)
-        graph.x[c_mask, 2:4] = velocity[c_mask]
-        graph.x[c_mask, :2] = positions
+        velocity = update_velocity(graph, acceleration, self.max_velocity, moveable_mask)
+        positions = update_positions(graph, velocity, self.wrap_around, moveable_mask)
+        graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
+        graph.x[moveable_mask, :2] = positions
         self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
@@ -107,7 +112,9 @@ class GNCA(nn.Module):
     def update(self, graph):
         '''Update the graph a single time step'''
         time1 = time.perf_counter()
-        any_edges = self.datastructure.add_edges(graph)
+        any_edges = False
+        if self.with_global_node: any_edges = self.datastructure.add_edges_with_global_node(graph)
+        else: any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
             return graph
         time2 = time.perf_counter()

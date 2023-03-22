@@ -3,7 +3,7 @@ from organism import Organism
 import random
 import torch
 
-def generate_organism(n: int, device):
+def generate_organism(n: int, device, with_global_node, food_amount):
     '''Generate a random centered organism'''
     cells = []
     d = 0.04
@@ -12,7 +12,7 @@ def generate_organism(n: int, device):
         y = random.uniform(-d, d)
         cell = Cell([x,y])
         cells.append(cell)
-    organism = Organism(cells, device)
+    organism = Organism(cells, device, with_global_node, food_amount)
     return organism
 
 def generate_food(device):

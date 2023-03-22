@@ -63,6 +63,7 @@ class Visualizer():
 
                 edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], cellIndices)).view(-1)
 
+                #TODO the wraparound isn't visualized correctly
                 edge_from = graph.edge_index[0, edges_in_batch]
                 edge_to = graph.edge_index[1, edges_in_batch]
                 node_from = graph.x[edge_from, :2].detach().cpu().numpy()
