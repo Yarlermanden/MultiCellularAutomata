@@ -32,8 +32,8 @@ class GlobalVarActor():
 
     def set_global_var(self):
         self.i += 1
-        if self.i % 100 == 0:
-            if self.i > 1500:
+        if self.i % 200 == 0:
+            if self.i > 3000:
                 ...
             #if self.i % 1500 == 0:
             #    self.steps = 40
