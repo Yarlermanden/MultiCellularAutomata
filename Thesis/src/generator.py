@@ -24,7 +24,6 @@ def generate_organism(n: int, device, with_global_node, food_amount, env_type):
 
 def generate_food(device, d=0.2):
     '''Generate a random food'''
-    #x,y = get_random_point_within(d)
     x,y = get_random_point_normal(0, d)
     val = random.randint(1,3)
     food = torch.tensor([[x,y, val, 0, 0]], device=device)

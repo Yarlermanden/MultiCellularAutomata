@@ -16,36 +16,7 @@ from generator import generate_organism
 from GNCAmodel import GNCA
 from GNCAConv import Conv
 from evotorch.decorators import vectorized, on_aux_device
-
-@ray.remote
-class GlobalVarActor():
-    def __init__(self, n, device, batch_size, with_global_node, food_amount, env_type):
-        self.n = n
-        self.device = device
-        self.batch_size = batch_size
-        self.with_global_node = with_global_node
-        self.food_amount = food_amount
-        self.env_type = env_type
-        self.i = 0
-        self.steps = 60
-        self.set_global_var()
-
-    def set_global_var(self):
-        self.i += 1
-        if self.i % 200 == 0:
-            if self.i > 3000:
-                ...
-            #if self.i % 1500 == 0:
-            #    self.steps = 40
-            else:
-                self.steps += 10
-            print(self.steps)
-        self.time_steps = np.random.randint(self.steps, self.steps+10)
-        self.graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type).toGraph() 
-                       for _ in range(self.batch_size)]
-
-    def get_global_var(self):
-        return self.time_steps, self.graphs
+from global_state import GlobalState
 
 class Custom_NEProblem(NEProblem):
     def __init__(self, n, global_var, batch_size, **kwargs):
@@ -59,7 +30,7 @@ class Custom_NEProblem(NEProblem):
     def _evaluate_network(self, network: torch.nn.Module):
         time1 = time.perf_counter()
         steps, graphs = ray.get(self.global_var.get_global_var.remote())
-        loader = DataLoader(graphs, batch_size=self.batch_size)
+        loader = DataLoader(graphs, batch_size=self.batch_size) #TODO move this part into the global_state to not do multiple times
         batch = next(iter(loader))
         time2 = time.perf_counter()
 
@@ -116,12 +87,14 @@ class Custom_NEProblem(NEProblem):
         #print('setup: ', time2-time1)
         #print('all graph computations: ', time3-time2)
         #print('fitness computation: ', time4-time3)
+
+        ray.get(self.global_var.update_pool.remote(graph))
         return torch.tensor([fitness, fitness2])
 
 class Evo_Trainer():
     def __init__(self, n, device, batch_size, wrap_around, with_global_node, food_amount, env_type, popsize=200):
         cpu = torch.device('cpu')
-        global_var = GlobalVarActor.remote(n, cpu, batch_size, with_global_node, food_amount, env_type)
+        global_var = GlobalState.remote(n, cpu, batch_size, with_global_node, food_amount, env_type)
         ray.get(global_var.set_global_var.remote())
         self.wrap_around = wrap_around
 
