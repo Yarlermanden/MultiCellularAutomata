@@ -1,26 +1,43 @@
 from cell import Cell
 from organism import Organism
 import random
+import numpy as np
 import torch
+from enums import EnvironmentType
 
-def generate_organism(n: int, device, with_global_node, food_amount):
+def get_random_point_within(d):
+    return random.uniform(-d, d), random.uniform(-d,d)
+
+def get_random_point_normal(center, std_dev):
+    return np.random.normal(center, std_dev), np.random.normal(center, std_dev)
+
+def generate_organism(n: int, device, with_global_node, food_amount, env_type):
     '''Generate a random centered organism'''
     cells = []
     d = 0.04
     for i in range(n):
-        x = random.uniform(-d, d)
-        y = random.uniform(-d, d)
+        x,y = get_random_point_within(d)
         cell = Cell([x,y])
         cells.append(cell)
-    organism = Organism(cells, device, with_global_node, food_amount)
+    organism = Organism(cells, device, with_global_node, food_amount, env_type)
     return organism
 
-def generate_food(device):
+def generate_food(device, d=0.2):
     '''Generate a random food'''
-    d = 0.4
-    x = random.uniform(-d, d)
-    y = random.uniform(-d, d)
-    #food = torch.tensor([[x,y, 0, 0, 0, 0, 0, 0, 0, 0]], device=device)
+    #x,y = get_random_point_within(d)
+    x,y = get_random_point_normal(0, d)
     val = random.randint(1,3)
     food = torch.tensor([[x,y, val, 0, 0]], device=device)
     return food
+
+def generate_cluster(device, cluster_size, std_dev):
+    '''Generates a cluster of food with certain size and std_dev'''
+    d = 0.8
+    x,y = get_random_point_within(d)
+    cluster = []
+    for _ in range(cluster_size):
+        food = generate_food(device, std_dev)
+        cluster.append(food)
+    cluster = torch.concat(cluster, dim=0)
+    cluster[:, :2]+=torch.tensor([[x,y]], device=device)
+    return cluster

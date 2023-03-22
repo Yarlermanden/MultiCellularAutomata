@@ -19,12 +19,13 @@ from evotorch.decorators import vectorized, on_aux_device
 
 @ray.remote
 class GlobalVarActor():
-    def __init__(self, n, device, batch_size, with_global_node, food_amount):
+    def __init__(self, n, device, batch_size, with_global_node, food_amount, env_type):
         self.n = n
         self.device = device
         self.batch_size = batch_size
         self.with_global_node = with_global_node
         self.food_amount = food_amount
+        self.env_type = env_type
         self.i = 0
         self.steps = 60
         self.set_global_var()
@@ -40,7 +41,8 @@ class GlobalVarActor():
                 self.steps += 10
             print(self.steps)
         self.time_steps = np.random.randint(self.steps, self.steps+10)
-        self.graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount).toGraph() for _ in range(self.batch_size)]
+        self.graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type).toGraph() 
+                       for _ in range(self.batch_size)]
 
     def get_global_var(self):
         return self.time_steps, self.graphs
@@ -117,9 +119,9 @@ class Custom_NEProblem(NEProblem):
         return torch.tensor([fitness, fitness2])
 
 class Evo_Trainer():
-    def __init__(self, n, device, batch_size, wrap_around, with_global_node, food_amount, popsize=200):
+    def __init__(self, n, device, batch_size, wrap_around, with_global_node, food_amount, env_type, popsize=200):
         cpu = torch.device('cpu')
-        global_var = GlobalVarActor.remote(n, cpu, batch_size, with_global_node, food_amount)
+        global_var = GlobalVarActor.remote(n, cpu, batch_size, with_global_node, food_amount, env_type)
         ray.get(global_var.set_global_var.remote())
         self.wrap_around = wrap_around
 
