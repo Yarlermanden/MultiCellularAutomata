@@ -77,7 +77,8 @@ class Custom_NEProblem(NEProblem):
         fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1
         fitness5 = (graph.x[:, 4] == 1).sum()/(self.n*self.batch_size) * 3 #cells alive ratio
         fitness = fitness1 + fitness3 + fitness4 + fitness5
-        fitness /= subgraph_counts.mean()**0.5
+        fitness /= subgraph_counts.mean()
+        fitness *= ((graph.x[:, 4] == 1).sum() / (self.n*self.batch_size)) #multiply by ratio kept alive [0-1]
 
         if torch.any(torch.isnan(food_reward)):
             print("fitness function returned nan")

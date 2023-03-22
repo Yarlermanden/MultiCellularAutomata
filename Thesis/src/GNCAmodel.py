@@ -21,7 +21,7 @@ class GNCA(nn.Module):
 
         self.radius = 0.04
         self.radius_food = self.radius*5
-        self.consume_radius = self.radius
+        self.consume_radius = self.radius/2
         #self.acceleration_scale = 0.005
         self.acceleration_scale = 0.02
         self.max_velocity = 0.02

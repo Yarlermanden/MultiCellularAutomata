@@ -5,7 +5,7 @@ from torch_geometric.loader import DataLoader
 from torch_geometric.utils import unbatch
 
 from sample_pool import SamplePool
-from generator import generate_organism, sample_from_samplepool
+from generator import generate_organism
 from organism import Organism, toGraph
 from graphUtils import unbatch_nodes
 
@@ -19,7 +19,7 @@ class GlobalState():
         self.food_amount = food_amount
         self.env_type = env_type
         self.i = 0
-        self.steps = 50
+        self.steps = 40
         self.pool_size = 1024
         pool_graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type).toGraph().x.detach().cpu().numpy()
                        for _ in range(self.pool_size)]
@@ -40,7 +40,7 @@ class GlobalState():
             else:
                 self.steps += 10
             print(self.steps)
-        self.time_steps = np.random.randint(self.steps, self.steps+10)
+        self.time_steps = np.random.randint(self.steps, self.steps+20)
         #self.graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type).toGraph() for _ in range(self.batch_size)]
 
         self.batch = self.sample_pool.sample(self.batch_size)
