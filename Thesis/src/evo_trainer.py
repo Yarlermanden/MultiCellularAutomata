@@ -11,6 +11,7 @@ import networkx as nx
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 import time
+import math
 
 from generator import generate_organism
 from GNCAmodel import GNCA
@@ -142,12 +143,17 @@ class Evo_Trainer():
         self.trained_network = None
 
     def train(self, n=1000, name='test1'):
-        self.searcher.run(n)
-        self.logger_df = self.logger.to_dataframe()
-        self.logger_df.to_csv('../logger/' + name + '.csv')
-        self.trained_network = self.problem.parameterize_net(self.searcher.status['center'][0])
-        #self.trained_network = self.problem.parameterize_net(self.searcher.status['best'][0])
-        torch.save(self.trained_network.state_dict(), '../models/' + name + '.pth')
+        n1 = n
+        t = math.ceil(n/1000)
+        for _ in range(t):
+            x = n1 if n1<1000 else 1000
+            self.searcher.run(x)
+            self.logger_df = self.logger.to_dataframe()
+            self.logger_df.to_csv('../logger/' + name + '.csv')
+            self.trained_network = self.problem.parameterize_net(self.searcher.status['center'][0])
+            #self.trained_network = self.problem.parameterize_net(self.searcher.status['best'][0])
+            torch.save(self.trained_network.state_dict(), '../models/' + name + '.pth')
+            n1 -= x
 
     def visualize_training(self):
         logger_df = self.logger_df.groupby(np.arange(len(self.logger_df))).mean()
