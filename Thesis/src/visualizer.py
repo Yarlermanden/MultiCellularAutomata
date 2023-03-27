@@ -8,17 +8,17 @@ import math
 
 class Visualizer():
     def __init__(self, wrap_around, batch_size, scale):
+        self.wrap_around = wrap_around
+        self.batch_size = batch_size
+        self.scale = scale
         self.figure = None
         self.graph = None
-        canvas_scale = scale
-        self.borders = canvas_scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
         self.scatter_cell = None
         self.scatter_food = None
         self.edge_plot = None
         self.axes = None
+        self.borders = scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
         self.device = torch.device('cpu')
-        self.wrap_around = wrap_around
-        self.batch_size = batch_size
         self.rows = 2
         self.columns = math.ceil(self.batch_size / 2)
         if self.batch_size < 4:
@@ -41,16 +41,15 @@ class Visualizer():
                 [],
                 marker=".",
                 edgecolor="k",
-                lw=0.5,
+                lw=0.5/self.scale,
             ) for ax in self.axes]
             self.scatter_food = [ax.scatter(
                 [],
                 [],
                 marker=".",
                 edgecolor="r",
-                #lw=0.5,
             ) for ax in self.axes]
-            self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1) for ax in self.axes]
+            self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1/self.scale) for ax in self.axes]
             plt.show()
 
         s_idx = 0
@@ -61,7 +60,7 @@ class Visualizer():
 
             self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
             self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])
-            self.scatter_food[i].set_sizes(graph.x[foodIndices, 2]*5)
+            self.scatter_food[i].set_sizes(graph.x[foodIndices, 2]*5/self.scale)
             if any_edges:
                 [plot.remove() for plot in self.edge_plot[i]]
 
@@ -78,7 +77,7 @@ class Visualizer():
                 edges_x = [[]]
                 edges_y = [[]]
             #self.edge_plot[i] = self.axes[i//self.columns][i%self.columns].plot(edges_x, edges_y, linewidth=0.1)
-            self.edge_plot[i] = self.axes[i].plot(edges_x, edges_y, linewidth=0.1)
+            self.edge_plot[i] = self.axes[i].plot(edges_x, edges_y, linewidth=0.1/self.scale)
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
             s_idx = e_idx
