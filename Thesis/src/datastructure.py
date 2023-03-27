@@ -7,16 +7,16 @@ from torch import Tensor
 from graphUtils import *
 
 class FixedRadiusNearestNeighbors(object):
-    #TODO add scale to this
     def __init__(self, nodes, radius, batch_size, scale):
-        Lbox = scale
-        #blocks = int(1.0/radius)*batch_size # 10x10 - more efficient to create a bit larger boxes than 
-        blocks = int(2.0*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
-        periodic = {0: (-Lbox, Lbox), 1: (-Lbox, Lbox), 2: None}
+        Lbox = float(scale)
+        #blocks = int(2.0*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
+        blocks = int(0.5*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
+        periodic = {0: (-Lbox, Lbox), 1: (-Lbox, Lbox)}
         self.grid = gsp.GriSPy(nodes.detach().cpu().numpy(), periodic=periodic, N_cells=blocks)
 
     def get_neighbors(self, node, radius):
         bubble_dist, bubble_ind = self.grid.bubble_neighbors(
+            #TODO could experiment with changing distance_upper_bound radius to 3D and low z so it doesn't combine batches
             node.detach().cpu().numpy(), distance_upper_bound=radius
         )
         return bubble_dist, bubble_ind
@@ -47,35 +47,47 @@ class DataStructure(object):
 
     def add_edges(self, graph):
         vupdate = np.vectorize(self.update_dist1)
-
         edges = []
         attributes = []
 
         x = graph.x.detach().cpu().numpy()
         s_idx = 0
         for batch_idx in range(self.batch_size): #TODO could we simply just vectorize this entire thing?
-            time1 = time.perf_counter()
             e_idx = s_idx + graph.subsize[batch_idx].detach().cpu().numpy()
             nodes = graph.x[s_idx:e_idx, :2]
             if len(nodes) == 0: continue
             cell_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1).flatten()
             cells = nodes[cell_indices]
-            if len(cells) != 0:
-                frnn = FixedRadiusNearestNeighbors(nodes, self.radius_food, self.batch_size, self.scale)
-                cell_indices += s_idx
-                cell_indices = cell_indices.detach().cpu().numpy()
-                dists, indices = frnn.get_neighbors(cells, self.radius_food)
-                indices = [x + s_idx for x in indices]
-                time2 = time.perf_counter()
+            food_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0).flatten()
+            food = nodes[food_indices]
 
-                tup = [([j,i], [dists[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 1]) 
-                       for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices[ii]) 
-                       if i!=j and (dists[ii][jj] < self.radius or graph.x[j,4] == 0)]
-                l = [list(t) for t in zip(*tup)]
+            if len(cells) != 0:
+                cell_indices += s_idx
+                food_indices += s_idx
+                cell_indices = cell_indices.detach().cpu().numpy()
+
+                frnn_food = FixedRadiusNearestNeighbors(food, self.radius_food, self.batch_size, self.scale)
+                dists_food, indices_food = frnn_food.get_neighbors(cells, self.radius_food)
+                indices_food = [food_indices[x] for x in indices_food]
+                tup_food = [([j,i], [dists_food[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 0]) 
+                       for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
+                l = [list(t) for t in zip(*tup_food)]
+
+                frnn_cell = FixedRadiusNearestNeighbors(cells, self.radius, self.batch_size, self.scale)
+                dists_cells, indices_cells = frnn_cell.get_neighbors(cells, self.radius)                       
+                #indices_cells = [x + s_idx for x in indices_cells]
+                indices_cells = [cell_indices[x] for x in indices_cells]
+                tup_cell = [([j,i], [dists_cells[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 1]) 
+                       for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
+                       if i!=j]
+                l2 = [list(t) for t in zip(*tup_cell)]
+
                 if len(l) > 0:
                     edges.extend(l[0])
                     attributes.extend(l[1])
-                time3 = time.perf_counter()
+                if len(l2) > 0:
+                    edges.extend(l2[0])
+                    attributes.extend(l2[1])
             s_idx = e_idx
          
         if len(edges) == 0:
@@ -86,7 +98,7 @@ class DataStructure(object):
         edge_attributes = np.array(attributes)
         edge_attributes[:, 1:3] = vupdate(edge_attributes[:, 1:3]) #restrict to match wraparound
         graph.edge_attr = torch.tensor(edge_attributes, dtype=torch.float, device=self.device)
-        graph.edge_attr[:, 3] = graph.x[graph.edge_index[0, :], 4] #change edge attr to match whether it connects cells or food
+        #graph.edge_attr[:, 3] = graph.x[graph.edge_index[0, :], 4] #change edge attr to match whether it connects cells or food
 
         return True
 

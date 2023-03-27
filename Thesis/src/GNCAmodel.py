@@ -23,7 +23,6 @@ class GNCA(nn.Module):
         self.radius = 0.04
         self.radius_food = self.radius*5
         self.consume_radius = self.radius*3/4
-        #self.acceleration_scale = 0.005
         self.acceleration_scale = 0.02
         self.max_velocity = 0.02
         self.max_pos = 1
@@ -58,7 +57,7 @@ class GNCA(nn.Module):
         acceleration = h[:, :2] * self.acceleration_scale
         #graph.x[:, 5:7] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity, moveable_mask)
-        positions = update_positions(graph, velocity, self.wrap_around, moveable_mask)
+        positions = update_positions(graph, velocity, self.wrap_around, moveable_mask, self.scale)
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
         graph.x[moveable_mask, :2] = positions
         self.add_noise(graph, c_mask)

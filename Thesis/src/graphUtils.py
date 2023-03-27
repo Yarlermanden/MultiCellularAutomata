@@ -37,9 +37,12 @@ def update_velocity(graph, acceleration, max_velocity, c_mask):
     velocity[c_mask] = torch.clamp(velocity[c_mask], -max_velocity, max_velocity)
     return velocity
 
-def update_positions(graph, velocity, wrap_around, c_mask):
+def update_positions(graph, velocity, wrap_around, c_mask, scale):
     '''Updates the position of the nodes given the velocity and previous positions'''
-    positions = torch.remainder(graph.x[c_mask, :2] + velocity[c_mask] + 1.0, 2.0) - 1.0
+    if wrap_around:
+        positions = torch.remainder(graph.x[c_mask, :2] + velocity[c_mask] + scale, 2*scale) - scale
+    else:
+        positions = graph.x[c_mask, :2] + velocity[c_mask]
     return positions
 
 def food_mask(graph):
