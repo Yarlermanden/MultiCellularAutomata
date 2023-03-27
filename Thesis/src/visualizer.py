@@ -35,7 +35,7 @@ class Visualizer():
             self.axes = self.axes.reshape(-1)
             self.figure.set_size_inches(20, 10, True)
             [ax.set_xlim(self.borders[::2]) for ax in self.axes]
-            [ax.set_xlim(self.borders[1::2]) for ax in self.axes]
+            [ax.set_ylim(self.borders[1::2]) for ax in self.axes]
             self.scatter_cell = [ax.scatter(
                 [],
                 [],
