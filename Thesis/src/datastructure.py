@@ -48,9 +48,8 @@ class DataStructure(object):
     def add_edges(self, graph):
         vupdate = np.vectorize(self.update_dist1)
         edges = []
-        attributes = []
 
-        x = graph.x.detach().cpu().numpy()
+        x = graph.x[:, :2].detach().cpu().numpy()
         s_idx = 0
         for batch_idx in range(self.batch_size): #TODO could we simply just vectorize this entire thing?
             e_idx = s_idx + graph.subsize[batch_idx].detach().cpu().numpy()
@@ -69,37 +68,31 @@ class DataStructure(object):
                 frnn_food = FixedRadiusNearestNeighbors(food, self.radius_food, self.batch_size, self.scale)
                 dists_food, indices_food = frnn_food.get_neighbors(cells, self.radius_food)
                 indices_food = [food_indices[x] for x in indices_food]
-                tup_food = [([j,i], [dists_food[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 0]) 
-                       for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
-                l = [list(t) for t in zip(*tup_food)]
+                edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), 0]
+                            for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
 
                 frnn_cell = FixedRadiusNearestNeighbors(cells, self.radius, self.batch_size, self.scale)
                 dists_cells, indices_cells = frnn_cell.get_neighbors(cells, self.radius)                       
-                #indices_cells = [x + s_idx for x in indices_cells]
                 indices_cells = [cell_indices[x] for x in indices_cells]
-                tup_cell = [([j,i], [dists_cells[ii][jj], x[i][0]-x[j][0], x[i][1]-x[j][1], 1]) 
+                edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), 1]
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
                        if i!=j]
-                l2 = [list(t) for t in zip(*tup_cell)]
 
-                if len(l) > 0:
-                    edges.extend(l[0])
-                    attributes.extend(l[1])
-                if len(l2) > 0:
-                    edges.extend(l2[0])
-                    attributes.extend(l2[1])
+                if len(edges_food) > 0:
+                    edges.extend(edges_food)
+                if len(edges_cells) > 0:
+                    edges.extend(edges_cells)
             s_idx = e_idx
          
         if len(edges) == 0:
             graph.edge_index = torch.tensor([[]], dtype=torch.long, device=self.device)
             graph.edge_attr = torch.tensor([[]], dtype=torch.float, device=self.device)
             return False
-        graph.edge_index = torch.tensor(np.array(edges), dtype=torch.long, device=self.device).T
-        edge_attributes = np.array(attributes)
+        edges = np.array(edges)
+        graph.edge_index = torch.tensor(edges[:, :2], dtype=torch.long, device=self.device).T
+        edge_attributes = edges[:, 2:]
         edge_attributes[:, 1:3] = vupdate(edge_attributes[:, 1:3]) #restrict to match wraparound
         graph.edge_attr = torch.tensor(edge_attributes, dtype=torch.float, device=self.device)
-        #graph.edge_attr[:, 3] = graph.x[graph.edge_index[0, :], 4] #change edge attr to match whether it connects cells or food
-
         return True
 
     def add_edges_global(self, graph):
