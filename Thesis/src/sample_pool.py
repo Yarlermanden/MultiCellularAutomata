@@ -36,15 +36,3 @@ class SamplePool:
                 #parent_vals[self._parent_idx[i]] = self._parent
                 parent_vals[self._parent_idx[i]] = child_vals[i]
             #getattr(self._parent, k)[self._parent_idx] = child_vals[i]
-            
-#self.pool_size = 1024
-#batch = self.generator.generate_ca_and_food(self.pool_size)
-#pool = SamplePool(x=batch) #pool contains x and food
-#
-#batch = pool.sample(self.batch_size)
-#ca = batch.x
-#ca[:self.batch_size//2] = self.generator.generate_ca_and_food(self.batch_size//2) #replace half with original
-#
-#x_hat[:, 3] = food
-#batch.x[:] = x_hat.detach().cpu().numpy()
-#batch.commit()

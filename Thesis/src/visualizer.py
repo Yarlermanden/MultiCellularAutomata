@@ -4,6 +4,7 @@ import numpy as np
 from graphUtils import add_random_food
 import torch
 from datastructure import DataStructure
+import math
 
 class Visualizer():
     def __init__(self, wrap_around, batch_size):
@@ -18,6 +19,8 @@ class Visualizer():
         self.device = torch.device('cpu')
         self.wrap_around = wrap_around
         self.batch_size = batch_size
+        self.rows = 2 if self.batch_size > 1 else 1
+        self.columns = math.ceil(self.batch_size / 2)
         self.datastructure = DataStructure(0.04, self.device, self.wrap_around, self.batch_size)
 
     def plot_organism(self, graph):
@@ -25,12 +28,9 @@ class Visualizer():
 
         if self.figure is None:
             plt.ion()
-            self.figure, self.axes = plt.subplots(2, int(self.batch_size // 2), figsize=(10,5))
+            self.figure, self.axes = plt.subplots(self.rows, self.columns, figsize=(10,5))
             self.figure.set_size_inches(20, 10, True)
-            #self.figure, self.axes = plt.subplots(self.batch_size, figsize=(20,4))
-            #[ax.set_xlim(self.borders[::2]) for ax in self.axes]
             [ax.set_xlim(self.borders[::2]) for ax_list in self.axes for ax in ax_list]
-            #[ax.set_ylim(self.borders[1::2]) for ax in self.axes]
             [ax.set_ylim(self.borders[1::2]) for ax_list in self.axes for ax in ax_list]
             self.scatter_cell = [ax.scatter(
                 [],
@@ -73,7 +73,7 @@ class Visualizer():
             else:
                 edges_x = [[]]
                 edges_y = [[]]
-            self.edge_plot[i] = self.axes[i//4][i%4].plot(edges_x, edges_y, linewidth=0.1)
+            self.edge_plot[i] = self.axes[i//self.columns][i%self.columns].plot(edges_x, edges_y, linewidth=0.1)
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
             s_idx = e_idx
