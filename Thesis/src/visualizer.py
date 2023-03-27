@@ -7,10 +7,10 @@ from datastructure import DataStructure
 import math
 
 class Visualizer():
-    def __init__(self, wrap_around, batch_size):
+    def __init__(self, wrap_around, batch_size, scale):
         self.figure = None
         self.graph = None
-        canvas_scale = 1
+        canvas_scale = scale
         self.borders = canvas_scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
         self.scatter_cell = None
         self.scatter_food = None
@@ -24,7 +24,7 @@ class Visualizer():
         if self.batch_size < 4:
             self.rows = 1
             self.columns = self.batch_size
-        self.datastructure = DataStructure(0.04, self.device, self.wrap_around, self.batch_size)
+        self.datastructure = DataStructure(0.04, self.device, self.wrap_around, self.batch_size, scale)
 
     def plot_organism(self, graph):
         any_edges = self.datastructure.add_edges(graph)

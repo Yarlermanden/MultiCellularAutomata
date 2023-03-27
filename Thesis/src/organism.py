@@ -24,12 +24,13 @@ def toGraph(nodes, device):
     return graph
 
 class Organism():
-    def __init__(self, cells: List[Cell], device, with_global_node: bool, food_amount: int, env_type: EnvironmentType):
+    def __init__(self, cells: List[Cell], device, with_global_node: bool, food_amount: int, env_type: EnvironmentType, scale: int):
         self.cells = cells
         self.device = device
         self.with_global_node = with_global_node
         self.food_amount = food_amount
         self.env_type = env_type
+        self.scale = scale
 
     def toGraph(self):
         from graphUtils import add_random_food, add_global_node, add_clusters_of_food
@@ -38,8 +39,8 @@ class Organism():
         edges = torch.tensor([[]], device=self.device)
         graph = Data(x=x, edge_index=edges, device=self.device, subsize=len(x))
         if self.env_type == EnvironmentType.Clusters: 
-            add_clusters_of_food(graph, self.device, n=20, cluster_size=10, std_dev=0.05)
-        else: add_random_food(graph, self.device, self.food_amount)
+            add_clusters_of_food(graph, self.device, n=20, cluster_size=10, std_dev=0.04, scale=self.scale)
+        else: add_random_food(graph, self.device, self.food_amount, self.scale)
 
         #TODO could consider implementing the entire global node as a virtual node
         if self.with_global_node: add_global_node(graph, self.device)

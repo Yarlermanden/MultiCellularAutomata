@@ -34,6 +34,7 @@ class Custom_NEProblem(NEProblem):
         loader = DataLoader(graphs, batch_size=self.batch_size) #TODO move this part into the global_state to not do multiple times
         batch = next(iter(loader))
         time2 = time.perf_counter()
+        alive_start = (batch.x[:, 4] == 1).sum()
 
         with torch.no_grad():
             graph = network(batch, steps)
@@ -69,17 +70,16 @@ class Custom_NEProblem(NEProblem):
             diameters.append(0)
         diameters = torch.tensor(diameters, dtype=torch.float)
         subgraph_counts = torch.tensor(subgraph_counts, dtype=torch.float)
+        alive_end = (graph.x[:, 4] == 1).sum()
+        cell_ratio = alive_end/alive_start
 
         food_reward = graph.food_reward.mean()
-        velocity = graph.velocity.mean()
-        fitness1 = (((food_reward)) / (1 + velocity*20))
-        fitness2 = velocity
-        fitness3 = graph.food_search_movement.mean() * 10
-        fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1
-        fitness5 = (graph.x[:, 4] == 1).sum()/(self.n*self.batch_size) * 3 #cells alive ratio
-        fitness = fitness1 + fitness3 + fitness4 + fitness5
-        fitness /= subgraph_counts.mean()
-        fitness *= ((graph.x[:, 4] == 1).sum() / (self.n*self.batch_size)) #multiply by ratio kept alive [0-1]
+        fitness1 = food_reward * 2
+        fitness3 = graph.food_search_movement.mean() * 15
+        #fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1 - encourage large diameter to tage complex shapes
+        fitness = fitness1 + fitness3
+        fitness /= subgraph_counts.mean() #The more subgraphs, the more it has split - encourage to stay together
+        fitness *= (1+cell_ratio)/5 #multiply by ratio kept alive [0-1] - encourage to stay alive
 
         if torch.any(torch.isnan(food_reward)):
             print("fitness function returned nan")
@@ -91,12 +91,12 @@ class Custom_NEProblem(NEProblem):
         #print('fitness computation: ', time4-time3)
 
         ray.get(self.global_var.update_pool.remote(graph))
-        return torch.tensor([fitness, fitness2])
+        return torch.tensor([fitness, fitness3])
 
 class Evo_Trainer():
-    def __init__(self, n, device, batch_size, wrap_around, with_global_node, food_amount, env_type, popsize=200):
+    def __init__(self, n, device, batch_size, wrap_around, with_global_node, food_amount, env_type, popsize=200, scale=1):
         cpu = torch.device('cpu')
-        global_var = GlobalState.remote(n, cpu, batch_size, with_global_node, food_amount, env_type)
+        global_var = GlobalState.remote(n, cpu, batch_size, with_global_node, food_amount, env_type, scale)
         ray.get(global_var.set_global_var.remote())
         self.wrap_around = wrap_around
 
@@ -108,7 +108,7 @@ class Evo_Trainer():
             #objective_sense=['max', 'min', 'max', 'min'],
             objective_sense=['max', 'max'],
             network=Conv,
-            network_args={'device': device, 'batch_size': batch_size, 'wrap_around': wrap_around, 'with_global_node': with_global_node},
+            network_args={'device': device, 'batch_size': batch_size, 'wrap_around': wrap_around, 'with_global_node': with_global_node, 'scale': scale},
             num_actors='max',
             num_gpus_per_actor = 'max',
         )

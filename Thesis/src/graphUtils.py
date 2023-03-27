@@ -8,20 +8,20 @@ def add_food(graph, food):
     '''Add food source as node to graph'''
     graph.x = torch.cat((graph.x, food))
 
-def add_random_food(graph, device, n=1):
+def add_random_food(graph, device, n=1, scale=1):
     '''Add n random food sources as nodes to the graph'''
     for _ in range(n):
-        food = generate_food(device)
+        food = generate_food(device, scale)
         add_food(graph, food)
 
 def add_cluster_food(graph, cluster):
     '''adds a cluster of food to the graph'''
     graph.x = torch.cat((graph.x, cluster))
 
-def add_clusters_of_food(graph, device, n=1, cluster_size=20, std_dev=0.1):
+def add_clusters_of_food(graph, device, n=1, cluster_size=20, std_dev=0.1, scale=1):
     '''Generates and adds n clusters of food to the graph'''
     for _ in range(n):
-        cluster = generate_cluster(device, cluster_size, std_dev)
+        cluster = generate_cluster(device, cluster_size, std_dev, scale)
         add_cluster_food(graph, cluster)
 
 def add_global_node(graph, device):

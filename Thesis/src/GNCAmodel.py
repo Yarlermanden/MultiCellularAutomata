@@ -11,13 +11,14 @@ from graphUtils import add_random_food, update_velocity, update_positions, food_
 from datastructure import DataStructure
 
 class GNCA(nn.Module):
-    def __init__(self, device, batch_size, wrap_around, with_global_node, channels=10, edge_dim=4):
+    def __init__(self, device, batch_size, wrap_around, with_global_node, channels=10, edge_dim=4, scale=1):
         super(GNCA, self).__init__()
         self.device = device
         self.input_channels = channels-2
         self.edge_dim=edge_dim
         self.output_channels = 7
         self.batch_size = batch_size
+        self.scale = scale
 
         self.radius = 0.04
         self.radius_food = self.radius*5
@@ -34,7 +35,7 @@ class GNCA(nn.Module):
         self.node_indices_to_keep = None
         self.wrap_around = wrap_around
         self.with_global_node = with_global_node
-        self.datastructure = DataStructure(self.radius, self.device, self.wrap_around, self.batch_size)
+        self.datastructure = DataStructure(self.radius, self.device, self.wrap_around, self.batch_size, self.scale)
         self.noise = 0.002
 
     def message_pass(self, graph):

@@ -13,8 +13,8 @@ class Conv(GNCA):
         self.output_channels = 2
         self.hidden_size = self.input_channels*1
 
-        self.velNorm = 1.0/self.max_velocity
-        self.attrNorm = 1.0/self.radius_food
+        self.velNorm = 1.0*self.scale/self.max_velocity
+        self.attrNorm = 1.0*self.scale/self.radius_food
         
         self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')

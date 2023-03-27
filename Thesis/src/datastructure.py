@@ -7,10 +7,11 @@ from torch import Tensor
 from graphUtils import *
 
 class FixedRadiusNearestNeighbors(object):
-    def __init__(self, nodes, radius, batch_size):
-        Lbox = 1.0
+    #TODO add scale to this
+    def __init__(self, nodes, radius, batch_size, scale):
+        Lbox = scale
         #blocks = int(1.0/radius)*batch_size # 10x10 - more efficient to create a bit larger boxes than 
-        blocks = int(2.0/radius) # 10x10 - more efficient to create a bit larger boxes than 
+        blocks = int(2.0*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
         periodic = {0: (-Lbox, Lbox), 1: (-Lbox, Lbox), 2: None}
         self.grid = gsp.GriSPy(nodes.detach().cpu().numpy(), periodic=periodic, N_cells=blocks)
 
@@ -22,18 +23,19 @@ class FixedRadiusNearestNeighbors(object):
 
 
 class DataStructure(object):
-    def __init__(self, radius, device, wrap_around, batch_size):
+    def __init__(self, radius, device, wrap_around, batch_size, scale):
         self.radius = radius
         self.device = device
         self.wrap_around = wrap_around
         self.batch_size = batch_size
         self.radius_food = radius*5
+        self.scale = scale
 
     def update_dist1(self, dist):
-        if dist > 1.0:
-            return -2.0 + dist
-        elif dist < -1.0:
-            return 2.0 + dist
+        if dist > self.scale:
+            return -2*self.scale + dist
+        elif dist < -self.scale:
+            return 2*self.scale + dist
         return dist
 
     def update_norm_dist(self, norm):
@@ -59,7 +61,7 @@ class DataStructure(object):
             cell_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1).flatten()
             cells = nodes[cell_indices]
             if len(cells) != 0:
-                frnn = FixedRadiusNearestNeighbors(nodes, self.radius_food, self.batch_size)
+                frnn = FixedRadiusNearestNeighbors(nodes, self.radius_food, self.batch_size, self.scale)
                 cell_indices += s_idx
                 cell_indices = cell_indices.detach().cpu().numpy()
                 dists, indices = frnn.get_neighbors(cells, self.radius_food)
@@ -86,10 +88,6 @@ class DataStructure(object):
         graph.edge_attr = torch.tensor(edge_attributes, dtype=torch.float, device=self.device)
         graph.edge_attr[:, 3] = graph.x[graph.edge_index[0, :], 4] #change edge attr to match whether it connects cells or food
 
-        #print('find: ', time2-time1)
-        #print('add: ', time3-time2)
-        #print('old: ', time3-time1)
-        #print('new: ', time4-time3)
         return True
 
     def add_edges_global(self, graph):
