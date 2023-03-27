@@ -14,7 +14,7 @@ def get_random_point_normal(center, std_dev):
 def generate_organism(n: int, device, with_global_node, food_amount, env_type, scale):
     '''Generate a random centered organism'''
     cells = []
-    d = 0.04
+    d = 0.04*scale
     for i in range(n):
         x,y = get_random_point_within(d)
         cell = Cell([x,y])

@@ -34,12 +34,7 @@ class GlobalState():
     def set_global_var(self):
         self.i += 1
         if self.i % 2000 == 0:
-            if self.i > 3000:
-                ...
-            #if self.i % 1500 == 0:
-            #    self.steps = 40
-            else:
-                self.steps += 10
+            self.steps += 10
             print(self.steps)
         self.time_steps = np.random.randint(self.steps, self.steps+20)
         #self.graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type).toGraph() for _ in range(self.batch_size)]
