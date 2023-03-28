@@ -20,17 +20,18 @@ class FixedRadiusNearestNeighbors(object):
     def get_neighbors(self, node, radius):
         bubble_dist, bubble_ind = self.grid.bubble_neighbors(
             #TODO could experiment with changing distance_upper_bound radius to 3D and low z so it doesn't combine batches
-            node.detach().cpu().numpy(), distance_upper_bound=radius
+            node.detach().cpu(), distance_upper_bound=radius
         )
         return bubble_dist, bubble_ind
 
 class FixedRadiusNearestNeighbors2(object):
     def __init__(self, nodes, radius, batch_size, scale, dense):
+        nodes = nodes.detach().cpu().numpy()
         if dense: self.tree = KDTree(nodes, leaf_size=40)
         else: self.tree = KDTree(nodes, leaf_size=20)
 
     def get_neighbors(self, node, radius):
-        return self.tree.query_radius(node, radius, return_distance=True)
+        return self.tree.query_radius(node.detach().cpu(), radius, return_distance=True)
 
 class DataStructure(object):
     def __init__(self, radius, device, wrap_around, batch_size, scale):
