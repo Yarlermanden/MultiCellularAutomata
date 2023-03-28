@@ -15,6 +15,7 @@ def generate_organism(n: int, device, with_global_node, food_amount, env_type, s
     '''Generate a random centered organism'''
     cells = []
     d = 0.04*scale
+    d = d*2 if n > 200 else d
     for i in range(n):
         x,y = get_random_point_within(d)
         cell = Cell([x,y])

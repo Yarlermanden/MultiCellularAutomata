@@ -26,8 +26,8 @@ class GNCA(nn.Module):
         self.acceleration_scale = 0.02
         self.max_velocity = 0.02
         self.max_pos = 1
-        self.consumption_edge_required = 5
-        self.edges_to_stay_alive = 3 #1 more than its self loop
+        self.consumption_edge_required = 3
+        self.edges_to_stay_alive = 2 #1 more than its self loop
         if with_global_node:
             self.edges_to_stay_alive += 1
         self.energy_required = 5

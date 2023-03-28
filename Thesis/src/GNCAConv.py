@@ -55,13 +55,14 @@ class Conv(GNCA):
             x = torch.concat((x_food, x_cell, x_global), dim=1)
         else: x = torch.concat((x_food, x_cell), dim=1)
 
-        if self.H is None:
-            self.H = torch.zeros_like(x, device=self.device)
-        if self.node_indices_to_keep is not None:
-            self.H = self.H[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.H.shape[1])
+        #if self.H is None:
+        #    self.H = torch.zeros_like(x, device=self.device)
+        #if self.node_indices_to_keep is not None:
+        #    self.H = self.H[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.H.shape[1])
 
-        self.H = torch.tanh(self.gConvGRU(x, graph.edge_index, H=self.H))
-        x = x + self.H
+        #self.H = torch.tanh(self.gConvGRU(x, graph.edge_index, H=self.H))
+        #x = x + self.H
+
         if self.with_global_node:
             x = x[:, :self.hidden_size] + x[:, self.hidden_size:self.hidden_size*2] + x[:, self.hidden_size*2:]
         else: x = x[:, :self.hidden_size] + x[:, self.hidden_size:]
