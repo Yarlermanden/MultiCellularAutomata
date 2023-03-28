@@ -6,11 +6,15 @@ from typing import Union, Tuple, Optional
 from torch import Tensor
 from graphUtils import *
 
+import sklearn
+from sklearn.neighbors import KDTree
+
 class FixedRadiusNearestNeighbors(object):
     def __init__(self, nodes, radius, batch_size, scale):
         Lbox = float(scale)
         #blocks = int(2.0*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
-        blocks = int(0.5*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
+        #blocks = int(10) # 10x10 - more efficient to create a bit larger boxes than 
+        blocks = int(1) # 10x10 - more efficient to create a bit larger boxes than 
         periodic = {0: (-Lbox, Lbox), 1: (-Lbox, Lbox)}
         self.grid = gsp.GriSPy(nodes.detach().cpu().numpy(), periodic=periodic, N_cells=blocks)
 
@@ -21,6 +25,12 @@ class FixedRadiusNearestNeighbors(object):
         )
         return bubble_dist, bubble_ind
 
+class FixedRadiusNearestNeighbors2(object):
+    def __init__(self, nodes, radius, batch_size, scale):
+        self.tree = KDTree(nodes, leaf_size=40)
+
+    def get_neighbors(self, node, radius):
+        return self.tree.query_radius(node, radius, return_distance=True)
 
 class DataStructure(object):
     def __init__(self, radius, device, wrap_around, batch_size, scale):
@@ -65,18 +75,28 @@ class DataStructure(object):
                 food_indices += s_idx
                 cell_indices = cell_indices.detach().cpu().numpy()
 
-                frnn_food = FixedRadiusNearestNeighbors(food, self.radius_food, self.batch_size, self.scale)
-                dists_food, indices_food = frnn_food.get_neighbors(cells, self.radius_food)
+                time1 = time.perf_counter()
+                frnn_food = FixedRadiusNearestNeighbors2(food, self.radius_food, self.batch_size, self.scale)
+                time2 = time.perf_counter()
+                indices_food, dists_food = frnn_food.get_neighbors(cells, self.radius_food)
                 indices_food = [food_indices[x] for x in indices_food]
                 edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), 0]
                             for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
+                time3 = time.perf_counter()
 
-                frnn_cell = FixedRadiusNearestNeighbors(cells, self.radius, self.batch_size, self.scale)
-                dists_cells, indices_cells = frnn_cell.get_neighbors(cells, self.radius)                       
+                frnn_cell = FixedRadiusNearestNeighbors2(cells, self.radius, self.batch_size, self.scale)
+                time4 = time.perf_counter()
+                indices_cells, dists_cells = frnn_cell.get_neighbors(cells, self.radius)                       
                 indices_cells = [cell_indices[x] for x in indices_cells]
                 edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), 1]
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
                        if i!=j]
+                time5 = time.perf_counter()
+
+                #print('create food: ', time2-time1)
+                #print('find food edges: ', time3-time2)
+                #print('create cell: ', time4-time3)
+                #print('find cell edges: ', time5-time4)
 
                 if len(edges_food) > 0:
                     edges.extend(edges_food)
