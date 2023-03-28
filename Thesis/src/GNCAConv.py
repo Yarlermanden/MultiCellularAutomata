@@ -9,8 +9,6 @@ from custom_conv import CustomConv, CustomConvSimple
 class Conv(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.input_channels = 2
-        self.output_channels = 2
         self.hidden_size = self.input_channels*1
 
         self.velNorm = 1.0*self.scale/self.max_velocity
@@ -42,11 +40,11 @@ class Conv(GNCA):
             global_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()]
             global_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()][:, :3]
 
-        x = graph.x[:, 2:4] * self.velNorm
+        x_origin = torch.concat((graph.x[:, 2:4] * self.velNorm, graph.x[:, 5:]), dim=1) 
         food_attr *= self.attrNorm
         cell_attr *= self.attrNorm
         
-        x = self.mlp_before(x)
+        x = self.mlp_before(x_origin)
         x_food = self.conv_layer_food(x=x, edge_index=food_edges, edge_attr=food_attr)
         x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)
         #x = x_food + x_cell #could consider catting this instead?
@@ -55,18 +53,11 @@ class Conv(GNCA):
             x = torch.concat((x_food, x_cell, x_global), dim=1)
         else: x = torch.concat((x_food, x_cell), dim=1)
 
-        #if self.H is None:
-        #    self.H = torch.zeros_like(x, device=self.device)
-        #if self.node_indices_to_keep is not None:
-        #    self.H = self.H[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.H.shape[1])
-
-        #self.H = torch.tanh(self.gConvGRU(x, graph.edge_index, H=self.H))
-        #x = x + self.H
-
         if self.with_global_node:
             x = x[:, :self.hidden_size] + x[:, self.hidden_size:self.hidden_size*2] + x[:, self.hidden_size*2:]
         else: x = x[:, :self.hidden_size] + x[:, self.hidden_size:]
 
+        x = x_origin + x
         return x
 
     def forward(self, *args):

@@ -27,7 +27,8 @@ def add_clusters_of_food(graph, device, n=1, cluster_size=20, std_dev=0.1, scale
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 
     Call this before creating batches to ensure a global node exists in all batches'''
-    global_node = torch.tensor([[0, 0, 0, 0, 2]], dtype=torch.float, device=device)
+    hidden = [0,0,0,0,0]
+    global_node = torch.tensor([[0, 0, 0, 0, 2, *hidden]], dtype=torch.float, device=device)
     graph.x = torch.cat((graph.x, global_node))
 
 def update_velocity(graph, acceleration, max_velocity, c_mask):

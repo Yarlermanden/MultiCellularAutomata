@@ -14,8 +14,8 @@ class GNCA(nn.Module):
     def __init__(self, device, batch_size, wrap_around, with_global_node, channels=10, edge_dim=4, scale=1):
         super(GNCA, self).__init__()
         self.device = device
-        self.input_channels = channels-2
         self.edge_dim=edge_dim
+        self.input_channels = 7
         self.output_channels = 7
         self.batch_size = batch_size
         self.scale = scale
@@ -28,8 +28,7 @@ class GNCA(nn.Module):
         self.max_pos = 1
         self.consumption_edge_required = 3
         self.edges_to_stay_alive = 2 #1 more than its self loop
-        if with_global_node:
-            self.edges_to_stay_alive += 1
+        if with_global_node: self.edges_to_stay_alive += 1
         self.energy_required = 5
         self.node_indices_to_keep = None
         self.wrap_around = wrap_around
@@ -55,7 +54,7 @@ class GNCA(nn.Module):
         
         h = self.message_pass(graph) * moveable_mask.view(-1,1)
         acceleration = h[:, :2] * self.acceleration_scale
-        #graph.x[:, 5:7] = h[:, 2:]
+        graph.x[:, 5:] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity, moveable_mask)
         positions = update_positions(graph, velocity, self.wrap_around, moveable_mask, self.scale)
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
