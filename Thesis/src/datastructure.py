@@ -31,7 +31,7 @@ class FixedRadiusNearestNeighbors2(object):
         else: self.tree = KDTree(nodes, leaf_size=20)
 
     def get_neighbors(self, node, radius):
-        return self.tree.query_radius(node.detach().cpu(), radius, return_distance=True)
+        return self.tree.query_radius(node.detach().cpu().numpy(), radius, return_distance=True)
 
 class DataStructure(object):
     def __init__(self, radius, device, wrap_around, batch_size, scale):
