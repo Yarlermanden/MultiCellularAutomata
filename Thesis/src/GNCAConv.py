@@ -40,7 +40,7 @@ class Conv(GNCA):
             global_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()]
             global_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()][:, :3]
 
-        x_origin = torch.concat((graph.x[:, 2:4] * self.velNorm, graph.x[:, 5:]), dim=1) 
+        x_origin = torch.concat((graph.x[:, 2:4] * self.velNorm, graph.x[:, 6:]), dim=1) 
         food_attr *= self.attrNorm
         cell_attr *= self.attrNorm
         

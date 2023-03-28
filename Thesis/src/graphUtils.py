@@ -28,7 +28,7 @@ def add_global_node(graph, device):
     '''Adds a global node to the graph. 
     Call this before creating batches to ensure a global node exists in all batches'''
     hidden = [0,0,0,0,0]
-    global_node = torch.tensor([[0, 0, 0, 0, 2, *hidden]], dtype=torch.float, device=device)
+    global_node = torch.tensor([[0, 0, 0, 0, 2, 0, *hidden]], dtype=torch.float, device=device)
     graph.x = torch.cat((graph.x, global_node))
 
 def update_velocity(graph, acceleration, max_velocity, c_mask):

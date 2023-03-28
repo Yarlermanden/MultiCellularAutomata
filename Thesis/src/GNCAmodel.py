@@ -6,6 +6,8 @@ import math
 import torch_geometric
 from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 import time
+from torch_geometric.utils import to_networkx
+import networkx as nx
 
 from graphUtils import add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost
 from datastructure import DataStructure
@@ -54,7 +56,7 @@ class GNCA(nn.Module):
         
         h = self.message_pass(graph) * moveable_mask.view(-1,1)
         acceleration = h[:, :2] * self.acceleration_scale
-        graph.x[:, 5:] = h[:, 2:]
+        graph.x[:, 6:] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity, moveable_mask)
         positions = update_positions(graph, velocity, self.wrap_around, moveable_mask, self.scale)
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
@@ -69,6 +71,7 @@ class GNCA(nn.Module):
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
+
 
         start_index = 0
         for i in range(self.batch_size):
