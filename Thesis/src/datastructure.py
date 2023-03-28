@@ -75,6 +75,7 @@ class DataStructure(object):
                 cell_indices += s_idx
                 food_indices += s_idx
                 cell_indices = cell_indices.detach().cpu().numpy()
+                food_indices = food_indices.detach().cpu().numpy()
 
                 frnn_food = FixedRadiusNearestNeighbors2(food, self.radius_food, self.batch_size, self.scale, False)
                 indices_food, dists_food = frnn_food.get_neighbors(cells, self.radius_food)
