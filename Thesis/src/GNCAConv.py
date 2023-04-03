@@ -16,6 +16,7 @@ class Conv(GNCA):
         
         self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
+        #self.conv_layer_cells = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add') #TODO needed when loading old models due to past bug 
         if self.with_global_node:
             self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
             self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*3, out_channels=self.hidden_size*3, K=1).to(self.device)
@@ -64,7 +65,7 @@ class Conv(GNCA):
         self.H = None
         self.node_indices_to_keep = None
         self.mlp_before = self.mlp_before.to(self.device)
-        self.conv_layer_cells = self.conv_layer_cell.to(self.device)
+        self.conv_layer_cell = self.conv_layer_cell.to(self.device)
         self.conv_layer_food = self.conv_layer_food.to(self.device)
         if self.with_global_node:
             self.conv_layer_global = self.conv_layer_global.to(self.device)
