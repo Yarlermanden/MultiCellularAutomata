@@ -66,11 +66,18 @@ def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     return consumption_mask
 
 def get_island_cells_mask(graph, edges_to_stay_alive):
-    '''Remove cells without any edges'''
+    '''Return mask of cells with less than required amount of edges'''
     c_mask = cell_mask(graph)
     cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
     too_few_edges_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
     mask = torch.bitwise_and(c_mask, too_few_edges_mask)
+    return mask
+
+def get_dead_cells_mask(graph, energy_required):
+    '''Returns mask of cells with less than required energy level'''
+    c_mask = cell_mask(graph)
+    e_mask = graph.x[:, 5] < energy_required
+    mask = torch.bitwise_and(c_mask, e_mask)
     return mask
 
 def compute_border_cost(graph):

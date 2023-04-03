@@ -59,16 +59,17 @@ class Custom_NEProblem(NEProblem):
         cell_ratio = alive_end/alive_start
 
         food_reward = graph.food_reward.mean()
-        fitness1 = food_reward * 2
-        fitness3 = graph.food_search_movement.mean() * 15
-        #fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1 - encourage large diameter to tage complex shapes
-        fitness = fitness1 + fitness3
-        fitness /= subgraph_counts.mean() #The more subgraphs, the more it has split - encourage to stay together
-        fitness *= (1+cell_ratio)/5 #multiply by ratio kept alive [0-1] - encourage to stay alive
+        fitness = food_reward
+        #fitness1 = food_reward * 2
+        #fitness3 = graph.food_search_movement.mean() * 15
+        ##fitness4 = diameters.mean()/self.n * (1+fitness1) #0-1 times fitness1 - encourage large diameter to tage complex shapes
+        #fitness = fitness1 + fitness3
+        #fitness /= subgraph_counts.mean() #The more subgraphs, the more it has split - encourage to stay together
+        #fitness *= (1+cell_ratio)/5 #multiply by ratio kept alive [0-1] - encourage to stay alive
 
         if torch.any(torch.isnan(food_reward)):
             print("fitness function returned nan")
             print((graph.food_reward, graph.velocity, graph.border_cost, graph.dead_cost))
 
         ray.get(self.global_var.update_pool.remote(graph))
-        return torch.tensor([fitness, fitness3])
+        return torch.tensor([fitness, fitness])

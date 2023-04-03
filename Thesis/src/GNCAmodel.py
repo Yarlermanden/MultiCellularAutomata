@@ -8,8 +8,9 @@ from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 import time
 from torch_geometric.utils import to_networkx
 import networkx as nx
+from torch_geometric.data import Data
 
-from graphUtils import add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost
+from graphUtils import add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost, get_dead_cells_mask
 from datastructure import DataStructure
 
 class GNCA(nn.Module):
@@ -61,17 +62,55 @@ class GNCA(nn.Module):
         positions = update_positions(graph, velocity, self.wrap_around, moveable_mask, self.scale)
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
         graph.x[moveable_mask, :2] = positions
+        graph.x[c_mask, 5] -= 1 #Energy cost
+        #TODO decrease energy of cells for each time step
+            #could consider decreasing energy more slowly when not moving and depending on size of subgraph...    
+            #cost x amount of energy for being an individual organism - decrease depending on subgraph
         self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
     def remove_nodes(self, graph):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
-        dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
         consumed_mask = get_consume_food_mask(graph, self.consume_radius, self.consumption_edge_required)
+
+        #instead of killings cells based on islands - do so depending on energy levels
+        #dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
+        dead_cells_mask = get_dead_cells_mask(graph, 0)
+
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
 
+        #print('food len: ', consumed_mask.sum())
+        if torch.any(consumed_mask):
+            #cell_indices = graph.x[:, 4] == 1
+            #nx_nodes = torch.nonzero(torch.bitwise_or(consumed_mask, cell_indices)).flatten() #need food that is being consumed and all cells
+            
+            ##edge_indices = torch.isin(graph.edge_index[1], nodes_indices).view(-1)
+            #edge_indices = torch.isin(graph.edge_index[1], nx_nodes).view(-1)
+            #nodes = graph.x[nx_nodes]
+            #edges = graph.edge_index[:, edge_indices]
+            #data = Data(x=nodes, edge_index=edges)
+            #G = to_networkx(data, to_undirected=False)
+            G = to_networkx(graph, to_undirected=False)
+            #G = to_networkx(data, to_undirected=True)
+            #food_in_nx = torch.nonzero(nodes[:, 4] == 0).flatten()
+
+            food_in_nx = torch.nonzero(consumed_mask).flatten()
+            for x in food_in_nx:
+                #print('food idx: ', x)
+                #des = nx.descendants(G, int(x))
+                des = nx.descendants(G, x.item())
+                if len(des) > 0:
+                    #nodes[list(des), 5] += 4 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
+                    graph.x[list(des), 5] += 3 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
+            #graph.x[nx_nodes] = nodes
+
+            #The problem here is that the edge index no longer matches the node index due to nodes being removed... 
+
+            #could it possibly be faster to make the entire subgraphs as they are supported to 
+            # and then from there create sets of each subgraph
+            # then we check which subgraph a node belongs to and easily index on entire subgraph
 
         start_index = 0
         for i in range(self.batch_size):
@@ -80,7 +119,7 @@ class GNCA(nn.Module):
             graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
             food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 2].sum()
             graph.food_reward[i] += food_val
-            graph.energy[i] += food_val
+            graph.energy[i] += food_val #TODO remove and delete...
             start_index = end_index
 
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])

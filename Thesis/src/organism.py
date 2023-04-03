@@ -39,7 +39,7 @@ class Organism():
         from graphUtils import add_random_food, add_global_node, add_clusters_of_food
         '''transforms all cells in organism to nodes in a graph'''
         hidden = [0, 0, 0, 0, 0]
-        x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1, 0, *hidden] for cell in self.cells], device=self.device)
+        x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1, 20, *hidden] for cell in self.cells], device=self.device)
         edges = torch.tensor([[]], device=self.device)
         graph = Data(x=x, edge_index=edges, device=self.device, subsize=len(x))
         if self.env_type == EnvironmentType.Clusters: 
