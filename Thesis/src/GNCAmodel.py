@@ -73,7 +73,6 @@ class GNCA(nn.Module):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
         consumed_mask = get_consume_food_mask(graph, self.consume_radius, self.consumption_edge_required)
 
-        #instead of killings cells based on islands - do so depending on energy levels
         #dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
         dead_cells_mask = get_dead_cells_mask(graph, 0)
 
@@ -81,33 +80,13 @@ class GNCA(nn.Module):
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
 
-        #print('food len: ', consumed_mask.sum())
         if torch.any(consumed_mask):
-            #cell_indices = graph.x[:, 4] == 1
-            #nx_nodes = torch.nonzero(torch.bitwise_or(consumed_mask, cell_indices)).flatten() #need food that is being consumed and all cells
-            
-            ##edge_indices = torch.isin(graph.edge_index[1], nodes_indices).view(-1)
-            #edge_indices = torch.isin(graph.edge_index[1], nx_nodes).view(-1)
-            #nodes = graph.x[nx_nodes]
-            #edges = graph.edge_index[:, edge_indices]
-            #data = Data(x=nodes, edge_index=edges)
-            #G = to_networkx(data, to_undirected=False)
             G = to_networkx(graph, to_undirected=False)
-            #G = to_networkx(data, to_undirected=True)
-            #food_in_nx = torch.nonzero(nodes[:, 4] == 0).flatten()
-
             food_in_nx = torch.nonzero(consumed_mask).flatten()
             for x in food_in_nx:
-                #print('food idx: ', x)
-                #des = nx.descendants(G, int(x))
                 des = nx.descendants(G, x.item())
                 if len(des) > 0:
-                    #nodes[list(des), 5] += 4 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
                     graph.x[list(des), 5] += 3 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
-            #graph.x[nx_nodes] = nodes
-
-            #The problem here is that the edge index no longer matches the node index due to nodes being removed... 
-
             #could it possibly be faster to make the entire subgraphs as they are supported to 
             # and then from there create sets of each subgraph
             # then we check which subgraph a node belongs to and easily index on entire subgraph
