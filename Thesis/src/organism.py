@@ -2,10 +2,9 @@ from cell import Cell
 from typing import List
 import torch
 from torch_geometric.data import Data
-from enums import EnvironmentType
+from enums import *
 
 def set_default_metrics(graph):
-    graph.energy = 0.0
     graph.velocity = 0.0
     graph.border_cost = 0.0
     graph.food_reward = 0.0
@@ -24,16 +23,15 @@ def toGraph(nodes, device):
     return graph
 
 class Organism():
-    def __init__(self, cells: List[Cell], device, with_global_node: bool, food_amount: int, env_type: EnvironmentType, scale: int):
+    def __init__(self, cells: List[Cell], settings):
         self.cells = cells
-        self.device = device
-        self.with_global_node = with_global_node
-        self.food_amount = food_amount
-        self.env_type = env_type
-        self.scale = scale
-
-        self.clusters = 80
-        self.cluster_size = 20
+        self.device = settings.device
+        self.model_type = settings.model_type
+        self.food_amount = settings.food_amount
+        self.env_type = settings.env_type
+        self.scale = settings.scale
+        self.clusters = settings.clusters
+        self.cluster_size = settings.cluster_size
 
     def toGraph(self):
         from graphUtils import add_random_food, add_global_node, add_clusters_of_food
@@ -47,7 +45,7 @@ class Organism():
         else: add_random_food(graph, self.device, self.food_amount, self.scale)
 
         #TODO could consider implementing the entire global node as a virtual node
-        if self.with_global_node: add_global_node(graph, self.device)
+        if self.model_type == ModelType.WithGlobalNode: add_global_node(graph, self.device)
 
         set_default_metrics(graph)
         return graph

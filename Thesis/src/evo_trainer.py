@@ -13,21 +13,20 @@ from global_state import GlobalState
 from evo_problem import Custom_NEProblem
 
 class Evo_Trainer():
-    def __init__(self, n, device, batch_size, wrap_around, with_global_node, food_amount, env_type, popsize=200, scale=1):
+    def __init__(self, settings, popsize=200):
         cpu = torch.device('cpu')
-        global_var = GlobalState.remote(n, cpu, batch_size, with_global_node, food_amount, env_type, scale)
+        self.settings = settings
+        global_var = GlobalState.remote(settings)
         ray.get(global_var.set_global_var.remote())
-        self.wrap_around = wrap_around
 
         self.problem = Custom_NEProblem(
-            n=n,
+            settings=settings,
             global_var=global_var,
-            batch_size=batch_size,
             device=cpu,
             #objective_sense=['max', 'min', 'max', 'min'],
             objective_sense=['max', 'max'],
             network=Conv,
-            network_args={'device': device, 'batch_size': batch_size, 'wrap_around': wrap_around, 'with_global_node': with_global_node, 'scale': scale},
+            network_args={'settings' : settings},
             num_actors='max',
             num_gpus_per_actor = 'max',
         )
@@ -40,14 +39,14 @@ class Evo_Trainer():
             obj_index=0,
         )
 
-        self.population_searcher = GeneticAlgorithm(
-            self.problem,
-            popsize=popsize,
-            operators=[
-                SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
-                GaussianMutation(self.problem, stdev=0.02),
-            ],
-        )
+        #self.population_searcher = GeneticAlgorithm(
+        #    self.problem,
+        #    popsize=popsize,
+        #    operators=[
+        #        SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
+        #        GaussianMutation(self.problem, stdev=0.02),
+        #    ],
+        #)
 
         self.searcher=self.distribution_searcher
         #self.searcher=self.population_searcher

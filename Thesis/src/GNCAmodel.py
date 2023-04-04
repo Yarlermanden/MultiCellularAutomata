@@ -1,54 +1,39 @@
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import math
-import torch_geometric
-from torch_geometric.nn import GCNConv, EdgeConv, NNConv, GATConv, GATv2Conv
 import time
 from torch_geometric.utils import to_networkx
 import networkx as nx
-from torch_geometric.data import Data
 
-from graphUtils import add_random_food, update_velocity, update_positions, food_mask, cell_mask, get_consume_food_mask, get_island_cells_mask, compute_border_cost, get_dead_cells_mask
+from graphUtils import update_velocity, update_positions, cell_mask, get_consume_food_mask, get_dead_cells_mask
 from datastructure import DataStructure
+from enums import *
 
 class GNCA(nn.Module):
-    def __init__(self, device, batch_size, wrap_around, with_global_node, channels=10, edge_dim=4, scale=1):
+    def __init__(self, settings):
         super(GNCA, self).__init__()
-        self.device = device
-        self.edge_dim=edge_dim
+        self.settings = settings
+        self.edge_dim=4
         self.input_channels = 8
         self.output_channels = 7
         self.hidden_size = self.input_channels*1
-        self.batch_size = batch_size
-        self.scale = scale
 
-        self.radius = 0.04
-        self.radius_food = self.radius*5
-        self.consume_radius = self.radius*3/4
+        self.device = settings.device
+        self.model_type = settings.model_type
 
         self.acceleration_scale = 0.02
         self.max_velocity = 0.02
         self.max_pos = 1
 
-        self.consumption_edge_required = 3
-        self.edges_to_stay_alive = 2 #1 more than its self loop #TODO not required anymore - delete
-        if with_global_node: self.edges_to_stay_alive += 1
-        self.energy_required = 5
         self.node_indices_to_keep = None
-        self.wrap_around = wrap_around
-        self.with_global_node = with_global_node
-        self.datastructure = DataStructure(self.radius, self.device, self.wrap_around, self.batch_size, self.scale)
-        self.noise = 0.002
+        self.datastructure = DataStructure(settings)
 
     def message_pass(self, graph):
         '''Convolves the graph for message passing'''
         ...
 
     def add_noise(self, graph, c_mask):
-        x_noise = (torch.rand(graph.x[:, 2].shape, device=self.device)*2-1.0) * self.noise
-        y_noise = (torch.rand(graph.x[:, 3].shape, device=self.device)*2-1.0) * self.noise
+        x_noise = (torch.rand(graph.x[:, 2].shape, device=self.device)*2-1.0) * self.settings.noise
+        y_noise = (torch.rand(graph.x[:, 3].shape, device=self.device)*2-1.0) * self.settings.noise
         update_mask = torch.rand_like(x_noise, device=self.device) > 0.5
         graph.x[:, 2] += x_noise * c_mask * update_mask
         graph.x[:, 3] += y_noise * c_mask * update_mask
@@ -62,7 +47,7 @@ class GNCA(nn.Module):
         acceleration = h[:, :2] * self.acceleration_scale
         graph.x[:, 6:] = h[:, 2:]
         velocity = update_velocity(graph, acceleration, self.max_velocity, moveable_mask)
-        positions = update_positions(graph, velocity, self.wrap_around, moveable_mask, self.scale)
+        positions = update_positions(graph, velocity, self.settings.wrap_around, moveable_mask, self.settings.scale)
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
         graph.x[moveable_mask, :2] = positions
         graph.x[c_mask, 5] -= 1 #Energy cost
@@ -74,7 +59,7 @@ class GNCA(nn.Module):
 
     def remove_nodes(self, graph):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
-        consumed_mask = get_consume_food_mask(graph, self.consume_radius, self.consumption_edge_required)
+        consumed_mask = get_consume_food_mask(graph, self.settings.consume_radius, self.settings.consumption_edge_required)
 
         #dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
         dead_cells_mask = get_dead_cells_mask(graph, 0)
@@ -89,13 +74,13 @@ class GNCA(nn.Module):
             for x in food_in_nx:
                 des = nx.descendants(G, x.item())
                 if len(des) > 0:
-                    graph.x[list(des), 5] += 3 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
+                    graph.x[list(des), 5] += 2 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
             #could it possibly be faster to make the entire subgraphs as they are supported to 
             # and then from there create sets of each subgraph
             # then we check which subgraph a node belongs to and easily index on entire subgraph
 
         start_index = 0
-        for i in range(self.batch_size):
+        for i in range(self.settings.batch_size):
             end_index = start_index + graph.subsize[i]
             graph.subsize[i] -= remove_mask[start_index:end_index].sum()
             graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
@@ -116,7 +101,7 @@ class GNCA(nn.Module):
         #graph.visible_food += visible_food
 
         s_idx = 0
-        for i in range(self.batch_size):
+        for i in range(self.settings.batch_size):
             e_idx = s_idx + graph.subsize[i]
             food_nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0) + s_idx
             food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
@@ -135,7 +120,7 @@ class GNCA(nn.Module):
         '''Update the graph a single time step'''
         time1 = time.perf_counter()
         any_edges = False
-        if self.with_global_node: any_edges = self.datastructure.add_edges_with_global_node(graph)
+        if self.model_type == ModelType.WithGlobalNode: any_edges = self.datastructure.add_edges_with_global_node(graph)
         else: any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
             return graph

@@ -3,7 +3,6 @@ from organism import Organism
 import random
 import numpy as np
 import torch
-from enums import EnvironmentType
 
 def get_random_point_within(d):
     return random.uniform(-d, d), random.uniform(-d,d)
@@ -11,16 +10,16 @@ def get_random_point_within(d):
 def get_random_point_normal(center, std_dev):
     return np.random.normal(center, std_dev), np.random.normal(center, std_dev)
 
-def generate_organism(n: int, device, with_global_node, food_amount, env_type, scale):
+def generate_organism(settings):
     '''Generate a random centered organism'''
     cells = []
-    d = 0.04*scale
-    d = d*2 if n > 200 else d
-    for i in range(n):
+    d = 0.04*settings.scale
+    d = d*2 if settings.n > 200 else d
+    for i in range(settings.n):
         x,y = get_random_point_within(d)
         cell = Cell([x,y])
         cells.append(cell)
-    organism = Organism(cells, device, with_global_node, food_amount, env_type, scale)
+    organism = Organism(cells, settings)
     return organism
 
 def generate_food(device, scale, d=0.2):

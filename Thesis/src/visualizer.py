@@ -7,24 +7,25 @@ from datastructure import DataStructure
 import math
 
 class Visualizer():
-    def __init__(self, wrap_around, batch_size, scale):
-        self.wrap_around = wrap_around
-        self.batch_size = batch_size
-        self.scale = scale
+    def __init__(self, settings):
+        self.settings = settings
+        self.wrap_around = settings.wrap_around
+        self.batch_size = settings.batch_size
+        self.scale = settings.scale
         self.figure = None
         self.graph = None
         self.scatter_cell = None
         self.scatter_food = None
         self.edge_plot = None
         self.axes = None
-        self.borders = scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
+        self.borders = self.scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
         self.device = torch.device('cpu')
         self.rows = 2
         self.columns = math.ceil(self.batch_size / 2)
         if self.batch_size < 4:
             self.rows = 1
             self.columns = self.batch_size
-        self.datastructure = DataStructure(0.04, self.device, self.wrap_around, self.batch_size, scale)
+        self.datastructure = DataStructure(settings)
 
     def plot_organism(self, graph):
         any_edges = self.datastructure.add_edges(graph)

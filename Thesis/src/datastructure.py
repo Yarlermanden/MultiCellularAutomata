@@ -34,13 +34,14 @@ class FixedRadiusNearestNeighbors2(object):
         return self.tree.query_radius(node.detach().cpu().numpy(), radius, return_distance=True)
 
 class DataStructure(object):
-    def __init__(self, radius, device, wrap_around, batch_size, scale):
-        self.radius = radius
-        self.device = device
-        self.wrap_around = wrap_around
-        self.batch_size = batch_size
-        self.radius_food = radius*5
-        self.scale = scale
+    def __init__(self, settings):
+        self.settings = settings
+        self.radius = settings.radius
+        self.device = settings.device
+        self.wrap_around = settings.wrap_around
+        self.batch_size = settings.batch_size
+        self.radius_food = settings.radius_food
+        self.scale = settings.scale
 
     def update_dist1(self, dist):
         if dist > self.scale:

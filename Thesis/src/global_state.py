@@ -11,24 +11,21 @@ from graphUtils import unbatch_nodes
 
 @ray.remote
 class GlobalState():
-    def __init__(self, n, device, batch_size, with_global_node, food_amount, env_type, scale):
-        self.n = n
-        self.device = device
-        self.batch_size = batch_size
-        self.with_global_node = with_global_node
-        self.food_amount = food_amount
-        self.env_type = env_type
+    def __init__(self, settings):
+        self.settings = settings
+        self.device = settings.device
+        self.batch_size = settings.batch_size
+        
         self.i = 0
         self.steps = 40
         self.pool_size = 1024
-        self.scale = scale
-        pool_graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type, scale).toGraph().x.detach().cpu().numpy()
-                       for _ in range(self.pool_size)]
+        pool_graphs = [generate_organism(settings).toGraph().x.detach().cpu().numpy()
+                        for _ in range(self.pool_size)]
         self.sample_pool = SamplePool(x=pool_graphs)
         self.set_global_var()
 
-        self.cell_threshold = 5
-        self.food_threshold = 10
+        self.cell_threshold = 5 #if below threshold - generate new env instead of committing
+        self.food_threshold = 10 # -||-
         self.in_population = 0
 
     def set_global_var(self):
@@ -37,11 +34,9 @@ class GlobalState():
             self.steps += 10
             print(self.steps)
         self.time_steps = np.random.randint(self.steps, self.steps+20)
-        #self.graphs = [generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type).toGraph() for _ in range(self.batch_size)]
 
         self.batch = self.sample_pool.sample(self.batch_size)
         self.graphs = [toGraph(torch.tensor(x, device=self.device), self.device) for x in self.batch.x.values()]
-        #self.graphs = torch.tensor(self.batch, device=self.device)
         self.in_population = 0
 
     def update_pool(self, graphs):
@@ -56,7 +51,7 @@ class GlobalState():
             food = nodes[i][:, 4] == 0
             if cells.sum() < self.cell_threshold or food.sum() < self.food_threshold:
                 #called when we need to generate a new environment
-                nodes[i] = generate_organism(self.n, self.device, self.with_global_node, self.food_amount, self.env_type, self.scale).toGraph().x.detach().cpu().numpy()
+                nodes[i] = generate_organism(self.settings).toGraph().x.detach().cpu().numpy()
 
         self.batch.x = nodes
         self.batch.commit()

@@ -4,13 +4,14 @@ from torch_geometric.nn import GCN
 import torch
 import torch.nn as nn
 
-from custom_conv import CustomConv, CustomConvSimple
+from custom_conv import CustomConvSimple
+from enums import *
 
 class Conv(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.velNorm = 1.0*self.scale/self.max_velocity
-        self.attrNorm = 1.0*self.scale/self.radius_food
+        self.velNorm = 1.0*self.settings.scale/self.max_velocity
+        self.attrNorm = 1.0*self.settings.scale/self.settings.radius_food
         
         self.mlp_before = nn.Sequential(
             nn.Linear(self.input_channels, self.hidden_size),
@@ -20,7 +21,7 @@ class Conv(GNCA):
         self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
         #self.conv_layer_cells = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add') #TODO needed when loading old models due to past bug 
-        if self.with_global_node:
+        if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
             self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*3, out_channels=self.output_channels*3, K=1).to(self.device)
         else:
@@ -35,7 +36,7 @@ class Conv(GNCA):
         food_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()][:, :3]
         cell_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()]
         cell_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()][:, :3]
-        if self.with_global_node:
+        if self.model_type == ModelType.WithGlobalNode:
             global_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()]
             global_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()][:, :3]
 
@@ -47,7 +48,7 @@ class Conv(GNCA):
         x_food = self.conv_layer_food(x=x, edge_index=food_edges, edge_attr=food_attr)
         x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)
         #x = x_food + x_cell #could consider catting this instead?
-        if self.with_global_node:
+        if self.model_type == ModelType.WithGlobalNode:
             x_global = self.conv_layer_global(x=x, edge_index=global_edges, edge_attr=global_attr)
             x = torch.concat((x_food, x_cell, x_global), dim=1)
         else: x = torch.concat((x_food, x_cell), dim=1)
@@ -56,14 +57,14 @@ class Conv(GNCA):
         if self.H is None:
             #self.H = torch.zeros_like(x, device=self.device)
             output_scale = 2
-            if self.with_global_node: output_scale = 3
+            if self.model_type == ModelType.WithGlobalNode: output_scale = 3
             self.H = torch.zeros((x.shape[0], self.output_channels*output_scale), device=self.device)
         if self.node_indices_to_keep is not None:
             self.H = self.H[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.H.shape[1])
         self.H = torch.tanh(self.gConvGRU(x, graph.edge_index, H=self.H))
         x = self.H
 
-        if self.with_global_node:
+        if self.model_type == ModelType.WithGlobalNode:
             x = x[:, :self.output_channels] + x[:, self.output_channels:self.output_channels*2] + x[:, self.output_channels*2:]
         else: x = x[:, :self.output_channels] + x[:, self.output_channels:]
 
@@ -76,6 +77,6 @@ class Conv(GNCA):
         self.mlp_before = self.mlp_before.to(self.device)
         self.conv_layer_cell = self.conv_layer_cell.to(self.device)
         self.conv_layer_food = self.conv_layer_food.to(self.device)
-        if self.with_global_node:
+        if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = self.conv_layer_global.to(self.device)
         return super().forward(*args)
