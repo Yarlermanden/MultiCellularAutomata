@@ -1,3 +1,4 @@
+from enums import *
 
 class Settings(object):
     #def __init__(self, *args, **kwargs):
@@ -25,3 +26,6 @@ class Settings(object):
         self.consumption_edge_required = consumption_edge_required #amount of edges required to consume food
         self.noise = noise #amount of random noise added to cells at each time step
         self.energy_required_to_replicate = energy_required_to_replicate #required energy for splitting/replicating
+
+        if self.env_type == EnvironmentType.Clusters:
+            self.food_amount = self.clusters * self.cluster_size
