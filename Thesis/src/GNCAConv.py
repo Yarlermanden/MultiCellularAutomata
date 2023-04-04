@@ -9,26 +9,24 @@ from custom_conv import CustomConv, CustomConvSimple
 class Conv(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hidden_size = self.input_channels*1
-
         self.velNorm = 1.0*self.scale/self.max_velocity
         self.attrNorm = 1.0*self.scale/self.radius_food
         
+        self.mlp_before = nn.Sequential(
+            nn.Linear(self.input_channels, self.hidden_size),
+            nn.Tanh(),
+        )
+
         self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
         #self.conv_layer_cells = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add') #TODO needed when loading old models due to past bug 
         if self.with_global_node:
             self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
-            self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*3, out_channels=self.hidden_size*3, K=1).to(self.device)
+            self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*3, out_channels=self.output_channels*3, K=1).to(self.device)
         else:
-            self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*2, out_channels=self.hidden_size*2, K=1).to(self.device)
+            self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*2, out_channels=self.output_channels*2, K=1).to(self.device)
 
-        self.mlp_before = nn.Sequential(
-            nn.Linear(self.input_channels, self.hidden_size),
-            nn.Tanh(),
-        )
         self.H = None
-
         for param in self.parameters():
             param.grad = None
 
@@ -41,7 +39,7 @@ class Conv(GNCA):
             global_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()]
             global_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()][:, :3]
 
-        x_origin = torch.concat((graph.x[:, 2:4] * self.velNorm, graph.x[:, 6:]), dim=1) 
+        x_origin = torch.concat((graph.x[:, 2:4] * self.velNorm, graph.x[:, 5:]), dim=1)  #vel, energy, hidden
         food_attr *= self.attrNorm
         cell_attr *= self.attrNorm
         
@@ -54,11 +52,22 @@ class Conv(GNCA):
             x = torch.concat((x_food, x_cell, x_global), dim=1)
         else: x = torch.concat((x_food, x_cell), dim=1)
 
-        if self.with_global_node:
-            x = x[:, :self.hidden_size] + x[:, self.hidden_size:self.hidden_size*2] + x[:, self.hidden_size*2:]
-        else: x = x[:, :self.hidden_size] + x[:, self.hidden_size:]
+        #TODO gru part
+        if self.H is None:
+            #self.H = torch.zeros_like(x, device=self.device)
+            output_scale = 2
+            if self.with_global_node: output_scale = 3
+            self.H = torch.zeros((x.shape[0], self.output_channels*output_scale), device=self.device)
+        if self.node_indices_to_keep is not None:
+            self.H = self.H[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.H.shape[1])
+        self.H = torch.tanh(self.gConvGRU(x, graph.edge_index, H=self.H))
+        x = self.H
 
-        x = x_origin + x
+        if self.with_global_node:
+            x = x[:, :self.output_channels] + x[:, self.output_channels:self.output_channels*2] + x[:, self.output_channels*2:]
+        else: x = x[:, :self.output_channels] + x[:, self.output_channels:]
+
+        x = torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1) + x #exclude food from origin
         return x
 
     def forward(self, *args):

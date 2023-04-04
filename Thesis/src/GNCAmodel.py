@@ -18,19 +18,22 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.device = device
         self.edge_dim=edge_dim
-        self.input_channels = 7
+        self.input_channels = 8
         self.output_channels = 7
+        self.hidden_size = self.input_channels*1
         self.batch_size = batch_size
         self.scale = scale
 
         self.radius = 0.04
         self.radius_food = self.radius*5
         self.consume_radius = self.radius*3/4
+
         self.acceleration_scale = 0.02
         self.max_velocity = 0.02
         self.max_pos = 1
+
         self.consumption_edge_required = 3
-        self.edges_to_stay_alive = 2 #1 more than its self loop
+        self.edges_to_stay_alive = 2 #1 more than its self loop #TODO not required anymore - delete
         if with_global_node: self.edges_to_stay_alive += 1
         self.energy_required = 5
         self.node_indices_to_keep = None
@@ -98,7 +101,6 @@ class GNCA(nn.Module):
             graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
             food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 2].sum()
             graph.food_reward[i] += food_val
-            graph.energy[i] += food_val #TODO remove and delete...
             start_index = end_index
 
         graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
