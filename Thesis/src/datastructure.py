@@ -2,7 +2,6 @@ import grispy as gsp
 import numpy as np
 import torch
 import time
-from typing import Union, Tuple, Optional
 from torch import Tensor
 from graphUtils import *
 
@@ -108,43 +107,8 @@ class DataStructure(object):
         graph.edge_attr = torch.tensor(edge_attributes, dtype=torch.float, device=self.device)
         return True
 
-    def add_edges_global(self, graph):
-        edges = []
-        attributes = []
-
-        x = graph.x.detach().cpu().numpy()
-        s_idx = 0
-        for batch_idx in range(self.batch_size):
-            e_idx = s_idx + graph.subsize[batch_idx].detach().cpu().numpy()
-            nodes = graph.x[s_idx:e_idx, :2]
-            if len(nodes) == 0: continue
-            food_idxs = set()
-
-            cell_filter = graph.x[s_idx:e_idx, 4] == 1
-            cells = nodes[cell_filter]
-            if len(cells) != 0:
-                foods = nodes[torch.bitwise_not(cell_filter)]
-                frnn_food = FixedRadiusNearestNeighbors(foods, self.radius_food, self.batch_size)
-                dists, indices = frnn_food.get_neighbors(cells, self.radius_food)
-                [food_idxs.add(x) for i in indices for x in i]
-                #convert ids to hashset or otherwise make unique
-
-                #Make edges from all cells to all of these food in ids
-
-                #Make edges between all cells and cells
-
-                #simply make the edges as [0, x_dist, y_dist, 0/1] and update dist later
-
-
-                #... we need to actually have the distance between all of the cell and food.........
-                #should propably consider whether all nodes should have the same edge to each food or only their local information - like what should we do with distance...
-
-                #for both cell and food, we could compute the actual distance afterwards, by just adding the x and y distance at first...
-
-
     def add_edges_with_global_node(self, graph):
         '''Add edges according to a organism containing a global node for long range communication'''
-        #Add edges as usual
         vupdate = np.vectorize(self.update_dist1)
         vcompute_dist = np.vectorize(self.update_norm_dist)
         any = self.add_edges(graph)
@@ -152,7 +116,6 @@ class DataStructure(object):
         edges = []
         attributes = []
 
-        #do all of this pr batch
         s_idx = 0
         for batch_idx in range(self.batch_size):
             e_idx = s_idx + graph.subsize[batch_idx].detach().cpu().numpy()

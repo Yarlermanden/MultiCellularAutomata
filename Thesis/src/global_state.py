@@ -24,9 +24,7 @@ class GlobalState():
         self.sample_pool = SamplePool(x=pool_graphs)
         self.set_global_var()
 
-        #self.cell_threshold = 5 #if below threshold - generate new env instead of committing
         self.cell_threshold = settings.n // 5 #if below threshold - generate new env instead of committing
-        #self.food_threshold = 10 # -||-
         self.food_threshold = settings.food_amount // 10 # -||-
         self.in_population = 0
 

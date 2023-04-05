@@ -127,7 +127,7 @@ class GNCA(nn.Module):
         time2 = time.perf_counter()
         self.update_graph(graph)
         time3 = time.perf_counter()
-        self.compute_fitness_metrics(graph)
+        #self.compute_fitness_metrics(graph)
         time4 = time.perf_counter()
         self.remove_nodes(graph)
         time5 = time.perf_counter()
