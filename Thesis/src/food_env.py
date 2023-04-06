@@ -25,3 +25,8 @@ class Spiral_Env(Food_Env):
     def __init__(self, radius, food_amount):
         self.radius = radius
         super().__init__(food_amount, EnvironmentType.Spiral)
+
+class Labyrinth_Env(Food_Env):
+    #consist of walls and food in such a pattern that the organism will be able to track through it
+    #could even make it so energy isn't lost unless inside a wall
+    ...

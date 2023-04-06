@@ -20,6 +20,11 @@ def add_circular_food(graph, device, n=1, scale=1, circles=1):
         food = generate_circular_food(device, scale, std_dev=0, circles=circles, radius=scale//2) #TODO implement with std... to randomize around circle
         add_food(graph, food)
 
+def add_spiral_food(graph, device, n=1, scale=1):
+    for _ in range(n):
+        food = generate_spiral_food(device, scale, std_dev=0)
+        add_food(graph, food)
+
 def add_clusters_of_food(graph, device, n=1, cluster_size=20, std_dev=0.1, scale=1):
     '''Generates and adds n clusters of food to the graph'''
     for _ in range(n):

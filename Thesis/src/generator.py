@@ -44,6 +44,7 @@ def generate_cluster(device, cluster_size, std_dev, scale):
     return cluster
 
 def reverse_sum(num):
+    '''Reverse of Kth Triangle number function'''
     n = 0
     i = 0
     while n < num:
@@ -52,6 +53,7 @@ def reverse_sum(num):
     return i
 
 def sum(num):
+    '''Kth Triangle number function'''
     n = 0
     for i in range(num):
         n += i
@@ -66,6 +68,16 @@ def generate_circular_food(device, scale, std_dev, circles, radius):
     theta = random.uniform(0,1) * 2 * math.pi
     x = r * math.cos(theta)
     y = r * math.sin(theta)
+    food = generate_food(device, scale)
+    food[:, :2] = torch.tensor([x, y], device=device)
+    return food
+
+def generate_spiral_food(device, scale, std_dev):
+    #TODO add parameter to how many circles in spiral - 10 here? 200/ 20
+    #TODO add random noise, which should be bigger the further out we are...
+    t = random.randint(1, 200) / 20 * math.pi
+    x = (0.15 * t) * math.cos(t)
+    y = (0.15 * t) * math.sin(t)
     food = generate_food(device, scale)
     food[:, :2] = torch.tensor([x, y], device=device)
     return food
