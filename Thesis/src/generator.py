@@ -3,6 +3,7 @@ from organism import Organism
 import random
 import numpy as np
 import torch
+import math
 
 def get_random_point_within(d):
     return random.uniform(-d, d), random.uniform(-d,d)
@@ -41,3 +42,30 @@ def generate_cluster(device, cluster_size, std_dev, scale):
     cluster = torch.concat(cluster, dim=0)
     cluster[:, :2]+=torch.tensor([[x,y]], device=device)
     return cluster
+
+def reverse_sum(num):
+    n = 0
+    i = 0
+    while n < num:
+        i += 1
+        n += i
+    return i
+
+def sum(num):
+    n = 0
+    for i in range(num):
+        n += i
+    return n
+
+def generate_circular_food(device, scale, std_dev, circles, radius):
+    '''Generates food in circular patterns given std_dev, number of circles and radius'''
+    s = sum(circles+1)
+    s1 = random.randint(1, s)
+    s2 = reverse_sum(s1) / circles
+    r = radius * math.sqrt(random.uniform(0.8, 1)) * s2 * 0.40 * scale
+    theta = random.uniform(0,1) * 2 * math.pi
+    x = r * math.cos(theta)
+    y = r * math.sin(theta)
+    food = generate_food(device, scale)
+    food[:, :2] = torch.tensor([x, y], device=device)
+    return food

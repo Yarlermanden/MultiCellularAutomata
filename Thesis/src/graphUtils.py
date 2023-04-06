@@ -1,5 +1,5 @@
 import torch
-from generator import generate_food, generate_cluster
+from generator import *
 import random
 import torch_geometric
 from torch_geometric import utils
@@ -8,21 +8,23 @@ def add_food(graph, food):
     '''Add food source as node to graph'''
     graph.x = torch.cat((graph.x, food))
 
+#TODO refactor the below three methods to a single taking environment and switching on how to generate...
 def add_random_food(graph, device, n=1, scale=1):
     '''Add n random food sources as nodes to the graph'''
     for _ in range(n):
         food = generate_food(device, scale)
         add_food(graph, food)
 
-def add_cluster_food(graph, cluster):
-    '''adds a cluster of food to the graph'''
-    graph.x = torch.cat((graph.x, cluster))
+def add_circular_food(graph, device, n=1, scale=1, circles=1):
+    for _ in range(n):
+        food = generate_circular_food(device, scale, std_dev=0, circles=circles, radius=scale//2) #TODO implement with std... to randomize around circle
+        add_food(graph, food)
 
 def add_clusters_of_food(graph, device, n=1, cluster_size=20, std_dev=0.1, scale=1):
     '''Generates and adds n clusters of food to the graph'''
     for _ in range(n):
         cluster = generate_cluster(device, cluster_size, std_dev, scale)
-        add_cluster_food(graph, cluster)
+        add_food(graph, cluster)
 
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 
