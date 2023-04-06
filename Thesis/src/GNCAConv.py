@@ -76,7 +76,8 @@ class Conv(GNCA):
         else: x = x[:, :self.hidden_size] + x[:, self.hidden_size:]
 
         x = self.mlp_after(x)
-        x = torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1) + x #exclude energy from origin
+        x_origin = torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
+        x = x_origin + x #exclude energy from origin
         return x
 
     def forward(self, *args):

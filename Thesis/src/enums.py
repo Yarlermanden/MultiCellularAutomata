@@ -3,7 +3,10 @@ from enum import Enum
 class EnvironmentType(Enum):
     Centered = 1, #random noise around center
     Clusters = 2, #clusters of food
-    WithWalls = 3, #some environment with walls 
+    Circular = 3, #with circles
+    Spiral = 4, #with spirals
+    #TODO could even add a type hardcoded with food in spiral and walls around...
+    WithWalls = 5, #some environment with walls 
 
 class ModelType(Enum):
     LocalOnly = 1, #only normal cell nodes
