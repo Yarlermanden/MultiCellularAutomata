@@ -14,7 +14,7 @@ def get_random_point_normal(center, std_dev):
 def generate_organism(settings):
     '''Generate a random centered organism'''
     cells = []
-    d = 0.04*settings.scale
+    d = 0.04
     d = d*2 if settings.n > 200 else d
     for i in range(settings.n):
         x,y = get_random_point_within(d)
@@ -72,12 +72,16 @@ def generate_circular_food(device, scale, std_dev, circles, radius):
     food[:, :2] = torch.tensor([x, y], device=device)
     return food
 
-def generate_spiral_food(device, scale, std_dev):
+def generate_spiral_food(device, scale, std_dev, spirals):
     #TODO add parameter to how many circles in spiral - 10 here? 200/ 20
     #TODO add random noise, which should be bigger the further out we are...
-    t = random.randint(1, 200) / 20 * math.pi
-    x = (0.15 * t) * math.cos(t)
-    y = (0.15 * t) * math.sin(t)
+    a = 0
+    b = 1 / (2 * np.pi)
+    theta1 = math.sqrt(random.uniform(0, math.pow(spirals * 2 * np.pi, 2))) #combination of sqrt and pow increases odds of rolling high numbers
+    r = a + b * theta1 * scale/spirals
+    x = r * np.cos(theta1)
+    y = r * np.sin(theta1)
+
     food = generate_food(device, scale)
     food[:, :2] = torch.tensor([x, y], device=device)
     return food

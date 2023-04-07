@@ -22,8 +22,8 @@ class Circle_Env(Food_Env):
         super().__init__(food_amount, EnvironmentType.Circular)
 
 class Spiral_Env(Food_Env):
-    def __init__(self, radius, food_amount):
-        self.radius = radius
+    def __init__(self, spirals, food_amount):
+        self.spirals = spirals
         super().__init__(food_amount, EnvironmentType.Spiral)
 
 class Labyrinth_Env(Food_Env):
