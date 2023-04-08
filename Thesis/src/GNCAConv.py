@@ -23,8 +23,8 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
-        self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
-        self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add')
+        self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
+        self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
         #self.conv_layer_cells = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add') #TODO needed when loading old models due to past bug 
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
@@ -76,8 +76,16 @@ class Conv(GNCA):
         else: x = x[:, :self.hidden_size] + x[:, self.hidden_size:]
 
         x = self.mlp_after(x)
-        x_origin = torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
-        x = x_origin + x #exclude energy from origin
+
+        #don't make residual connections as we don't want momentum to carry over or values to be able to go beyond/below 1/-1 
+        #simply persist should result in staying still and not moving...
+        #x[:, :2] += x_origin[:, :2] #only the velX and velY should be kept
+        
+
+        #x_origin = torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
+        #x = x_origin + x #exclude energy from origin
+
+        #hidden values shouldn't be added or subtracted - but instead completely override?
         return x
 
     def forward(self, *args):
