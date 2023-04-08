@@ -23,8 +23,7 @@ class Evo_Trainer():
             settings=settings,
             global_var=global_var,
             device=cpu,
-            #objective_sense=['max', 'min', 'max', 'min'],
-            objective_sense=['max', 'max'],
+            objective_sense=['max', 'max', 'max', 'max'],
             network=Conv,
             network_args={'settings' : settings},
             num_actors='max',
@@ -39,14 +38,14 @@ class Evo_Trainer():
             obj_index=0,
         )
 
-        #self.population_searcher = GeneticAlgorithm(
-        #    self.problem,
-        #    popsize=popsize,
-        #    operators=[
-        #        SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
-        #        GaussianMutation(self.problem, stdev=0.02),
-        #    ],
-        #)
+        self.population_searcher = GeneticAlgorithm(
+            self.problem,
+            popsize=popsize,
+            operators=[
+                SimulatedBinaryCrossOver(self.problem, tournament_size=4, cross_over_rate=1.0, eta=8),
+                GaussianMutation(self.problem, stdev=0.02),
+            ],
+        )
 
         self.searcher=self.distribution_searcher
         #self.searcher=self.population_searcher
