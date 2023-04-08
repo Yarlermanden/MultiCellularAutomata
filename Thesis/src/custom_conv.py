@@ -24,8 +24,8 @@ class CustomConvSimple(MessagePassing):
         self.lin = Linear(sum(channels) + dim, channels[1], bias=bias)
         input = sum(channels) + dim
         self.mlp = nn.Sequential(
-            Linear(input, input),
-            nn.Tanh(),
+            #Linear(input, input),
+            #nn.Tanh(),
             Linear(input, channels[1])
         )
         if batch_norm:
@@ -49,7 +49,7 @@ class CustomConvSimple(MessagePassing):
         # propagate_type: (x: PairTensor, edge_attr: OptTensor)
         out = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=None)
         out = out if self.bn is None else self.bn(out)
-        out = out + x[1]
+        #out = out + x[1] #removing this - removes the adding of xi
         return out
 
     def message(self, x_i, x_j, edge_attr: OptTensor) -> Tensor:
@@ -61,3 +61,12 @@ class CustomConvSimple(MessagePassing):
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.channels}, dim={self.dim})'
+
+if __name__ == '__main__':
+    conv = CustomConvSimple(8, dim=3, aggr='mean')
+    hidden = [0,0,0,0,0]
+    out0 = conv(x=torch.tensor([[1,1,0, *hidden]]).view(-1, 8), 
+                edge_index=torch.tensor([[]], dtype=torch.int).view(2, -1),
+                edge_attr=torch.tensor([[]]).view(-1, 3))
+
+    print('no neighbors: ', out0)
