@@ -8,7 +8,6 @@ from torch_geometric.data import Data
 from evotorch.decorators import vectorized, on_aux_device
 
 class Custom_NEProblem(NEProblem):
-    #def __init__(self, n, global_var, batch_size, **kwargs):
     def __init__(self, settings, global_var, **kwargs):
         super(Custom_NEProblem, self).__init__(**kwargs)
         self.global_var = global_var
@@ -18,8 +17,7 @@ class Custom_NEProblem(NEProblem):
     @on_aux_device
     def _evaluate_network(self, network: torch.nn.Module):
         steps, graphs = ray.get(self.global_var.get_global_var.remote())
-        loader = DataLoader(graphs, batch_size=self.settings.batch_size) #TODO move this part into the global_state to not do multiple times
-        batch = next(iter(loader))
+        batch = next(iter(graphs))
         alive_start = (batch.x[:, 4] == 1).sum()
 
         with torch.no_grad():

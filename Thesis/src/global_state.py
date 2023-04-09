@@ -37,13 +37,14 @@ class GlobalState():
 
         self.batch = self.sample_pool.sample(self.batch_size)
         self.graphs = [toGraph(torch.tensor(x, device=self.device), self.device) for x in self.batch.x.values()]
+        self.graphs = DataLoader(self.graphs, batch_size=self.settings.batch_size)
         self.in_population = 0
 
     def update_pool(self, graphs):
         self.in_population +=1
 
         #if locked correctly this should ensure only a single member of the population gets to commit their environment
-        if self.in_population != 5: return #TODO use half of population size instead of hardcoded nr 5
+        if self.in_population != self.settings.train_config.popsize//2: return #TODO use half of population size instead of hardcoded nr 5
 
         nodes = unbatch_nodes(graphs, self.batch_size)
         for i in range(len(nodes)):
