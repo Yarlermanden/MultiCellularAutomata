@@ -1,9 +1,18 @@
 from enums import *
 
+class Train_Config(object):
+    def __init__(self, stdev, popsize, name, problem_searcher):
+        self.stdev = stdev
+        self.popsize = popsize
+        self.name = name
+        self.problem_searcher = problem_searcher
+
 class Settings(object):
     def __init__(self, device, batch_size, n, food_env, scale, wrap_around, 
                  model_type, radius, radius_food_scale, consume_radius_scale,
-                 consumption_edge_required, noise, energy_required_to_replicate):
+                 consumption_edge_required, noise, energy_required_to_replicate, train_config):
+        self.train_config = train_config
+
         self.device = device
         self.batch_size = batch_size
         self.n = n #amount of cells

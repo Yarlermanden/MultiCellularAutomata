@@ -13,3 +13,7 @@ class ModelType(Enum):
     WithGlobalNode = 2, #including global cell node
     SmallWorld = 3, #some cells with longer edges
     AI = 4, #hardcoded
+
+class ProblemSearcher(Enum):
+    CMAES = 0, #distribution based
+    GeneticAlgorithm = 1, #population based
