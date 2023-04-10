@@ -129,8 +129,6 @@ class DataStructure(object):
             cell_idx+=s_idx
             global_node_idx+=s_idx
 
-            #each of these edges could possibly contain a new number, so we know that these nodes come from some form of global information
-            #we could then train a new conv for this connection specifically
             #TODO should we add attributes depending on the nodes position as well? and in that case, should we update the node during model as well?
             tup = [([cell_idx[i], global_node_idx], 
                     [0, global_node[0]-cells[i, 0], global_node[1]-cells[i,1], 2],
@@ -156,14 +154,6 @@ class DataStructure(object):
         graph.edge_attr = torch.concat((torch.tensor(edge_attributes, dtype=torch.float, device=self.device), graph.edge_attr), dim=0)
         return True
         
-        #Ignore this node when plotting and in the other checks... like minimum edges ...
-        #ignore when computing shortest longest path
-        #ignore when visualizing
-        #ignore when computing all metrics
-        #ignore when computing minimum edges... who to remove, consume...
-
-        #in general implement as a new type of node, and ensure everything checks for specifically food and cells and not assumes just the opposite
-
     def add_edges_rigid(self, graph):
         '''Add edges according to a rigid organism, where all cells stay connected'''
         ...

@@ -3,6 +3,7 @@ import torch.nn as nn
 import time
 from torch_geometric.utils import to_networkx
 import networkx as nx
+from torch_geometric.data import Data
 
 from graphUtils import update_velocity, update_positions, cell_mask, get_consume_food_mask, get_dead_cells_mask
 from datastructure import DataStructure
@@ -69,7 +70,9 @@ class GNCA(nn.Module):
         self.node_indices_to_keep = node_indices_to_keep
 
         if torch.any(consumed_mask):
-            G = to_networkx(graph, to_undirected=False)
+            edges = graph.edge_index[:, graph.edge_attr[:, 3] != 2]
+            graph1 = Data(x=graph.x, edge_index=edges)
+            G = to_networkx(graph1, to_undirected=False)
             food_in_nx = torch.nonzero(consumed_mask).flatten()
             for x in food_in_nx:
                 des = nx.descendants(G, x.item())

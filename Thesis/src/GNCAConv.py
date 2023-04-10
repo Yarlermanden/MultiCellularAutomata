@@ -80,11 +80,6 @@ class Conv(GNCA):
         #don't make residual connections as we don't want momentum to carry over or values to be able to go beyond/below 1/-1 
         #simply persist should result in staying still and not moving...
         #x[:, :2] += x_origin[:, :2] #only the velX and velY should be kept
-        
-
-        #x_origin = torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
-        #x = x_origin + x #exclude energy from origin
-
         #hidden values shouldn't be added or subtracted - but instead completely override?
         return x
 
