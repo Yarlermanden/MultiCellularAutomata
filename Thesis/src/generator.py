@@ -72,15 +72,15 @@ def generate_circular_food(device, scale, std_dev, circles, radius):
     food[:, :2] = torch.tensor([x, y], device=device)
     return food
 
-def generate_spiral_food(device, scale, std_dev, spirals):
-    #TODO add parameter to how many circles in spiral - 10 here? 200/ 20
+def generate_spiral_food(device, scale, std_dev, spirals, rotation=0):
+    '''Generates food in a spiral pattern'''
     #TODO add random noise, which should be bigger the further out we are...
     a = 0
     b = 1 / (2 * np.pi)
     theta1 = math.sqrt(random.uniform(0, math.pow(spirals * 2 * np.pi, 2))) #combination of sqrt and pow increases odds of rolling high numbers
     r = a + b * theta1 * scale/spirals
-    x = r * np.cos(theta1)
-    y = r * np.sin(theta1)
+    x = r * np.cos(theta1+rotation)
+    y = r * np.sin(theta1+rotation)
 
     food = generate_food(device, scale)
     food[:, :2] = torch.tensor([x, y], device=device)
