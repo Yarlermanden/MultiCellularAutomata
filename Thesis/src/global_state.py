@@ -48,8 +48,10 @@ class GlobalState():
 
         nodes = unbatch_nodes(graphs, self.batch_size)
         for i in range(len(nodes)):
-            cells = nodes[i][:, 4] == 1
-            food = nodes[i][:, 4] == 0
+            node = torch.tensor(nodes[i], device=self.device)
+            cells = torch.bitwise_or(node[:, 4] == 1, node[:, 4] == 3)
+            #TODO change cells here to use graph util and change graphutils to take x directly....
+            food = node[:, 4] == 0
             if cells.sum() < self.cell_threshold or food.sum() < self.food_threshold:
                 #called when we need to generate a new environment
                 nodes[i] = generate_organism(self.settings).toGraph().x.detach().cpu().numpy()

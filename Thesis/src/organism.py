@@ -22,6 +22,8 @@ def toGraph(nodes, device):
     set_default_metrics(graph)
     return graph
 
+#node type: 0=food, 1=cell, 2=globalNode, 3=longRange, 4=wall/toxic
+
 class Organism():
     def __init__(self, cells: List[Cell], settings):
         self.cells = cells
@@ -33,6 +35,8 @@ class Organism():
         '''transforms all cells in organism to nodes in a graph'''
         hidden = [0, 0, 0, 0, 0]
         x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1, 10, *hidden] for cell in self.cells], device=self.device)
+        if self.settings.model_type == ModelType.SmallWorld:
+            x[:self.settings.n2, 4] = 3
         edges = torch.tensor([[]], device=self.device)
         graph = Data(x=x, edge_index=edges, device=self.device, subsize=len(x))
         match self.settings.food_env.env_type:

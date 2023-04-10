@@ -56,13 +56,11 @@ def update_positions(graph, velocity, wrap_around, c_mask, scale):
 
 def food_mask(graph):
     '''Used to mask away all cell nodes to only keep food'''
-    mask = graph.x[:, 4] == 0
-    return mask
+    return graph.x[:, 4] == 0
 
 def cell_mask(graph):
     '''Used to mask away all food nodes to only keep cell nodes'''
-    mask = graph.x[:, 4] == 1
-    return mask
+    return torch.bitwise_or(graph.x[:, 4] == 1, graph.x[:, 4] == 3)
 
 def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     '''Consumes food if criteria is met and returns reward'''

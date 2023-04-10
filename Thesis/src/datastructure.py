@@ -3,9 +3,9 @@ import numpy as np
 import torch
 import time
 from torch import Tensor
-from graphUtils import *
-
 from sklearn.neighbors import KDTree
+
+from graphUtils import *
 
 class FixedRadiusNearestNeighbors(object):
     def __init__(self, nodes, radius, batch_size, scale):
@@ -66,9 +66,9 @@ class DataStructure(object):
             e_idx = s_idx + graph.subsize[batch_idx].detach().cpu().numpy()
             nodes = graph.x[s_idx:e_idx, :2]
             if len(nodes) == 0: continue
-            cell_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 1).flatten()
+            cell_indices = torch.nonzero(cell_mask(graph)[s_idx:e_idx]).flatten()
             cells = nodes[cell_indices]
-            food_indices = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0).flatten()
+            food_indices = torch.nonzero(food_mask(graph)[s_idx:e_idx]).flatten() #it's on purpose these are not added with s_idx - we want only relative indices
             food = nodes[food_indices]
 
             if len(cells) != 0:
@@ -83,8 +83,9 @@ class DataStructure(object):
                 edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), 0]
                             for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
 
+                radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius)
                 frnn_cell = FixedRadiusNearestNeighbors2(cells, self.radius, self.batch_size, self.scale, True)
-                indices_cells, dists_cells = frnn_cell.get_neighbors(cells, self.radius)                       
+                indices_cells, dists_cells = frnn_cell.get_neighbors(cells, radius_cell.detach().cpu().numpy())                       
                 indices_cells = [cell_indices[x] for x in indices_cells]
                 edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), 1]
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])

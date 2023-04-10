@@ -5,7 +5,7 @@ from torch_geometric.utils import to_networkx
 import networkx as nx
 from torch_geometric.data import Data
 
-from graphUtils import update_velocity, update_positions, cell_mask, get_consume_food_mask, get_dead_cells_mask
+from graphUtils import *
 from datastructure import DataStructure
 from enums import *
 
@@ -107,7 +107,7 @@ class GNCA(nn.Module):
         s_idx = 0
         for i in range(self.settings.batch_size):
             e_idx = s_idx + graph.subsize[i]
-            food_nodes_in_batch = torch.nonzero(graph.x[s_idx:e_idx, 4] == 0) + s_idx
+            food_nodes_in_batch = torch.nonzero(food_mask(graph)[s_idx:e_idx]) + s_idx
             food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
             edge_attr = graph.edge_attr[food_edges_in_batch]
             nodes = graph.x[graph.edge_index[1, food_edges_in_batch]]
@@ -116,7 +116,7 @@ class GNCA(nn.Module):
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
             if x5.isnan(): x5 = -0.00001
             graph.food_search_movement += x5
-            if (graph.x[s_idx:e_idx, 4] == 0).sum() == 0 and (graph.x[s_idx:e_idx, 4] == 1).sum() != 0: #no more food but still cells in batch
+            if len(food_nodes_in_batch) == 0 and (cell_mask(graph)[s_idx:e_idx]).sum() != 0: #no more food but still cells in batch
                 graph.food_reward[i] += 1
             s_idx = e_idx
 

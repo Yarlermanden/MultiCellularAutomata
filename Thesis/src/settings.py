@@ -10,12 +10,16 @@ class Train_Config(object):
 class Settings(object):
     def __init__(self, device, batch_size, n, food_env, scale, wrap_around, 
                  model_type, radius, radius_food_scale, consume_radius_scale,
-                 consumption_edge_required, noise, energy_required_to_replicate, train_config):
+                 consumption_edge_required, noise, energy_required_to_replicate, 
+                 train_config, n2=None, radius_long_scale=2):
         self.train_config = train_config
 
         self.device = device
         self.batch_size = batch_size
         self.n = n #amount of cells
+        self.n2 = n2
+        if self.n2 is None:
+            self.n2 = self.n // 10
         self.food_env = food_env #the environment used for food
         self.cluster_std = 0 #TODO
 
@@ -28,6 +32,7 @@ class Settings(object):
         self.radius = radius #radius of cell to cell communication
         self.radius_food = radius*radius_food_scale #radius of cell to food communication
         self.consume_radius = radius*consume_radius_scale #radius of cell to consume food
+        self.radius_long = radius*radius_long_scale #radius of special cell nodes to see other cells
         self.consumption_edge_required = consumption_edge_required #amount of edges required to consume food
         self.noise = noise #amount of random noise added to cells at each time step
         self.energy_required_to_replicate = energy_required_to_replicate #required energy for splitting/replicating

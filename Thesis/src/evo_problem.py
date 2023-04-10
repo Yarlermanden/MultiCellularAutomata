@@ -1,11 +1,12 @@
 from evotorch.neuroevolution import NEProblem
 import torch
 import ray
-from torch_geometric.utils import to_networkx
 import networkx as nx
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data
 from evotorch.decorators import vectorized, on_aux_device
+
+from graphUtils import *
 
 class Custom_NEProblem(NEProblem):
     def __init__(self, settings, global_var, **kwargs):
@@ -23,12 +24,12 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph = network(batch, steps)
 
-        fitness3 = graph.food_search_movement.mean() * 100
+        fitness3 = graph.food_search_movement.mean() * 10
 
         food_reward = graph.food_reward.mean()
         fitness1 = food_reward
 
-        cells = graph.x[graph.x[:, 4] == 1]        
+        cells = graph.x[cell_mask(graph)]
         fitness2 = cells[:, 5].sum() / alive_start * 10
 
         fitness = fitness3 + fitness1 + fitness2
