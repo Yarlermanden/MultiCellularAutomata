@@ -7,7 +7,7 @@ from torch_geometric.utils import unbatch
 from sample_pool import SamplePool
 from generator import generate_organism
 from organism import Organism, toGraph
-from graphUtils import unbatch_nodes
+from graphUtils import unbatch_nodes, cell_mask, food_mask
 
 @ray.remote
 class GlobalState():
@@ -49,9 +49,9 @@ class GlobalState():
         nodes = unbatch_nodes(graphs, self.batch_size)
         for i in range(len(nodes)):
             node = torch.tensor(nodes[i], device=self.device)
-            cells = torch.bitwise_or(node[:, 4] == 1, node[:, 4] == 3)
+            cells = cell_mask(node)
             #TODO change cells here to use graph util and change graphutils to take x directly....
-            food = node[:, 4] == 0
+            food = food_mask(node)
             if cells.sum() < self.cell_threshold or food.sum() < self.food_threshold:
                 #called when we need to generate a new environment
                 nodes[i] = generate_organism(self.settings).toGraph().x.detach().cpu().numpy()

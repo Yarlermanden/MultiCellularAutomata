@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, IntEnum
 
 class EnvironmentType(Enum):
     Centered = 1, #random noise around center
@@ -17,3 +17,10 @@ class ModelType(Enum):
 class ProblemSearcher(Enum):
     CMAES = 0, #distribution based
     GeneticAlgorithm = 1, #population based
+
+class NodeType(IntEnum):
+    Food = 0, #regular food node
+    Cell = 1 #regular cell node
+    GlobalCell = 2, #cell node connected with all other cells
+    LongRadiusCell = 3, #cell node with longer radius for cell connections
+    Wall = 4, #wall/toxic node

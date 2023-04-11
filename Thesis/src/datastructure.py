@@ -66,9 +66,9 @@ class DataStructure(object):
             e_idx = s_idx + graph.subsize[batch_idx].detach().cpu().numpy()
             nodes = graph.x[s_idx:e_idx, :2]
             if len(nodes) == 0: continue
-            cell_indices = torch.nonzero(cell_mask(graph)[s_idx:e_idx]).flatten()
+            cell_indices = torch.nonzero(cell_mask(graph.x[s_idx:e_idx])).flatten()
             cells = nodes[cell_indices]
-            food_indices = torch.nonzero(food_mask(graph)[s_idx:e_idx]).flatten() #it's on purpose these are not added with s_idx - we want only relative indices
+            food_indices = torch.nonzero(food_mask(graph.x[s_idx:e_idx])).flatten() #it's on purpose these are not added with s_idx - we want only relative indices
             food = nodes[food_indices]
 
             if len(cells) != 0:
@@ -122,7 +122,7 @@ class DataStructure(object):
             e_idx = s_idx + graph.subsize[batch_idx].detach().cpu().numpy()
 
             nodes = graph.x[s_idx:e_idx]
-            cell_idx = torch.nonzero(nodes[:, 4] == 1).flatten()
+            cell_idx = torch.nonzero(cell_mask(nodes)).flatten()
             cells = nodes[cell_idx, :2]
             global_node_idx = torch.nonzero(nodes[:, 4] == 2).squeeze()
             global_node = nodes[global_node_idx, :2].squeeze()

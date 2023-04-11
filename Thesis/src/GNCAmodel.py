@@ -41,8 +41,8 @@ class GNCA(nn.Module):
 
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
-        c_mask = cell_mask(graph)
-        moveable_mask = torch.bitwise_or(c_mask, graph.x[:,4] == 2)
+        c_mask = cell_mask(graph.x)
+        moveable_mask = torch.bitwise_or(c_mask, graph.x[:,4] == NodeType.GlobalCell)
         
         h = self.message_pass(graph) * moveable_mask.view(-1,1)
         acceleration = h[:, :2] * self.acceleration_scale
@@ -107,7 +107,7 @@ class GNCA(nn.Module):
         s_idx = 0
         for i in range(self.settings.batch_size):
             e_idx = s_idx + graph.subsize[i]
-            food_nodes_in_batch = torch.nonzero(food_mask(graph)[s_idx:e_idx]) + s_idx
+            food_nodes_in_batch = torch.nonzero(food_mask(graph.x[s_idx:e_idx])) + s_idx
             food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
             edge_attr = graph.edge_attr[food_edges_in_batch]
             nodes = graph.x[graph.edge_index[1, food_edges_in_batch]]
@@ -116,7 +116,7 @@ class GNCA(nn.Module):
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
             if x5.isnan(): x5 = -0.00001
             graph.food_search_movement += x5
-            if len(food_nodes_in_batch) == 0 and (cell_mask(graph)[s_idx:e_idx]).sum() != 0: #no more food but still cells in batch
+            if len(food_nodes_in_batch) == 0 and (cell_mask(graph.x[s_idx:e_idx])).sum() != 0: #no more food but still cells in batch
                 graph.food_reward[i] += 1
             s_idx = e_idx
 
@@ -148,7 +148,7 @@ class GNCA(nn.Module):
         '''update the graph n times for n time steps'''
         graph = graph.to(device=self.device)
         for _ in range(time_steps):
-            if not cell_mask(graph).any():
+            if not cell_mask(graph.x).any():
                 break
             graph = self.update(graph)
         return graph

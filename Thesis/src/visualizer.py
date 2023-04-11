@@ -57,8 +57,8 @@ class Visualizer():
         s_idx = 0
         for i in range(self.batch_size):
             e_idx = graph.subsize[i] + s_idx
-            cellIndices = torch.nonzero(cell_mask(graph)[s_idx:e_idx]).flatten() + s_idx
-            foodIndices = torch.nonzero(food_mask(graph)[s_idx:e_idx]).flatten() + s_idx
+            cellIndices = torch.nonzero(cell_mask(graph.x[s_idx:e_idx])).flatten() + s_idx
+            foodIndices = torch.nonzero(food_mask(graph.x[s_idx:e_idx])).flatten() + s_idx
 
             self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
             self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])

@@ -19,7 +19,7 @@ class Custom_NEProblem(NEProblem):
     def _evaluate_network(self, network: torch.nn.Module):
         steps, graphs = ray.get(self.global_var.get_global_var.remote())
         batch = next(iter(graphs))
-        alive_start = (batch.x[:, 4] == 1).sum()
+        alive_start = cell_mask(batch.x).sum()
 
         with torch.no_grad():
             graph = network(batch, steps)
@@ -29,7 +29,7 @@ class Custom_NEProblem(NEProblem):
         food_reward = graph.food_reward.mean()
         fitness1 = food_reward
 
-        cells = graph.x[cell_mask(graph)]
+        cells = graph.x[cell_mask(graph.x)]
         fitness2 = cells[:, 5].sum() / alive_start * 10
 
         fitness = fitness3 + fitness1 + fitness2

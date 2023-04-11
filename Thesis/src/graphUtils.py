@@ -3,6 +3,7 @@ from generator import *
 import random
 import torch_geometric
 from torch_geometric import utils
+from enums import *
 
 def add_food(graph, food):
     '''Add food source as node to graph'''
@@ -36,7 +37,7 @@ def add_global_node(graph, device):
     '''Adds a global node to the graph. 
     Call this before creating batches to ensure a global node exists in all batches'''
     hidden = [0,0,0,0,0]
-    global_node = torch.tensor([[0, 0, 0, 0, 2, 0, *hidden]], dtype=torch.float, device=device)
+    global_node = torch.tensor([[0, 0, 0, 0, NodeType.GlobalCell, 0, *hidden]], dtype=torch.float, device=device)
     graph.x = torch.cat((graph.x, global_node))
 
 def update_velocity(graph, acceleration, max_velocity, c_mask):
@@ -54,17 +55,18 @@ def update_positions(graph, velocity, wrap_around, c_mask, scale):
         positions = graph.x[c_mask, :2] + velocity[c_mask]
     return positions
 
-def food_mask(graph):
+def food_mask(nodes):
     '''Used to mask away all cell nodes to only keep food'''
-    return graph.x[:, 4] == 0
+    return nodes[:, 4] == NodeType.Food
 
-def cell_mask(graph):
+def cell_mask(nodes):
     '''Used to mask away all food nodes to only keep cell nodes'''
-    return torch.bitwise_or(graph.x[:, 4] == 1, graph.x[:, 4] == 3)
+    #return torch.bitwise_or(nodes[:, 4] == NodeType.Cell, nodes[:, 4] == NodeType.LongRadiusCell)
+    return torch.bitwise_or(nodes[:, 4] == NodeType.Cell, nodes[:, 4] == NodeType.LongRadiusCell)
 
 def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     '''Consumes food if criteria is met and returns reward'''
-    f_mask = food_mask(graph)
+    f_mask = food_mask(graph.x)
     edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < consume_radius).flatten()
     edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
     edge_mask = edges_pr_node >= consumption_edge_required
@@ -73,7 +75,7 @@ def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
 
 def get_island_cells_mask(graph, edges_to_stay_alive):
     '''Return mask of cells with less than required amount of edges'''
-    c_mask = cell_mask(graph)
+    c_mask = cell_mask(graph.x)
     cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
     too_few_edges_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
     mask = torch.bitwise_and(c_mask, too_few_edges_mask)
@@ -81,7 +83,7 @@ def get_island_cells_mask(graph, edges_to_stay_alive):
 
 def get_dead_cells_mask(graph, energy_required):
     '''Returns mask of cells with less than required energy level'''
-    c_mask = cell_mask(graph)
+    c_mask = cell_mask(graph.x)
     e_mask = graph.x[:, 5] < energy_required
     mask = torch.bitwise_and(c_mask, e_mask)
     return mask
