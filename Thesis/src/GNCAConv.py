@@ -26,11 +26,9 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
-        #TODO add new conv types to support walls
-
         self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
-        #self.conv_layer_cells = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add') #TODO needed when loading old models due to past bug 
+        #self.conv_layer_cells = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add') #needed when loading old models due to past bug 
         self.conv_layer_wall = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
@@ -90,6 +88,8 @@ class Conv(GNCA):
         #simply persist should result in staying still and not moving...
         #x[:, :2] += x_origin[:, :2] #only the velX and velY should be kept
         #hidden values shouldn't be added or subtracted - but instead completely override?
+        x += torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
+        x = torch.clamp(x, -1, 1)
         return x
 
     def forward(self, *args):
