@@ -14,11 +14,13 @@ from GNCAConv import Conv
 from global_state import GlobalState
 from evo_problem import Custom_NEProblem
 from enums import *
+from evo_logger import Custom_Logger
 
 class Evo_Trainer():
-    def __init__(self, settings):
+    def __init__(self, settings, online_tracker):
         cpu = torch.device('cpu')
         self.settings = settings
+        self.online_tracker = online_tracker
         self.global_var = GlobalState.remote(settings)
         ray.get(self.global_var.set_global_var.remote())
 
@@ -54,7 +56,7 @@ class Evo_Trainer():
             
         self.searcher.before_step_hook.append(self.before_epoch)
         self.logger = StdOutLogger(self.searcher)
-        self.logger = PandasLogger(self.searcher)
+        self.logger = Custom_Logger(self.searcher, self.online_tracker)
         self.logger_df = None
         self.trained_network = Conv(settings=settings)
 
