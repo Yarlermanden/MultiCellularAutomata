@@ -24,7 +24,7 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph = network(batch, steps)
 
-        fitness3 = graph.food_search_movement.mean() * 10
+        fitness3 = graph.food_search_movement.mean() * 50
 
         food_reward = graph.food_reward.mean()
         fitness1 = food_reward

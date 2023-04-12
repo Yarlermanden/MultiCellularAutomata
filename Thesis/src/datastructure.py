@@ -35,11 +35,9 @@ class FixedRadiusNearestNeighbors2(object):
 class DataStructure(object):
     def __init__(self, settings):
         self.settings = settings
-        self.radius = settings.radius
         self.device = settings.device
         self.wrap_around = settings.wrap_around
         self.batch_size = settings.batch_size
-        self.radius_food = settings.radius_food
         self.scale = settings.scale
 
     def update_dist1(self, dist):
@@ -70,31 +68,43 @@ class DataStructure(object):
             cells = nodes[cell_indices]
             food_indices = torch.nonzero(food_mask(graph.x[s_idx:e_idx])).flatten() #it's on purpose these are not added with s_idx - we want only relative indices
             food = nodes[food_indices]
+            wall_indices = torch.nonzero(wall_mask(graph.x[s_idx:e_idx])).flatten()
+            walls = nodes[wall_indices]
 
             if len(cells) != 0:
                 cell_indices += s_idx
                 food_indices += s_idx
+                wall_indices += s_idx
                 cell_indices = cell_indices.detach().cpu().numpy()
                 food_indices = food_indices.detach().cpu().numpy()
+                wall_indices = wall_indices.detach().cpu().numpy()
 
-                frnn_food = FixedRadiusNearestNeighbors2(food, self.radius_food, self.batch_size, self.scale, False)
-                indices_food, dists_food = frnn_food.get_neighbors(cells, self.radius_food)
+                frnn_food = FixedRadiusNearestNeighbors2(food, self.settings.radius_food, self.batch_size, self.scale, False)
+                indices_food, dists_food = frnn_food.get_neighbors(cells, self.settings.radius_food)
                 indices_food = [food_indices[x] for x in indices_food]
                 edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), 0]
                             for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
 
                 radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius)
-                frnn_cell = FixedRadiusNearestNeighbors2(cells, self.radius, self.batch_size, self.scale, True)
+                frnn_cell = FixedRadiusNearestNeighbors2(cells, self.settings.radius, self.batch_size, self.scale, True)
                 indices_cells, dists_cells = frnn_cell.get_neighbors(cells, radius_cell.detach().cpu().numpy())                       
                 indices_cells = [cell_indices[x] for x in indices_cells]
                 edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), 1]
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
                        if i!=j]
+                
+                frnn_wall = FixedRadiusNearestNeighbors2(walls, self.settings.radius_wall, self.batch_size, self.scale, False)
+                indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
+                indices_walls = [wall_indices[x] for x in indices_walls]
+                edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), 4]
+                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_walls[ii])]
 
                 if len(edges_food) > 0:
                     edges.extend(edges_food)
                 if len(edges_cells) > 0:
                     edges.extend(edges_cells)
+                if len(edges_walls) > 0:
+                    edges.extend(edges_walls)
             s_idx = e_idx
          
         if len(edges) == 0:

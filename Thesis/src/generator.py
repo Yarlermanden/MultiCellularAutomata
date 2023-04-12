@@ -4,6 +4,7 @@ import random
 import numpy as np
 import torch
 import math
+from enums import *
 
 def get_random_point_within(d):
     return random.uniform(-d, d), random.uniform(-d,d)
@@ -28,7 +29,7 @@ def generate_food(device, scale, d=0.2):
     x,y = get_random_point_normal(0, d*scale)
     val = random.randint(1,3)
     hidden = [0,0,0,0,0]
-    food = torch.tensor([[x,y, val, 0, 0, 0, *hidden]], device=device)
+    food = torch.tensor([[x,y, val, 0, NodeType.Food, 0, *hidden]], device=device)
     return food
 
 def generate_cluster(device, cluster_size, std_dev, scale):
@@ -72,13 +73,12 @@ def generate_circular_food(device, scale, std_dev, circles, radius):
     food[:, :2] = torch.tensor([x, y], device=device)
     return food
 
-def generate_spiral_food(device, scale, std_dev, spirals, rotation=0):
+def generate_spiral_food(device, scale, std_dev, spirals, rotation=0, a=0):
     '''Generates food in a spiral pattern'''
     #TODO add random noise, which should be bigger the further out we are...
-    a = 0
     b = 1 / (2 * np.pi)
     theta1 = math.sqrt(random.uniform(0, math.pow(spirals * 2 * np.pi, 2))) #combination of sqrt and pow increases odds of rolling high numbers
-    r = a + b * theta1 * scale/spirals
+    r = (a*scale) + b * theta1 * scale/spirals
     x = r * np.cos(theta1+rotation)
     y = r * np.sin(theta1+rotation)
 

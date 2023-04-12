@@ -5,7 +5,7 @@ import torch
 import math
 
 from datastructure import DataStructure
-from graphUtils import add_random_food, cell_mask, food_mask
+from graphUtils import add_random_food, cell_mask, food_mask, wall_mask
 
 class Visualizer():
     def __init__(self, settings):
@@ -17,6 +17,7 @@ class Visualizer():
         self.graph = None
         self.scatter_cell = None
         self.scatter_food = None
+        self.scatter_wall = None
         self.edge_plot = None
         self.axes = None
         self.borders = self.scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
@@ -51,6 +52,12 @@ class Visualizer():
                 marker=".",
                 edgecolor="r",
             ) for ax in self.axes]
+            self.scatter_wall = [ax.scatter(
+                [],
+                [],
+                marker=".",
+                edgecolor="g",
+            ) for ax in self.axes]
             self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1/self.scale) for ax in self.axes]
             plt.show()
 
@@ -59,10 +66,13 @@ class Visualizer():
             e_idx = graph.subsize[i] + s_idx
             cellIndices = torch.nonzero(cell_mask(graph.x[s_idx:e_idx])).flatten() + s_idx
             foodIndices = torch.nonzero(food_mask(graph.x[s_idx:e_idx])).flatten() + s_idx
+            wallIndices = torch.nonzero(wall_mask(graph.x[s_idx:e_idx])).flatten() + s_idx
 
             self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
+            #TODO set size of cells depending on energy level
             self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])
             self.scatter_food[i].set_sizes(graph.x[foodIndices, 2]*5/self.scale)
+            self.scatter_wall[i].set_offsets(graph.x[wallIndices, :2])
             if any_edges:
                 [plot.remove() for plot in self.edge_plot[i]]
 

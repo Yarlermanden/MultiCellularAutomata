@@ -36,7 +36,9 @@ class Organism():
         hidden = [0, 0, 0, 0, 0]
         x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1, 10, *hidden] for cell in self.cells], device=self.device)
         if self.settings.model_type == ModelType.SmallWorld:
-            x[:self.settings.n2, 4] = 3
+            x[:self.settings.n2, 4] = NodeType.LongRadiusCell
+        elif self.settings.model_type == ModelType.WithGlobalNode: add_global_node(graph, self.device)
+
         edges = torch.tensor([[]], device=self.device)
         graph = Data(x=x, edge_index=edges, device=self.device, subsize=len(x))
         match self.settings.food_env.env_type:
@@ -46,12 +48,9 @@ class Organism():
             case EnvironmentType.Circular:
                 add_circular_food(graph, self.device, self.settings.food_env.food_amount, self.settings.scale, self.settings.food_env.circles)
             case EnvironmentType.Spiral:
-                add_spiral_food(graph, self.device, self.settings.food_env.food_amount, self.settings.scale, self.settings.food_env.spirals)
+                add_spiral_food(graph, self.settings)
             case _: #default
                 add_random_food(graph, self.device, self.settings.food_env.food_amount, self.settings.scale)
-
-        #could consider implementing the entire global node as a virtual node
-        if self.settings.model_type == ModelType.WithGlobalNode: add_global_node(graph, self.device)
 
         set_default_metrics(graph)
         return graph

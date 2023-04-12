@@ -18,19 +18,23 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
+        self.hidden_after_size = self.hidden_size*3
+        if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size = self.hidden_size*4
+
         self.mlp_after = nn.Sequential(
-            nn.Linear(self.hidden_size, self.output_channels),
+            nn.Linear(self.hidden_after_size, self.output_channels),
             nn.Tanh(),
         )
+
+        #TODO add new conv types to support walls
 
         self.conv_layer_food = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
         #self.conv_layer_cells = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='add') #TODO needed when loading old models due to past bug 
+        self.conv_layer_wall = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
-            self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*3, out_channels=self.hidden_size*3, K=1).to(self.device)
-        else:
-            self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_size*2, out_channels=self.hidden_size*2, K=1).to(self.device)
+        self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_after_size, out_channels=self.hidden_after_size, K=1).to(self.device)
 
         self.H = None
         for param in self.parameters():
@@ -52,6 +56,8 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode:
             global_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()]
             global_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()][:, :3]
+        wall_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 4).flatten()]
+        wall_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 4).flatten()][:, :3]
 
         energy_norm = graph.x[:, 5:6] * 0.01
         x_origin = torch.concat((graph.x[:, 2:4] * self.velNorm, energy_norm, graph.x[:, 6:]), dim=1)  #vel, energy, hidden
@@ -62,18 +68,21 @@ class Conv(GNCA):
         x = x_origin
         x_food = self.conv_layer_food(x=x, edge_index=food_edges, edge_attr=food_attr)
         x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)
+        x_wall = self.conv_layer_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)
+        #having no edges in a specific type now results in these being 0 all across the board
         #x = x_food + x_cell #could consider catting this instead?
         if self.model_type == ModelType.WithGlobalNode:
             x_global = self.conv_layer_global(x=x, edge_index=global_edges, edge_attr=global_attr)
-            x = torch.concat((x_food, x_cell, x_global), dim=1)
-        else: x = torch.concat((x_food, x_cell), dim=1)
+            x = torch.concat((x_food, x_cell, x_wall, x_global), dim=1)
+        else: x = torch.concat((x_food, x_cell, x_wall), dim=1)
         x = torch.tanh(x)
 
         #x = self.gru(graph, x)
 
-        if self.model_type == ModelType.WithGlobalNode:
-            x = x[:, :self.hidden_size] + x[:, self.hidden_size:self.hidden_size*2] + x[:, self.hidden_size*2:]
-        else: x = x[:, :self.hidden_size] + x[:, self.hidden_size:]
+        #maybe replace this and simply make mlp_after that much bigger to better learn and understand everything instead of simply adding together.....
+        #if self.model_type == ModelType.WithGlobalNode:
+        #    x = x[:, :self.hidden_size] + x[:, self.hidden_size:self.hidden_size*2] + x[:, self.hidden_size*2:self.hidden_size*3] + x[:, self.hidden_size*3:]
+        #else: x = x[:, :self.hidden_size] + x[:, self.hidden_size:self.hidden_size*2] + x[:, self.hidden_size*2:]
 
         x = self.mlp_after(x)
 
@@ -89,6 +98,7 @@ class Conv(GNCA):
         self.mlp_before = self.mlp_before.to(self.device)
         self.conv_layer_cell = self.conv_layer_cell.to(self.device)
         self.conv_layer_food = self.conv_layer_food.to(self.device)
+        self.conv_layer_wall = self.conv_layer_wall.to(self.device)
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = self.conv_layer_global.to(self.device)
         return super().forward(*args)

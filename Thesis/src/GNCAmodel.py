@@ -52,7 +52,6 @@ class GNCA(nn.Module):
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
         graph.x[moveable_mask, :2] = positions
         graph.x[c_mask, 5] -= 1 #Energy cost
-        #TODO decrease energy of cells for each time step
             #could consider decreasing energy more slowly when not moving and depending on size of subgraph...    
             #cost x amount of energy for being an individual organism - decrease depending on subgraph
         self.add_noise(graph, c_mask)
@@ -81,7 +80,7 @@ class GNCA(nn.Module):
             #could it possibly be faster to make the entire subgraphs as they are supported to 
             # and then from there create sets of each subgraph
             # then we check which subgraph a node belongs to and easily index on entire subgraph
-        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=10)
+        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=15)
 
         start_index = 0
         for i in range(self.settings.batch_size):
@@ -130,6 +129,7 @@ class GNCA(nn.Module):
             return graph
         time2 = time.perf_counter()
         self.update_graph(graph)
+        wall_damage(graph, self.settings.radius_wall_damage, self.settings.wall_damage)
         time3 = time.perf_counter()
         self.compute_fitness_metrics(graph)
         time4 = time.perf_counter()
