@@ -16,12 +16,14 @@ class GlobalState():
         self.device = settings.device
         self.batch_size = settings.batch_size
         
+        self.steps = settings.train_config.timesteps
         self.i = 0
-        self.steps = 40
-        self.pool_size = 1024
-        pool_graphs = [generate_organism(settings).toGraph().x.detach().cpu().numpy()
-                        for _ in range(self.pool_size)]
-        self.sample_pool = SamplePool(x=pool_graphs)
+
+        if settings.train_config.with_samplepool:
+            self.pool_size = 1024
+            pool_graphs = [generate_organism(settings).toGraph().x.detach().cpu().numpy()
+                            for _ in range(self.pool_size)]
+            self.sample_pool = SamplePool(x=pool_graphs)
         self.set_global_var()
 
         self.cell_threshold = settings.n // 5 #if below threshold - generate new env instead of committing
@@ -35,8 +37,11 @@ class GlobalState():
             print(self.steps)
         self.time_steps = np.random.randint(self.steps, self.steps+20)
 
-        self.batch = self.sample_pool.sample(self.batch_size)
-        self.graphs = [toGraph(torch.tensor(x, device=self.device), self.device) for x in self.batch.x.values()]
+        if self.settings.train_config.with_samplepool:
+            self.batch = self.sample_pool.sample(self.batch_size)
+            self.graphs = [toGraph(torch.tensor(x, device=self.device), self.device) for x in self.batch.x.values()]
+        else: 
+            self.graphs = [generate_organism(self.settings).toGraph() for _ in range(self.batch_size)]
         self.graphs = DataLoader(self.graphs, batch_size=self.settings.batch_size)
         self.in_population = 0
 
@@ -56,8 +61,9 @@ class GlobalState():
                 #called when we need to generate a new environment
                 nodes[i] = generate_organism(self.settings).toGraph().x.detach().cpu().numpy()
 
-        self.batch.x = nodes
-        self.batch.commit()
+        if self.settings.train_config.with_samplepool:
+            self.batch.x = nodes
+            self.batch.commit()
 
     def get_global_var(self):
         return self.time_steps, self.graphs

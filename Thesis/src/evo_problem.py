@@ -24,15 +24,15 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph = network(batch, steps)
 
-        fitness3 = graph.food_search_movement.mean() * 50
-
         food_reward = graph.food_reward.mean()
         fitness1 = food_reward
 
         cells = graph.x[cell_mask(graph.x)]
         fitness2 = cells[:, 5].sum() / alive_start * 10
 
-        fitness = fitness3 + fitness1 + fitness2
+        fitness3 = 0 #graph.food_search_movement.mean() * 20
+
+        fitness = fitness1 + fitness2 + fitness3 
 
         if torch.any(torch.isnan(food_reward)):
             print('fitness is nan')

@@ -1,11 +1,13 @@
 from enums import *
 
 class Train_Config(object):
-    def __init__(self, stdev, popsize, name, problem_searcher):
+    def __init__(self, stdev, popsize, name, problem_searcher, with_samplepool, timesteps):
         self.stdev = stdev
         self.popsize = popsize
         self.name = name
         self.problem_searcher = problem_searcher
+        self.with_samplepool = with_samplepool
+        self.timesteps = timesteps
 
 class Settings(object):
     def __init__(self, device, batch_size, n, food_env, scale, wrap_around, 
