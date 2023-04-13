@@ -23,6 +23,7 @@ def add_circular_food(graph, device, n=1, scale=1, circles=1):
 
 def add_spiral_food(graph, settings):
     rotation = random.uniform(0, 2*np.pi)
+    rotation = 0
     for _ in range(settings.food_env.food_amount):
         food = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=settings.food_env.spirals, rotation=rotation)
         add_food(graph, food)
