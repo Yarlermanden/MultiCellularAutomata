@@ -61,7 +61,6 @@ class GNCA(nn.Module):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
         consumed_mask = get_consume_food_mask(graph, self.settings.consume_radius, self.settings.consumption_edge_required)
 
-        #dead_cells_mask = get_island_cells_mask(graph, self.edges_to_stay_alive)
         dead_cells_mask = get_dead_cells_mask(graph, 0)
 
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
@@ -80,7 +79,7 @@ class GNCA(nn.Module):
             #could it possibly be faster to make the entire subgraphs as they are supported to 
             # and then from there create sets of each subgraph
             # then we check which subgraph a node belongs to and easily index on entire subgraph
-        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=15)
+        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=5)
 
         start_index = 0
         for i in range(self.settings.batch_size):
@@ -121,26 +120,16 @@ class GNCA(nn.Module):
 
     def update(self, graph):
         '''Update the graph a single time step'''
-        time1 = time.perf_counter()
         any_edges = False
         if self.model_type == ModelType.WithGlobalNode: any_edges = self.datastructure.add_edges_with_global_node(graph)
         else: any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
             return graph
-        time2 = time.perf_counter()
         self.update_graph(graph)
         wall_damage(graph, self.settings.radius_wall_damage, self.settings.wall_damage)
-        time3 = time.perf_counter()
         self.compute_fitness_metrics(graph)
-        time4 = time.perf_counter()
         self.remove_nodes(graph)
-        time5 = time.perf_counter()
         #TODO add a new cell node pr x graph energy
-
-        #print('dynamic edges: ', time2-time1)
-        #print('update graph: ', time3-time2)
-        #print('metrics: ', time4-time3)
-        #print('remove nodes: ', time5-time4)
         graph = graph.to(device=self.device)
         return graph
 

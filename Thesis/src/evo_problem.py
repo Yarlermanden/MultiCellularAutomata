@@ -30,7 +30,7 @@ class Custom_NEProblem(NEProblem):
         cells = graph.x[cell_mask(graph.x)]
         fitness2 = cells[:, 5].sum() / alive_start * 10
 
-        fitness3 = 0 #graph.food_search_movement.mean() * 20
+        fitness3 = graph.food_search_movement.mean() * 50
 
         fitness = fitness1 + fitness2 + fitness3 
 

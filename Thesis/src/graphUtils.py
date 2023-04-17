@@ -9,7 +9,6 @@ def add_food(graph, food):
     '''Add food source as node to graph'''
     graph.x = torch.cat((graph.x, food))
 
-#TODO refactor the below three methods to a single taking environment and switching on how to generate...
 def add_random_food(graph, device, n=1, scale=1):
     '''Add n random food sources as nodes to the graph'''
     for _ in range(n):
