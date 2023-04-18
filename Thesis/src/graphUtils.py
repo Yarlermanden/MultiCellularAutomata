@@ -1,33 +1,46 @@
 import torch
-from generator import generate_food, generate_cluster
+from generator import *
 import random
 import torch_geometric
 from torch_geometric import utils
+from enums import *
 
 def add_food(graph, food):
     '''Add food source as node to graph'''
     graph.x = torch.cat((graph.x, food))
 
-def add_random_food(graph, device, n=1):
+def add_random_food(graph, device, n=1, scale=1):
     '''Add n random food sources as nodes to the graph'''
     for _ in range(n):
-        food = generate_food(device)
+        food = generate_food(device, scale)
         add_food(graph, food)
 
-def add_cluster_food(graph, cluster):
-    '''adds a cluster of food to the graph'''
-    graph.x = torch.cat((graph.x, cluster))
+def add_circular_food(graph, device, n=1, scale=1, circles=1):
+    for _ in range(n):
+        food = generate_circular_food(device, scale, std_dev=0, circles=circles, radius=scale//2) #TODO implement with std... to randomize around circle
+        add_food(graph, food)
 
-def add_clusters_of_food(graph, device, n=1, cluster_size=20, std_dev=0.1):
+def add_spiral_food(graph, settings):
+    rotation = random.uniform(0, 2*np.pi)
+    for _ in range(settings.food_env.food_amount):
+        food = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=settings.food_env.spirals, rotation=rotation)
+        add_food(graph, food)
+    for _ in range(settings.food_env.wall_amount):
+        wall = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=settings.food_env.spirals, rotation=rotation, a=0.5)
+        wall[0, 4] = NodeType.Wall
+        add_food(graph, wall)
+
+def add_clusters_of_food(graph, device, n=1, cluster_size=20, std_dev=0.1, scale=1):
     '''Generates and adds n clusters of food to the graph'''
     for _ in range(n):
-        cluster = generate_cluster(device, cluster_size, std_dev)
-        add_cluster_food(graph, cluster)
+        cluster = generate_cluster(device, cluster_size, std_dev, scale)
+        add_food(graph, cluster)
 
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 
     Call this before creating batches to ensure a global node exists in all batches'''
-    global_node = torch.tensor([[0, 0, 0, 0, 2]], dtype=torch.float, device=device)
+    hidden = [0,0,0,0,0]
+    global_node = torch.tensor([[0, 0, 0, 0, NodeType.GlobalCell, 0, *hidden]], dtype=torch.float, device=device)
     graph.x = torch.cat((graph.x, global_node))
 
 def update_velocity(graph, acceleration, max_velocity, c_mask):
@@ -37,36 +50,58 @@ def update_velocity(graph, acceleration, max_velocity, c_mask):
     velocity[c_mask] = torch.clamp(velocity[c_mask], -max_velocity, max_velocity)
     return velocity
 
-def update_positions(graph, velocity, wrap_around, c_mask):
+def update_positions(graph, velocity, wrap_around, c_mask, scale):
     '''Updates the position of the nodes given the velocity and previous positions'''
-    positions = torch.remainder(graph.x[c_mask, :2] + velocity[c_mask] + 1.0, 2.0) - 1.0
+    if wrap_around:
+        positions = torch.remainder(graph.x[c_mask, :2] + velocity[c_mask] + scale, 2*scale) - scale
+    else:
+        positions = graph.x[c_mask, :2] + velocity[c_mask]
     return positions
 
-def food_mask(graph):
-    '''Used to mask away all cell nodes to only keep food'''
-    mask = graph.x[:, 4] == 0
-    return mask
+def food_mask(nodes):
+    '''Used to mask away everything but the food nodes'''
+    return nodes[:, 4] == NodeType.Food
 
-def cell_mask(graph):
-    '''Used to mask away all food nodes to only keep cell nodes'''
-    mask = graph.x[:, 4] == 1
-    return mask
+def cell_mask(nodes):
+    '''Used to mask away everything bu the cell nodes'''
+    return torch.bitwise_or(nodes[:, 4] == NodeType.Cell, nodes[:, 4] == NodeType.LongRadiusCell)
+
+def wall_mask(nodes):
+    '''Used to mask away everything but the wall nodes'''
+    return nodes[:, 4] == NodeType.Wall
 
 def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     '''Consumes food if criteria is met and returns reward'''
-    f_mask = food_mask(graph)
-    edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < consume_radius).flatten()
+    f_mask = food_mask(graph.x)
+    edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < consume_radius).flatten() #TODO should be able to optimize this the same way as with walls - to don't bin count all other type of edges
     edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
     edge_mask = edges_pr_node >= consumption_edge_required
     consumption_mask = torch.bitwise_and(f_mask, edge_mask)
     return consumption_mask
 
+def wall_damage(graph, damage_radius, damage):
+    '''Finds cells within damage radius of a wall and reduces their energy accordingly'''
+    w_edges = graph.edge_attr[:, 3] == 4
+    edge_below_distance = graph.edge_attr[w_edges, 0] < damage_radius
+    if len(edge_below_distance) > 0:
+        #cell_indices = graph.edge_index[1, edge_below_distance]
+        cell_indices = graph.edge_index[1, w_edges][edge_below_distance]
+        cell_indices = torch.unique(cell_indices, dim=0)
+        graph.x[cell_indices, 5] -= damage
+
 def get_island_cells_mask(graph, edges_to_stay_alive):
-    '''Remove cells without any edges'''
-    c_mask = cell_mask(graph)
+    '''Return mask of cells with less than required amount of edges'''
+    c_mask = cell_mask(graph.x)
     cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
     too_few_edges_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
     mask = torch.bitwise_and(c_mask, too_few_edges_mask)
+    return mask
+
+def get_dead_cells_mask(graph, energy_required):
+    '''Returns mask of cells with less than required energy level'''
+    c_mask = cell_mask(graph.x)
+    e_mask = graph.x[:, 5] < energy_required
+    mask = torch.bitwise_and(c_mask, e_mask)
     return mask
 
 def compute_border_cost(graph):

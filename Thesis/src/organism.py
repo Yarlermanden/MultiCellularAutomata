@@ -2,10 +2,9 @@ from cell import Cell
 from typing import List
 import torch
 from torch_geometric.data import Data
-from enums import EnvironmentType
+from enums import *
 
 def set_default_metrics(graph):
-    graph.energy = 0.0
     graph.velocity = 0.0
     graph.border_cost = 0.0
     graph.food_reward = 0.0
@@ -23,26 +22,35 @@ def toGraph(nodes, device):
     set_default_metrics(graph)
     return graph
 
+#node type: 0=food, 1=cell, 2=globalNode, 3=longRange, 4=wall/toxic
+
 class Organism():
-    def __init__(self, cells: List[Cell], device, with_global_node: bool, food_amount: int, env_type: EnvironmentType):
+    def __init__(self, cells: List[Cell], settings):
         self.cells = cells
-        self.device = device
-        self.with_global_node = with_global_node
-        self.food_amount = food_amount
-        self.env_type = env_type
+        self.settings = settings
+        self.device = settings.device
 
     def toGraph(self):
-        from graphUtils import add_random_food, add_global_node, add_clusters_of_food
+        from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food
         '''transforms all cells in organism to nodes in a graph'''
-        x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1] for cell in self.cells], device=self.device)
+        hidden = [0, 0, 0, 0, 0]
+        x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1, 10, *hidden] for cell in self.cells], device=self.device)
+        if self.settings.model_type == ModelType.SmallWorld:
+            x[:self.settings.n2, 4] = NodeType.LongRadiusCell
+        elif self.settings.model_type == ModelType.WithGlobalNode: add_global_node(graph, self.device)
+
         edges = torch.tensor([[]], device=self.device)
         graph = Data(x=x, edge_index=edges, device=self.device, subsize=len(x))
-        if self.env_type == EnvironmentType.Clusters: 
-            add_clusters_of_food(graph, self.device, n=20, cluster_size=10, std_dev=0.05)
-        else: add_random_food(graph, self.device, self.food_amount)
-
-        #TODO could consider implementing the entire global node as a virtual node
-        if self.with_global_node: add_global_node(graph, self.device)
+        match self.settings.food_env.env_type:
+            case EnvironmentType.Clusters:
+                add_clusters_of_food(graph, self.device, n=self.settings.food_env.clusters, 
+                        cluster_size=self.settings.food_env.cluster_size, std_dev=0.04, scale=self.settings.scale)
+            case EnvironmentType.Circular:
+                add_circular_food(graph, self.device, self.settings.food_env.food_amount, self.settings.scale, self.settings.food_env.circles)
+            case EnvironmentType.Spiral:
+                add_spiral_food(graph, self.settings)
+            case _: #default
+                add_random_food(graph, self.device, self.settings.food_env.food_amount, self.settings.scale)
 
         set_default_metrics(graph)
         return graph

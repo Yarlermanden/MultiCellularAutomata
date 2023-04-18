@@ -14,25 +14,16 @@ class SamplePool:
             keys = range(self._size)
             dic = dict(zip(keys, v))
             setattr(self, k, dic)
-            #setattr(self, k, np.asarray(v))
 
     def sample(self, n):
         idx = np.random.choice(self._size, n, False)
-        #batch = {k: getattr(self, k)[idx] for k in self._slot_names}
-        #print('dic: ', [getattr(self, k) for k in self._slot_names])
         batch = {k: list(itemgetter(*idx)(getattr(self, k))) for k in self._slot_names} 
         batch = SamplePool(**batch, _parent=self, _parent_idx=idx)
         return batch
 
     def commit(self):
         for k in self._slot_names:
-            #print('attr: ', getattr(self,k))
-            #there must be some way of resizing the parent...
-            #getattr(self._parent, k)[self._size] = self._size
-
             parent_vals = getattr(self._parent, k)
             child_vals = getattr(self, k)
             for i in range(self._size):
-                #parent_vals[self._parent_idx[i]] = self._parent
                 parent_vals[self._parent_idx[i]] = child_vals[i]
-            #getattr(self._parent, k)[self._parent_idx] = child_vals[i]
