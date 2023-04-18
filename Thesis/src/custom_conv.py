@@ -24,8 +24,8 @@ class CustomConvSimple(MessagePassing):
         self.lin = Linear(sum(channels) + dim, channels[1], bias=bias)
         input = sum(channels) + dim
         self.mlp = nn.Sequential(
-            #Linear(input, input),
-            #nn.Tanh(),
+            Linear(input, input),
+            nn.Tanh(),
             Linear(input, channels[1])
         )
         if batch_norm:

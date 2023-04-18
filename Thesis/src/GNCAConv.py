@@ -24,6 +24,8 @@ class Conv(GNCA):
         self.mlp_after = nn.Sequential(
             nn.Linear(self.hidden_after_size, self.hidden_after_size),
             nn.Tanh(),
+            #nn.Linear(self.hidden_after_size, self.hidden_after_size),
+            #nn.Tanh(),
             nn.Linear(self.hidden_after_size, self.output_channels),
             nn.Tanh(),
         )
@@ -62,6 +64,7 @@ class Conv(GNCA):
         x_origin = torch.concat((graph.x[:, 2:4] * self.velNorm, energy_norm, graph.x[:, 6:]), dim=1)  #vel, energy, hidden
         food_attr *= self.attrNorm
         cell_attr *= self.attrNorm
+        wall_attr *= self.attrNorm
         
         #x = self.mlp_before(x_origin)
         x = x_origin

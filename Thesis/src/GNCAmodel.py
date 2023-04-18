@@ -79,7 +79,7 @@ class GNCA(nn.Module):
             #could it possibly be faster to make the entire subgraphs as they are supported to 
             # and then from there create sets of each subgraph
             # then we check which subgraph a node belongs to and easily index on entire subgraph
-        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=5)
+        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=10)
 
         start_index = 0
         for i in range(self.settings.batch_size):
