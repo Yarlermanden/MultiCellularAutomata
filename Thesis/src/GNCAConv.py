@@ -86,8 +86,9 @@ class Conv(GNCA):
         #simply persist should result in staying still and not moving...
         #x[:, :2] += x_origin[:, :2] #only the velX and velY should be kept
         #hidden values shouldn't be added or subtracted - but instead completely override?
-        x += torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
-        x = torch.clamp(x, -1, 1)
+
+        #x += torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
+        #x = torch.tanh(x) #enforces values between -1 and 1 - furthermore forces values a bit lower than otherwise, meaning if nothing is added, it will decrease with time - hopefully less exploding values
         return x
 
     def forward(self, *args):
