@@ -10,7 +10,7 @@ class Train_Config(object):
         self.timesteps = timesteps
 
 class Settings(object):
-    def __init__(self, device, batch_size, n, food_env, scale, wrap_around, 
+    def __init__(self, device, batch_size, n, food_envs, scale, wrap_around, 
                  model_type, radius, radius_food_scale, consume_radius_scale,
                  consumption_edge_required, noise, energy_required_to_replicate, 
                  train_config, radius_wall_scale, radius_wall_damage_scale,
@@ -23,7 +23,7 @@ class Settings(object):
         self.n2 = n2
         if self.n2 is None:
             self.n2 = self.n // 10
-        self.food_env = food_env #the environment used for food
+        self.food_envs = food_envs #the environment used for food
         self.cluster_std = 0 #TODO
 
         self.scale = scale #environment scale

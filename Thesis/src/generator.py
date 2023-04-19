@@ -26,6 +26,7 @@ def generate_organism(settings):
 
 def generate_food(device, scale, d=0.2):
     '''Generate a random food'''
+    #TODO consider making this not able in spawning food right in the center...
     x,y = get_random_point_normal(0, d*scale)
     val = random.randint(1,3)
     hidden = [0,0,0,0,0]

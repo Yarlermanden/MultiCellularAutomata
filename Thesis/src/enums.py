@@ -24,3 +24,10 @@ class NodeType(IntEnum):
     GlobalCell = 2, #cell node connected with all other cells
     LongRadiusCell = 3, #cell node with longer radius for cell connections
     Wall = 4, #wall/toxic node
+
+class EdgeType(IntEnum):
+    FoodToCell = 0,
+    CellToCell = 1,
+    GlobalAndCell = 2,
+    #CellToGlobal = 3, #TODO maybe combine with the other one
+    WallToCell = 4,

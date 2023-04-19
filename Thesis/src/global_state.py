@@ -27,7 +27,7 @@ class GlobalState():
         self.set_global_var()
 
         self.cell_threshold = settings.n // 5 #if below threshold - generate new env instead of committing
-        self.food_threshold = settings.food_env.food_amount // 10 # -||-
+        self.food_threshold = settings.food_envs[0].food_amount // 10 # -||-
         self.in_population = 0
 
     def set_global_var(self):

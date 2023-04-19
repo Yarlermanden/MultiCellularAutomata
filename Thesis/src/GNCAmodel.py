@@ -75,11 +75,11 @@ class GNCA(nn.Module):
             for x in food_in_nx:
                 des = nx.descendants(G, x.item())
                 if len(des) > 0:
-                    graph.x[list(des), 5] += 2 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
+                    graph.x[list(des), 5] += 1 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
             #could it possibly be faster to make the entire subgraphs as they are supported to 
             # and then from there create sets of each subgraph
             # then we check which subgraph a node belongs to and easily index on entire subgraph
-        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=10)
+        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=self.settings.energy_required_to_replicate)
 
         start_index = 0
         for i in range(self.settings.batch_size):
@@ -124,6 +124,8 @@ class GNCA(nn.Module):
         if self.model_type == ModelType.WithGlobalNode: any_edges = self.datastructure.add_edges_with_global_node(graph)
         else: any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
+            c_mask = cell_mask(graph.x)
+            graph.x[c_mask, 5] = 0 #Remove energy
             return graph
         self.update_graph(graph)
         wall_damage(graph, self.settings.radius_wall_damage, self.settings.wall_damage)

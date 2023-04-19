@@ -82,21 +82,21 @@ class DataStructure(object):
                 frnn_food = FixedRadiusNearestNeighbors2(food, self.settings.radius_food, self.batch_size, self.scale, False)
                 indices_food, dists_food = frnn_food.get_neighbors(cells, self.settings.radius_food)
                 indices_food = [food_indices[x] for x in indices_food]
-                edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), 0]
+                edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), EdgeType.FoodToCell]
                             for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
 
                 radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius)
                 frnn_cell = FixedRadiusNearestNeighbors2(cells, self.settings.radius, self.batch_size, self.scale, True)
                 indices_cells, dists_cells = frnn_cell.get_neighbors(cells, radius_cell.detach().cpu().numpy())                       
                 indices_cells = [cell_indices[x] for x in indices_cells]
-                edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), 1]
+                edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), EdgeType.CellToCell]
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
                        if i!=j]
                 
                 frnn_wall = FixedRadiusNearestNeighbors2(walls, self.settings.radius_wall, self.batch_size, self.scale, False)
                 indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
                 indices_walls = [wall_indices[x] for x in indices_walls]
-                edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), 4]
+                edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), EdgeType.WallToCell]
                         for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_walls[ii])]
 
                 if len(edges_food) > 0:
@@ -142,9 +142,9 @@ class DataStructure(object):
 
             #TODO should we add attributes depending on the nodes position as well? and in that case, should we update the node during model as well?
             tup = [([cell_idx[i], global_node_idx], 
-                    [0, global_node[0]-cells[i, 0], global_node[1]-cells[i,1], 2],
+                    [0, global_node[0]-cells[i, 0], global_node[1]-cells[i,1], EdgeType.GlobalAndCell],
                     [global_node_idx, cell_idx[i]], 
-                    [0, -global_node[0]+cells[i, 0], -global_node[1]+cells[i,1], 2])
+                    [0, -global_node[0]+cells[i, 0], -global_node[1]+cells[i,1], EdgeType.GlobalAndCell])
                    for i in range(len(cells))]
             l = [list(t) for t in zip(*tup)]
             if len(l) > 0:
