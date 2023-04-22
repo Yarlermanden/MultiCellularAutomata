@@ -51,7 +51,7 @@ class GNCA(nn.Module):
         positions = update_positions(graph, velocity, self.settings.wrap_around, moveable_mask, self.settings.scale)
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
         graph.x[moveable_mask, :2] = positions
-        graph.x[c_mask, 5] -= 1 #Energy cost
+        graph.x[c_mask, 5] -= 1 #Energy cost - TODO could change energy cost to be less for those with many edges
             #could consider decreasing energy more slowly when not moving and depending on size of subgraph...    
             #cost x amount of energy for being an individual organism - decrease depending on subgraph
         self.add_noise(graph, c_mask)

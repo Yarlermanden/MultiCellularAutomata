@@ -100,7 +100,10 @@ def wall_damage(graph, damage_radius, damage):
         #cell_indices = graph.edge_index[1, edge_below_distance]
         cell_indices = graph.edge_index[1, w_edges][edge_below_distance]
         cell_indices = torch.unique(cell_indices, dim=0)
-        graph.x[cell_indices, 5] -= damage
+
+        cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
+        cell_edge_count = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0])
+        graph.x[cell_indices, 5] -= damage / cell_edge_count[cell_indices]
 
 def get_island_cells_mask(graph, edges_to_stay_alive):
     '''Return mask of cells with less than required amount of edges'''

@@ -20,6 +20,7 @@ class Visualizer():
         self.scatter_wall = None
         self.edge_plot = None
         self.axes = None
+        self.texts = None
         #point size = ppi of 72
         #figure ppi defaults to 100
         #1 point == fig.dpi/72. pixels
@@ -64,6 +65,7 @@ class Visualizer():
                 edgecolor="g",
             ) for ax in self.axes]
             self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1/self.scale) for ax in self.axes]
+            self.texts = [self.axes[i].text(0.98, 0.98, '', horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
             plt.show()
 
         s_idx = 0
@@ -97,7 +99,8 @@ class Visualizer():
             self.scatter_wall[i].set_sizes([self.wall_size]*len(wallIndices))
             self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
             self.scatter_cell[i].set_sizes([self.cell_size]*len(cellIndices))
-            self.axes[i].text(0.98, 0.98, 'Food: ' + str(int(graph.food_reward[i].item())), horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes)
+            #self.axes[i].text(0.98, 0.98, 'Food: ' + str(int(graph.food_reward[i].item())), horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes)
+            self.texts[i].set_text('Food: ' + str(int(graph.food_reward[i].item())))
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
             s_idx = e_idx
