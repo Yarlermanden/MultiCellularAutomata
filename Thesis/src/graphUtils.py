@@ -25,7 +25,7 @@ def add_clusters_of_food(graph, settings, food_env):
         cluster = generate_cluster(settings.device, food_env.cluster_size, 0.04, settings.scale)
         add_food(graph, cluster)
     for _ in range(food_env.wall_amount):
-        wall = generate_food(settings.device, settings.scale)
+        wall = generate_food(settings.device, settings.scale, d=0.4)
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
 
@@ -34,8 +34,7 @@ def add_circular_food(graph, settings, food_env):
         food = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles) #TODO implement with std... to randomize around circle
         add_food(graph, food)
     for _ in range(food_env.wall_amount):
-        wall = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles)
-        #TODO maybe even just add randomly
+        wall = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles, a=0.5)
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
 
@@ -44,10 +43,8 @@ def add_spiral_food(graph, settings, food_env):
     for _ in range(food_env.food_amount):
         food = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=food_env.spirals, rotation=rotation)
         add_food(graph, food)
-    for _ in range(food_env.wall_amount):
-        wall = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=food_env.spirals, rotation=rotation, a=0.5)
-        wall[0, 4] = NodeType.Wall
-        add_food(graph, wall)
+    walls = generate_spiral_walls(settings.device, settings.scale, food_env.wall_amount, spirals=food_env.spirals, rotation=rotation)
+    graph.x = torch.cat((graph.x, walls))
 
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 

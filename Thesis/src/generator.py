@@ -24,7 +24,7 @@ def generate_organism(settings):
     organism = Organism(cells, settings)
     return organism
 
-def generate_food(device, scale, d=0.2):
+def generate_food(device, scale, d=0.3):
     '''Generate a random food'''
     #TODO consider making this not able in spawning food right in the center...
     x,y = get_random_point_normal(0, d*scale)
@@ -61,12 +61,12 @@ def sum(num):
         n += i
     return n
 
-def generate_circular_food(device, scale, std_dev, circles):
+def generate_circular_food(device, scale, std_dev, circles, a=0):
     '''Generates food in circular patterns given std_dev, number of circles and radius'''
     s = sum(circles+1)
     s1 = random.randint(1, s)
     s2 = reverse_sum(s1) / circles
-    r = scale * (math.sqrt(random.uniform(0.8, 1)) * s2)
+    r = (a*scale/circles) + scale * (math.sqrt(random.uniform(0.8, 1)) * s2)
     theta = random.uniform(0,1) * 2 * math.pi
     x = r * math.cos(theta)
     y = r * math.sin(theta)
@@ -74,15 +74,28 @@ def generate_circular_food(device, scale, std_dev, circles):
     food[:, :2] = torch.tensor([x, y], device=device)
     return food
 
-def generate_spiral_food(device, scale, std_dev, spirals, rotation=0, a=0):
+def generate_spiral_food(device, scale, std_dev, spirals, rotation=0):
     '''Generates food in a spiral pattern'''
     #TODO add random noise, which should be bigger the further out we are...
     b = 1 / (2 * np.pi)
     theta1 = math.sqrt(random.uniform(0, math.pow(spirals * 2 * np.pi, 2))) #combination of sqrt and pow increases odds of rolling high numbers
-    r = (a*scale) + b * theta1 * scale/spirals
+    r = b * theta1 * scale/spirals
     x = r * np.cos(theta1+rotation)
     y = r * np.sin(theta1+rotation)
 
     food = generate_food(device, scale)
     food[:, :2] = torch.tensor([x, y], device=device)
     return food
+
+def generate_spiral_walls(device, scale, wall_amount, spirals, rotation):
+    b = 1 / (2 * np.pi)
+    thetas = np.linspace(0, spirals * 2 * np.pi, wall_amount)
+    r = [(0.1*scale) + b * t * scale/spirals for t in thetas]
+    x = [r[i] * np.cos(thetas[i]+rotation+144) for i in range(wall_amount)]
+    y = [r[i] * np.sin(thetas[i]+rotation+144) for i in range(wall_amount)]
+
+    walls = [generate_food(device, scale) for _ in range(wall_amount)]
+    walls = torch.stack(walls).squeeze()
+    walls[:, :2] = torch.stack((torch.tensor(x, device=device), torch.tensor(y, device=device)), dim=1)
+    walls[:, 4] = NodeType.Wall
+    return walls
