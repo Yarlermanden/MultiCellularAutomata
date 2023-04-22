@@ -31,10 +31,10 @@ def add_clusters_of_food(graph, settings, food_env):
 
 def add_circular_food(graph, settings, food_env):
     for _ in range(food_env.food_amount):
-        food = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles, radius=settings.scale//2) #TODO implement with std... to randomize around circle
+        food = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles) #TODO implement with std... to randomize around circle
         add_food(graph, food)
     for _ in range(food_env.wall_amount):
-        wall = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles, radius=settings.scale//2)
+        wall = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles)
         #TODO maybe even just add randomly
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)

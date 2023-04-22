@@ -61,12 +61,12 @@ def sum(num):
         n += i
     return n
 
-def generate_circular_food(device, scale, std_dev, circles, radius):
+def generate_circular_food(device, scale, std_dev, circles):
     '''Generates food in circular patterns given std_dev, number of circles and radius'''
     s = sum(circles+1)
     s1 = random.randint(1, s)
     s2 = reverse_sum(s1) / circles
-    r = radius * math.sqrt(random.uniform(0.8, 1)) * s2 * 0.40 * scale
+    r = scale * (math.sqrt(random.uniform(0.8, 1)) * s2)
     theta = random.uniform(0,1) * 2 * math.pi
     x = r * math.cos(theta)
     y = r * math.sin(theta)

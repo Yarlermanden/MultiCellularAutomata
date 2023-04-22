@@ -20,6 +20,11 @@ class Visualizer():
         self.scatter_wall = None
         self.edge_plot = None
         self.axes = None
+        #point size = ppi of 72
+        #figure ppi defaults to 100
+        #1 point == fig.dpi/72. pixels
+        self.wall_size = (400*self.settings.radius_wall_damage)**2/(self.scale**2)
+        self.cell_size = 80/(self.scale**2)
         self.borders = self.scale * np.array([-1, -1, 1, 1])  # Hard borders of canvas
         self.device = torch.device('cpu')
         self.rows = 2
@@ -68,11 +73,6 @@ class Visualizer():
             foodIndices = torch.nonzero(food_mask(graph.x[s_idx:e_idx])).flatten() + s_idx
             wallIndices = torch.nonzero(wall_mask(graph.x[s_idx:e_idx])).flatten() + s_idx
 
-            self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
-            #TODO set size of cells depending on energy level
-            self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])
-            self.scatter_food[i].set_sizes(graph.x[foodIndices, 2]*5/self.scale)
-            self.scatter_wall[i].set_offsets(graph.x[wallIndices, :2])
             if any_edges:
                 [plot.remove() for plot in self.edge_plot[i]]
 
@@ -90,6 +90,14 @@ class Visualizer():
                 edges_y = [[]]
             #self.edge_plot[i] = self.axes[i//self.columns][i%self.columns].plot(edges_x, edges_y, linewidth=0.1)
             self.edge_plot[i] = self.axes[i].plot(edges_x, edges_y, linewidth=0.1/self.scale)
+            #TODO set size of cells depending on energy level
+            self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])
+            self.scatter_food[i].set_sizes(graph.x[foodIndices, 2]*10/(self.scale**2))
+            self.scatter_wall[i].set_offsets(graph.x[wallIndices, :2])
+            self.scatter_wall[i].set_sizes([self.wall_size]*len(wallIndices))
+            self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
+            self.scatter_cell[i].set_sizes([self.cell_size]*len(cellIndices))
+            self.axes[i].text(0.98, 0.98, 'Food: ' + str(int(graph.food_reward[i].item())), horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes)
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
             s_idx = e_idx
