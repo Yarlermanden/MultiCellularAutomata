@@ -3,6 +3,7 @@ from torch_geometric_temporal.nn.recurrent import gconv_gru
 from torch_geometric.nn import GCN
 import torch
 import torch.nn as nn
+from torch_geometric.nn.norm import pair_norm
 
 from custom_conv import *
 from enums import *
@@ -38,6 +39,7 @@ class Conv(GNCA):
         #self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_after_size, out_channels=self.hidden_after_size, K=1).to(self.device)
 
         self.H = None
+        self.pair_norm = pair_norm.PairNorm()
         for param in self.parameters():
             param.grad = None
 
@@ -81,12 +83,15 @@ class Conv(GNCA):
 
         #x = self.gru(graph, x)
         x = self.mlp_after(x)
-        x[:, 2:] = torch.tanh(x[:, 2:]/10 + x_origin[:, 3:]/(4/3))
+        #... and normalize hidden features H
+        #x[:, 2:] = torch.tanh(x[:, 2:]/10 + x_origin[:, 3:]/(4/3))
+        x[:, 2:] = torch.tanh(pair_norm(x[:, 2:] + x_origin[:, 3:]))
+
+
 
         #don't make residual connections as we don't want momentum to carry over or values to be able to go beyond/below 1/-1 
         #simply persist should result in staying still and not moving...
         #x[:, :2] += x_origin[:, :2] #only the velX and velY should be kept
-        #hidden values shouldn't be added or subtracted - but instead completely override?
 
         #x += torch.concat((x_origin[:, :2], x_origin[:, 3:]), dim=1)
         #x = torch.tanh(x) #enforces values between -1 and 1 - furthermore forces values a bit lower than otherwise, meaning if nothing is added, it will decrease with time - hopefully less exploding values
