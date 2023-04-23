@@ -4,7 +4,7 @@ from torch_geometric.nn import GCN
 import torch
 import torch.nn as nn
 
-from custom_conv import CustomConvSimple
+from custom_conv import *
 from enums import *
 
 class Conv(GNCA):
@@ -30,9 +30,9 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
-        self.conv_layer_food = CustomConvSimple(2, dim=self.edge_dim-1, aggr='mean')
         self.conv_layer_cell = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
-        self.conv_layer_wall = CustomConvSimple(2, dim=self.edge_dim-1, aggr='mean')
+        self.conv_layer_food = CustomConvEdgeOnly(2, dim=self.edge_dim-1, aggr='mean')
+        self.conv_layer_wall = CustomConvEdgeOnly(2, dim=self.edge_dim-1, aggr='mean')
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
         #self.gConvGRU = gconv_gru.GConvGRU(in_channels=self.hidden_after_size, out_channels=self.hidden_after_size, K=1).to(self.device)
@@ -81,6 +81,7 @@ class Conv(GNCA):
 
         #x = self.gru(graph, x)
         x = self.mlp_after(x)
+        x[:, 2:] = torch.tanh(x[:, 2:]/10 + x_origin[:, 3:]/(4/3))
 
         #don't make residual connections as we don't want momentum to carry over or values to be able to go beyond/below 1/-1 
         #simply persist should result in staying still and not moving...
