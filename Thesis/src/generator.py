@@ -66,10 +66,13 @@ def generate_circular_food(device, scale, std_dev, circles, a=0):
     s = sum(circles+1)
     s1 = random.randint(1, s)
     s2 = reverse_sum(s1) / circles
-    r = (a*scale/circles) + scale * (math.sqrt(random.uniform(0.8, 1)) * s2)
+    #r = (a*scale/circles) + scale * (math.sqrt(random.uniform(0.8, 1)) * s2)
+    r = (a*scale/circles) + scale * s2
     theta = random.uniform(0,1) * 2 * math.pi
-    x = r * math.cos(theta)
-    y = r * math.sin(theta)
+    noise1 = random.uniform(-0.05, 0.05)
+    noise2 = random.uniform(-0.05, 0.05)
+    x = r * math.cos(theta) + noise1
+    y = r * math.sin(theta) + noise2
     food = generate_food(device, scale)
     food[:, :2] = torch.tensor([x, y], device=device)
     return food
@@ -80,8 +83,10 @@ def generate_spiral_food(device, scale, std_dev, spirals, rotation=0):
     b = 1 / (2 * np.pi)
     theta1 = math.sqrt(random.uniform(0, math.pow(spirals * 2 * np.pi, 2))) #combination of sqrt and pow increases odds of rolling high numbers
     r = b * theta1 * scale/spirals
-    x = r * np.cos(theta1+rotation)
-    y = r * np.sin(theta1+rotation)
+    noise1 = random.uniform(-0.05, 0.05)
+    noise2 = random.uniform(-0.05, 0.05)
+    x = r * (np.cos(theta1+rotation) + noise1)
+    y = r * (np.sin(theta1+rotation) + noise2)
 
     food = generate_food(device, scale)
     food[:, :2] = torch.tensor([x, y], device=device)
