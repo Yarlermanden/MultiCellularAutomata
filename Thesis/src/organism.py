@@ -14,6 +14,7 @@ def set_default_metrics(graph):
     graph.food_avg_dist = 0.0
     graph.food_avg_degree = 0.0
     graph.food_search_movement = 0.0
+    graph.cells_alive = 0.0
     graph.subsize=len(graph.x)
 
 def toGraph(nodes, device):

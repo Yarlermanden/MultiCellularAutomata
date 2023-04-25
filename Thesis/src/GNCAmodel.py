@@ -115,6 +115,7 @@ class GNCA(nn.Module):
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
             if x5.isnan(): x5 = -0.00001
             graph.food_search_movement += x5
+            graph.cells_alive += cell_mask(graph.x[s_idx:e_idx]).sum()
             if len(food_nodes_in_batch) == 0 and (cell_mask(graph.x[s_idx:e_idx])).sum() != 0: #no more food but still cells in batch
                 graph.food_reward[i] += 1
             s_idx = e_idx
