@@ -84,7 +84,6 @@ class Visualizer():
 
                 edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[1], cellIndices)).view(-1)
 
-                #TODO the wraparound isn't visualized correctly
                 edge_from = graph.edge_index[0, edges_in_batch]
                 edge_to = graph.edge_index[1, edges_in_batch]
                 node_from = graph.x[edge_from, :2].detach().cpu().numpy()
@@ -136,10 +135,7 @@ class Visualizer():
         '''
         Plot a graph in a tree-like structure, where the root node is the news article.
         '''
-        #any_edges = self.datastructure.add_edges(graph)
         nodes2 = graph.x[:graph.subsize[0]]
-        #edges2 = graph.edge_index[graph.subsize[0]]
-        #edges2 = graph.edge_index[torch.nonzero(torch.isin(graph.edge_index[0], torch.nonzero(nodes2))).view(-1)]
         edges2 = graph.edge_index[:, torch.nonzero(graph.edge_index[0] < graph.subsize[0])].squeeze()
         graph2 = Data(nodes2, edges2)
         G = to_networkx(graph2)
@@ -157,8 +153,6 @@ class Visualizer():
         root = cells[0]
 
         # Define positions to draw hierarchical diagram. See pydoc for source.
-        #pos = self.hierarchy_pos(G=G, root=root)
-        #pos = nx.spring_layout(G)
         pos = nx.shell_layout(G)
 
         # Define the colors
@@ -174,14 +168,10 @@ class Visualizer():
         node_sizes = [1e3 // N] * N
         node_sizes[root] = node_sizes[0]*2
 
-        #nx.draw_networkx_nodes
         nx.draw(
-        #nx.draw_networkx_nodes(
-        #nx.draw_networkx(
             G=G, 
             pos=pos, 
             node_color=node_color, 
-            #labels={root: 'Root'},
             edge_color= 'tab:gray',
             node_size=node_sizes,
             width=[0.3],

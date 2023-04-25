@@ -42,7 +42,8 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph.x)
-        moveable_mask = torch.bitwise_or(c_mask, graph.x[:,4] == NodeType.GlobalCell)
+        #moveable_mask = torch.bitwise_or(c_mask, graph.x[:,4] == NodeType.GlobalCell)
+        moveable_mask = c_mask
         
         h = self.message_pass(graph) * moveable_mask.view(-1,1)
         acceleration = h[:, :2] * self.acceleration_scale
@@ -121,7 +122,7 @@ class GNCA(nn.Module):
     def update(self, graph):
         '''Update the graph a single time step'''
         any_edges = False
-        if self.model_type == ModelType.WithGlobalNode: any_edges = self.datastructure.add_edges_with_global_node(graph)
+        if self.model_type == ModelType.WithGlobalNode: any_edges = self.datastructure.add_edges_with_global_node(graph) #TODO change this once refactored
         else: any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
             c_mask = cell_mask(graph.x)

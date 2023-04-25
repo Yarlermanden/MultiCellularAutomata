@@ -142,9 +142,9 @@ class DataStructure(object):
 
             #TODO should we add attributes depending on the nodes position as well? and in that case, should we update the node during model as well?
             tup = [([cell_idx[i], global_node_idx], 
-                    [0, global_node[0]-cells[i, 0], global_node[1]-cells[i,1], EdgeType.GlobalAndCell],
+                    [0, 0, 0, EdgeType.GlobalAndCell],
                     [global_node_idx, cell_idx[i]], 
-                    [0, -global_node[0]+cells[i, 0], -global_node[1]+cells[i,1], EdgeType.GlobalAndCell])
+                    [0, 0, 0, EdgeType.GlobalAndCell])
                    for i in range(len(cells))]
             l = [list(t) for t in zip(*tup)]
             if len(l) > 0:
