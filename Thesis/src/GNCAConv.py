@@ -12,7 +12,7 @@ from graphUtils import *
 class Conv(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.velNorm = 1.0*self.settings.scale/self.max_velocity
+        self.velNorm = 1.0*self.settings.scale/self.velocity_scale
         self.attrNorm = 1.0*self.settings.scale/self.settings.radius_food
 
         self.hidden_after_size = self.hidden_size + 2 + 2

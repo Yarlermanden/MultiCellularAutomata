@@ -53,13 +53,6 @@ def add_global_node(graph, device):
     global_node = torch.tensor([[0, 0, 0, 0, NodeType.GlobalCell, 0, *hidden]], dtype=torch.float, device=device)
     graph.x = torch.cat((graph.x, global_node))
 
-def update_velocity(graph, acceleration, max_velocity, c_mask):
-    '''Updates the velocity of the nodes given the acceleration and previous velocity'''
-    #velocity = graph.x[:, 2:4] + acceleration #Seems to difficult to learn as it's simply just another complexity on top of basic movement
-    velocity = acceleration
-    velocity[c_mask] = torch.clamp(velocity[c_mask], -max_velocity, max_velocity)
-    return velocity
-
 def update_positions(graph, velocity, wrap_around, c_mask, scale):
     '''Updates the position of the nodes given the velocity and previous positions'''
     if wrap_around:
@@ -80,7 +73,7 @@ def wall_mask(nodes):
     '''Used to mask away everything but the wall nodes'''
     return nodes[:, 4] == NodeType.Wall
 
-def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
+def get_consume_food_mask(graph, consume_radius):
     '''Consumes food if criteria is met and returns reward'''
     f_mask = food_mask(graph.x)
     food_val = graph.x[:, 2]
@@ -90,32 +83,24 @@ def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     consumption_mask = torch.bitwise_and(f_mask, edge_mask)
     return consumption_mask
 
-def wall_damage(graph, damage_radius, damage):
+def wall_damage(graph, damage_radius, damage, radius):
     '''Finds cells within damage radius of a wall and reduces their energy accordingly'''
-    w_edges = graph.edge_attr[:, 3] == 4
-    edge_below_distance = graph.edge_attr[w_edges, 0] < damage_radius
-    if len(edge_below_distance) > 0:
+    w_edges = graph.edge_attr[:, 3] == EdgeType.WallToCell
+    w_edge_below_distance = graph.edge_attr[w_edges, 0] < damage_radius
+    if len(w_edge_below_distance) > 0:
         #cell_indices = graph.edge_index[1, edge_below_distance]
-        cell_indices = graph.edge_index[1, w_edges][edge_below_distance]
+        cell_indices = graph.edge_index[1, w_edges][w_edge_below_distance]
         cell_indices = torch.unique(cell_indices, dim=0)
 
-        cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
+        c_edges_below_distance = torch.bitwise_and(graph.edge_attr[:, 3] == EdgeType.CellToCell, graph.edge_attr[:, 0] < radius)
+        cell_edge_indices = torch.nonzero(c_edges_below_distance).flatten()
         cell_edge_count = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0])
         graph.x[cell_indices, 5] -= damage / cell_edge_count[cell_indices]
 
-def cell_degree(graph, radius):
-    c_mask = cell_mask(graph.x)
+def degree_below_radius(graph, radius):
     edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < radius).flatten() #TODO should be able to optimize this the same way as with walls - to don't bin count all other type of edges
     degree = torch.bincount(graph.edge_index[1, edge_below_distance], minlength=graph.x.shape[0])
-    return degree[c_mask]
-
-def get_island_cells_mask(graph, edges_to_stay_alive):
-    '''Return mask of cells with less than required amount of edges'''
-    c_mask = cell_mask(graph.x)
-    cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
-    too_few_edges_mask = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0]) < edges_to_stay_alive
-    mask = torch.bitwise_and(c_mask, too_few_edges_mask)
-    return mask
+    return torch.clamp(degree, max=20)
 
 def get_dead_cells_mask(graph, energy_required):
     '''Returns mask of cells with less than required energy level'''
@@ -123,13 +108,6 @@ def get_dead_cells_mask(graph, energy_required):
     e_mask = graph.x[:, 5] < energy_required
     mask = torch.bitwise_and(c_mask, e_mask)
     return mask
-
-def compute_border_cost(graph):
-    epsilon = 0.000001 #Used to prevent taking log of 0.0 resulting in nan values
-    mask = graph.x[:, :2].abs() > 1
-    border_costX = (graph.x[:, 0].abs()+epsilon).log() * mask[:,0].to(torch.float)
-    border_costY = (graph.x[:, 1].abs()+epsilon).log() * mask[:,1].to(torch.float)
-    graph.border_cost += (border_costX.sum() + border_costY.sum())
 
 def unbatch_nodes(graphs, batch_size):
     '''Unbatches nodes and returns a list of list of nodes in the minibatch'''

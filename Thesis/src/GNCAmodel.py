@@ -17,14 +17,11 @@ class GNCA(nn.Module):
         self.input_channels = 8
         self.output_channels = 7
         self.hidden_size = self.input_channels*1
+        self.velocity_scale = 0.02
+        self.max_pos = 1
 
         self.device = settings.device
         self.model_type = settings.model_type
-
-        self.acceleration_scale = 0.02
-        self.max_velocity = 0.02
-        self.max_pos = 1
-
         self.node_indices_to_keep = None
         self.datastructure = DataStructure(settings)
 
@@ -42,32 +39,29 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph.x)
-        #moveable_mask = torch.bitwise_or(c_mask, graph.x[:,4] == NodeType.GlobalCell)
-        moveable_mask = c_mask
         
-        h = self.message_pass(graph) * moveable_mask.view(-1,1)
-        acceleration = h[:, :2] * self.acceleration_scale
+        h = self.message_pass(graph) * c_mask.view(-1,1)
         graph.x[:, 6:] = h[:, 2:]
-        velocity = update_velocity(graph, acceleration, self.max_velocity, moveable_mask)
-        positions = update_positions(graph, velocity, self.settings.wrap_around, moveable_mask, self.settings.scale)
-        graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
-        graph.x[moveable_mask, :2] = positions
-        graph.x[c_mask, 5] -= self.settings.radius*100/(cell_degree(graph, self.settings.radius) ** 0.5) #Energy cost - TODO could change energy cost to be less for those with many edges degree
+        velocity = h[:, :2] * self.velocity_scale
+        positions = update_positions(graph, velocity, self.settings.wrap_around, c_mask, self.settings.scale)
+        graph.x[c_mask, 2:4] = velocity[c_mask]
+        graph.x[c_mask, :2] = positions
+        graph.x[c_mask, 5] -= self.settings.radius*100/(degree_below_radius(graph, self.settings.radius)[c_mask] ** 0.5) #Energy cost
         self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
     def remove_nodes(self, graph):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
-        consumed_mask = get_consume_food_mask(graph, self.settings.consume_radius, self.settings.consumption_edge_required)
-
+        consumed_mask = get_consume_food_mask(graph, self.settings.consume_radius)
         dead_cells_mask = get_dead_cells_mask(graph, 0)
-
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
 
-        if torch.any(consumed_mask):
-            edges = graph.edge_index[:, graph.edge_attr[:, 3] != 2]
+        if torch.any(consumed_mask): #distribute energy
+            c_edges_beyond_dist = torch.bitwise_and(graph.edge_attr[:, 3] == EdgeType.CellToCell, graph.edge_attr[:, 0] > self.settings.radius)
+            edge_mask = torch.bitwise_not(torch.bitwise_or(c_edges_beyond_dist, graph.edge_attr[:, 3] == EdgeType.GlobalAndCell))
+            edges = graph.edge_index[:, edge_mask] #remove global edges
             graph1 = Data(x=graph.x, edge_index=edges)
             G = to_networkx(graph1, to_undirected=False)
             food_in_nx = torch.nonzero(consumed_mask).flatten()
@@ -78,7 +72,7 @@ class GNCA(nn.Module):
         graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=self.settings.energy_required_to_replicate)
 
         start_index = 0
-        for i in range(self.settings.batch_size):
+        for i in range(self.settings.batch_size): #update metrics
             end_index = start_index + graph.subsize[i]
             graph.subsize[i] -= remove_mask[start_index:end_index].sum()
             graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
@@ -90,8 +84,6 @@ class GNCA(nn.Module):
 
     def compute_fitness_metrics(self, graph):
         '''Computes the fitness metrics of each batch used for evaluating the network'''
-        #compute_border_cost(graph)
-
         #visible_food = (graph.edge_attr[:, 3] == 0).sum()
         #count_visible_food = len(torch.nonzero(graph.edge_attr[:, 3] == 0).flatten())
         #graph.food_avg_degree += visible_food/count_visible_food
@@ -125,7 +117,7 @@ class GNCA(nn.Module):
             graph.x[c_mask, 5] = 0 #Remove energy
             return graph
         self.update_graph(graph)
-        wall_damage(graph, self.settings.radius_wall_damage, self.settings.wall_damage)
+        wall_damage(graph, self.settings.radius_wall_damage, self.settings.wall_damage, self.settings.radius)
         self.compute_fitness_metrics(graph)
         self.remove_nodes(graph)
         #TODO add a new cell node pr x graph energy

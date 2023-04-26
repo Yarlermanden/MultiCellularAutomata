@@ -7,24 +7,8 @@ from sklearn.neighbors import KDTree
 
 from graphUtils import *
 
-class FixedRadiusNearestNeighbors(object):
-    def __init__(self, nodes, radius, batch_size, scale):
-        Lbox = float(scale)
-        #blocks = int(2.0*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
-        #blocks = int(10) # 10x10 - more efficient to create a bit larger boxes than 
-        blocks = int(1) # 10x10 - more efficient to create a bit larger boxes than 
-        periodic = {0: (-Lbox, Lbox), 1: (-Lbox, Lbox)}
-        self.grid = gsp.GriSPy(nodes.detach().cpu().numpy(), periodic=periodic, N_cells=blocks)
-
-    def get_neighbors(self, node, radius):
-        bubble_dist, bubble_ind = self.grid.bubble_neighbors(
-            #TODO could experiment with changing distance_upper_bound radius to 3D and low z so it doesn't combine batches
-            node.detach().cpu(), distance_upper_bound=radius
-        )
-        return bubble_dist, bubble_ind
-
 class FixedRadiusNearestNeighbors2(object):
-    def __init__(self, nodes, radius, batch_size, scale, dense):
+    def __init__(self, nodes, dense):
         nodes = nodes.detach().cpu().numpy()
         if dense: self.tree = KDTree(nodes, leaf_size=40)
         else: self.tree = KDTree(nodes, leaf_size=20)
@@ -79,21 +63,21 @@ class DataStructure(object):
                 food_indices = food_indices.detach().cpu().numpy()
                 wall_indices = wall_indices.detach().cpu().numpy()
 
-                frnn_food = FixedRadiusNearestNeighbors2(food, self.settings.radius_food, self.batch_size, self.scale, False)
+                frnn_food = FixedRadiusNearestNeighbors2(food, False)
                 indices_food, dists_food = frnn_food.get_neighbors(cells, self.settings.radius_food)
                 indices_food = [food_indices[x] for x in indices_food]
                 edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), EdgeType.FoodToCell]
                             for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
 
-                radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius)
-                frnn_cell = FixedRadiusNearestNeighbors2(cells, self.settings.radius, self.batch_size, self.scale, True)
+                radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius_cell)
+                frnn_cell = FixedRadiusNearestNeighbors2(cells, True)
                 indices_cells, dists_cells = frnn_cell.get_neighbors(cells, radius_cell.detach().cpu().numpy())                       
                 indices_cells = [cell_indices[x] for x in indices_cells]
                 edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), EdgeType.CellToCell]
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
                        if i!=j]
                 
-                frnn_wall = FixedRadiusNearestNeighbors2(walls, self.settings.radius_wall, self.batch_size, self.scale, False)
+                frnn_wall = FixedRadiusNearestNeighbors2(walls, False)
                 indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
                 indices_walls = [wall_indices[x] for x in indices_walls]
                 edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), EdgeType.WallToCell]
