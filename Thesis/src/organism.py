@@ -30,7 +30,7 @@ class Organism():
         self.settings = settings
         self.device = settings.device
 
-    def toGraph(self):
+    def toGraph(self, food_env = None):
         from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food
         '''transforms all cells in organism to nodes in a graph'''
         hidden = [0, 0, 0, 0, 0]
@@ -42,9 +42,9 @@ class Organism():
             graph.x[:self.settings.n2, 4] = NodeType.LongRadiusCell
         elif self.settings.model_type == ModelType.WithGlobalNode: add_global_node(graph, self.device)
 
-
-        random_number = random.randint(0, 3)
-        food_env = self.settings.food_envs[random_number]
+        if food_env == None:
+            random_number = random.randint(0, 3)
+            food_env = self.settings.food_envs[random_number]
         
         match food_env.env_type:
             case EnvironmentType.Clusters:
