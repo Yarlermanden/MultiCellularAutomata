@@ -83,9 +83,10 @@ def wall_mask(nodes):
 def get_consume_food_mask(graph, consume_radius, consumption_edge_required):
     '''Consumes food if criteria is met and returns reward'''
     f_mask = food_mask(graph.x)
+    food_val = graph.x[:, 2]
     edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < consume_radius).flatten() #TODO should be able to optimize this the same way as with walls - to don't bin count all other type of edges
     edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
-    edge_mask = edges_pr_node >= consumption_edge_required
+    edge_mask = edges_pr_node >= food_val
     consumption_mask = torch.bitwise_and(f_mask, edge_mask)
     return consumption_mask
 
@@ -101,6 +102,12 @@ def wall_damage(graph, damage_radius, damage):
         cell_edge_indices = torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()
         cell_edge_count = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0])
         graph.x[cell_indices, 5] -= damage / cell_edge_count[cell_indices]
+
+def cell_degree(graph, radius):
+    c_mask = cell_mask(graph.x)
+    edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < radius).flatten() #TODO should be able to optimize this the same way as with walls - to don't bin count all other type of edges
+    degree = torch.bincount(graph.edge_index[1, edge_below_distance], minlength=graph.x.shape[0])
+    return degree[c_mask]
 
 def get_island_cells_mask(graph, edges_to_stay_alive):
     '''Return mask of cells with less than required amount of edges'''

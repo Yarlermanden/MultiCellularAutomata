@@ -24,6 +24,7 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph = network(batch, steps)
 
+        #TODO could change to only optimize for time alive
         food_reward = graph.food_reward.mean()
         fitness1 = food_reward #food consumed - average of batch size
 

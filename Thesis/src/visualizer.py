@@ -125,7 +125,7 @@ class Visualizer():
         def animate(graph):
             self.plot_organism(graph.detach().cpu())
 
-        anim = animation.FuncAnimation(self.figure, animate, frames=gen, interval=interval, save_count=2000)
+        anim = animation.FuncAnimation(self.figure, animate, frames=gen, interval=interval, save_count=1000)
         return anim
 
     def save_animation_to_gif(self, anim, name, fps=30, dpi=200):

@@ -52,9 +52,7 @@ class GNCA(nn.Module):
         positions = update_positions(graph, velocity, self.settings.wrap_around, moveable_mask, self.settings.scale)
         graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
         graph.x[moveable_mask, :2] = positions
-        graph.x[c_mask, 5] -= 1 #Energy cost - TODO could change energy cost to be less for those with many edges
-            #could consider decreasing energy more slowly when not moving and depending on size of subgraph...    
-            #cost x amount of energy for being an individual organism - decrease depending on subgraph
+        graph.x[c_mask, 5] -= self.settings.radius*100/(cell_degree(graph, self.settings.radius) ** 0.5) #Energy cost - TODO could change energy cost to be less for those with many edges degree
         self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
@@ -76,10 +74,7 @@ class GNCA(nn.Module):
             for x in food_in_nx:
                 des = nx.descendants(G, x.item())
                 if len(des) > 0:
-                    graph.x[list(des), 5] += 2 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
-            #could it possibly be faster to make the entire subgraphs as they are supported to 
-            # and then from there create sets of each subgraph
-            # then we check which subgraph a node belongs to and easily index on entire subgraph
+                    graph.x[list(des), 5] += graph.x[x, 2]/2 #all of their energy should be increased according to energy in food
         graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=self.settings.energy_required_to_replicate)
 
         start_index = 0
