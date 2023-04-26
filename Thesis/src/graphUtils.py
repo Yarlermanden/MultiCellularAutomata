@@ -83,24 +83,24 @@ def get_consume_food_mask(graph, consume_radius):
     consumption_mask = torch.bitwise_and(f_mask, edge_mask)
     return consumption_mask
 
-def wall_damage(graph, damage_radius, damage, radius):
+def wall_damage(graph, settings):
     '''Finds cells within damage radius of a wall and reduces their energy accordingly'''
     w_edges = graph.edge_attr[:, 3] == EdgeType.WallToCell
-    w_edge_below_distance = graph.edge_attr[w_edges, 0] < damage_radius
+    w_edge_below_distance = graph.edge_attr[w_edges, 0] < settings.radius_wall_damage
     if len(w_edge_below_distance) > 0:
         #cell_indices = graph.edge_index[1, edge_below_distance]
         cell_indices = graph.edge_index[1, w_edges][w_edge_below_distance]
         cell_indices = torch.unique(cell_indices, dim=0)
 
-        c_edges_below_distance = torch.bitwise_and(graph.edge_attr[:, 3] == EdgeType.CellToCell, graph.edge_attr[:, 0] < radius)
+        c_edges_below_distance = torch.bitwise_and(graph.edge_attr[:, 3] == EdgeType.CellToCell, graph.edge_attr[:, 0] < settings.radius)
         cell_edge_indices = torch.nonzero(c_edges_below_distance).flatten()
         cell_edge_count = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0])
-        graph.x[cell_indices, 5] -= damage / cell_edge_count[cell_indices]
+        graph.x[cell_indices, 5] -= settings.wall_damage / torch.clamp(cell_edge_count[cell_indices], max=settings.max_degree)
 
-def degree_below_radius(graph, radius):
-    edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < radius).flatten() #TODO should be able to optimize this the same way as with walls - to don't bin count all other type of edges
+def degree_below_radius(graph, settings):
+    edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < settings.radius).flatten() #TODO should be able to optimize this the same way as with walls - to don't bin count all other type of edges
     degree = torch.bincount(graph.edge_index[1, edge_below_distance], minlength=graph.x.shape[0])
-    return torch.clamp(degree, max=20)
+    return torch.clamp(degree, max=settings.max_degree)
 
 def get_dead_cells_mask(graph, energy_required):
     '''Returns mask of cells with less than required energy level'''

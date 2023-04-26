@@ -46,7 +46,7 @@ class GNCA(nn.Module):
         positions = update_positions(graph, velocity, self.settings.wrap_around, c_mask, self.settings.scale)
         graph.x[c_mask, 2:4] = velocity[c_mask]
         graph.x[c_mask, :2] = positions
-        graph.x[c_mask, 5] -= self.settings.radius*100/(degree_below_radius(graph, self.settings.radius)[c_mask] ** 0.5) #Energy cost
+        graph.x[c_mask, 5] -= self.settings.radius*100/(degree_below_radius(graph, self.settings)[c_mask] ** 0.5) #Energy cost
         self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
@@ -117,7 +117,7 @@ class GNCA(nn.Module):
             graph.x[c_mask, 5] = 0 #Remove energy
             return graph
         self.update_graph(graph)
-        wall_damage(graph, self.settings.radius_wall_damage, self.settings.wall_damage, self.settings.radius)
+        wall_damage(graph, self.settings)
         self.compute_fitness_metrics(graph)
         self.remove_nodes(graph)
         #TODO add a new cell node pr x graph energy
