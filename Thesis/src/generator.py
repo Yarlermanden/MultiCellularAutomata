@@ -28,7 +28,7 @@ def generate_food(device, scale, d=0.3):
     '''Generate a random food'''
     #TODO consider making this not able in spawning food right in the center...
     x,y = get_random_point_normal(0, d*scale)
-    val = random.randint(1,5)
+    val = random.randint(1,4)
     hidden = [0,0,0,0,0]
     food = torch.tensor([[x,y, val, 0, NodeType.Food, 0, *hidden]], device=device)
     return food

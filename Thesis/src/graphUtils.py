@@ -46,6 +46,18 @@ def add_spiral_food(graph, settings, food_env):
     walls = generate_spiral_walls(settings.device, settings.scale, food_env.wall_amount, spirals=food_env.spirals, rotation=rotation)
     graph.x = torch.cat((graph.x, walls))
 
+def add_labyrinth_food(graph, settings, food_env):
+    #TODO
+    ...
+
+def add_bottleneck_food(graph, settings, food_env):
+    #TODO
+    ...
+
+def add_box_food(graph, settings, food_env):
+    #TODO
+    ...
+
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 
     Call this before creating batches to ensure a global node exists in all batches'''
@@ -76,7 +88,7 @@ def wall_mask(nodes):
 def get_consume_food_mask(graph, consume_radius):
     '''Consumes food if criteria is met and returns reward'''
     f_mask = food_mask(graph.x)
-    food_val = graph.x[:, 2]
+    food_val = graph.x[:, 5]
     edge_below_distance = torch.nonzero(graph.edge_attr[:, 0] < consume_radius).flatten() #TODO should be able to optimize this the same way as with walls - to don't bin count all other type of edges
     edges_pr_node = torch.bincount(graph.edge_index[0, edge_below_distance], minlength=graph.x.shape[0])
     edge_mask = edges_pr_node >= food_val

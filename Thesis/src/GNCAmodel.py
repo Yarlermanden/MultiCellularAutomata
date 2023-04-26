@@ -68,7 +68,7 @@ class GNCA(nn.Module):
             for x in food_in_nx:
                 des = nx.descendants(G, x.item())
                 if len(des) > 0:
-                    graph.x[list(des), 5] += graph.x[x, 2]/2 #all of their energy should be increased according to energy in food
+                    graph.x[list(des), 5] += graph.x[x, 5]/2 #all of their energy should be increased according to energy in food
         graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=self.settings.energy_required_to_replicate)
 
         start_index = 0
@@ -76,7 +76,7 @@ class GNCA(nn.Module):
             end_index = start_index + graph.subsize[i]
             graph.subsize[i] -= remove_mask[start_index:end_index].sum()
             graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
-            food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 2].sum()
+            food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 5].sum()
             graph.food_reward[i] += food_val
             start_index = end_index
 

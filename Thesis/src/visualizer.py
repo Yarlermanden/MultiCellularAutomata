@@ -98,7 +98,7 @@ class Visualizer():
             self.edge_plot[i] = self.axes[i].plot(edges_x, edges_y, linewidth=0.1/self.scale)
             #TODO set size of cells depending on energy level
             self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])
-            self.scatter_food[i].set_sizes(graph.x[foodIndices, 2]*10/(self.scale**2))
+            self.scatter_food[i].set_sizes(graph.x[foodIndices, 5]*10/(self.scale**2))
             self.scatter_wall[i].set_offsets(graph.x[wallIndices, :2])
             self.scatter_wall[i].set_sizes([self.wall_size]*len(wallIndices))
             self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])

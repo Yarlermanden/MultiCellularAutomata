@@ -31,7 +31,7 @@ class Organism():
         self.device = settings.device
 
     def toGraph(self, food_env = None):
-        from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food
+        from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food, add_labyrinth_food, add_bottleneck_food, add_box_food
         '''transforms all cells in organism to nodes in a graph'''
         hidden = [0, 0, 0, 0, 0]
         x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1, 50, *hidden] for cell in self.cells], device=self.device)
@@ -53,6 +53,12 @@ class Organism():
                 add_circular_food(graph, self.settings, food_env)
             case EnvironmentType.Spiral:
                 add_spiral_food(graph, self.settings, food_env)
+            case EnvironmentType.Labyrinth:
+                add_labyrinth_food(graph, self.settings, food_env)
+            case EnvironmentType.Bottleneck:
+                add_bottleneck_food(graph, self.settings, food_env)
+            case EnvironmentType.Box:
+                add_box_food(graph, self.settings, food_env)
             case _:
                 add_random_food(graph, self.settings, food_env)
 
