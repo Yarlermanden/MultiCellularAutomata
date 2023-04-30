@@ -30,7 +30,7 @@ def generate_food(device, scale, d=0.3):
     x,y = get_random_point_normal(0, d*scale)
     val = random.randint(1,4)
     hidden = [0,0,0,0,0]
-    food = torch.tensor([[x,y, val, 0, NodeType.Food, 0, *hidden]], device=device)
+    food = torch.tensor([[x,y, 0, 0, NodeType.Food, val, *hidden]], device=device)
     return food
 
 def generate_cluster(device, cluster_size, std_dev, scale):

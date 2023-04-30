@@ -44,6 +44,8 @@ class Settings(object):
         self.energy_required_to_replicate = energy_required_to_replicate #required energy for splitting/replicating
         self.radius_cell = radius #radius of cell to cell communication
         match self.model_type:
-            case ModelType.LocalLarge: self.radius_cell = radius*4
-            case ModelType.LocalMedium: self.radius_cell = radius*2
+            case ModelType.Localx16: self.radius_cell = radius*16
+            case ModelType.Localx8: self.radius_cell = radius*8
+            case ModelType.Localx4: self.radius_cell = radius*4
+            case ModelType.Localx2: self.radius_cell = radius*2
             case _: self.radius_cell = radius

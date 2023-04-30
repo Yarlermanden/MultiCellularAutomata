@@ -47,6 +47,11 @@ class Conv(GNCA):
         self.H = torch.tanh(self.gConvGRU(x, edges, H=self.H))
         return self.H
 
+    def nodeNorm(self, x):
+        x_mean = torch.mean(x, dim=1, keepdim=True)
+        x_std = torch.std(x, dim=1, keepdim=True)
+        return torch.tanh(((x-x_mean) / x_std)*2 - 1)
+
     def message_pass(self, graph):
         food_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()]
         food_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()][:, :3]
@@ -87,7 +92,10 @@ class Conv(GNCA):
         #x[:, :2] += self.gru(cell_edges, x[:, :2])
 
         #... and normalize hidden features H
-        x[c_mask, 2:] = torch.tanh(x[c_mask, 2:]/10 + x_origin[c_mask, 3:]*0.75)
+        h = x[c_mask, 2:] + x_origin[c_mask, 3:]
+        x[c_mask, 2:] = self.nodeNorm(h)
+        #x[c_mask, 2:] = torch.tanh(x[c_mask, 2:]/10 + x_origin[c_mask, 3:]*0.75)
+
         #x[:, 2:] = torch.tanh(self.pair_norm(x[:, 2:] + x_origin[:, 3:]))
         #x[:, 2:] = self.pair_norm(x[:, 2:] + x_origin[:, 3:])
         #x[c_mask, 2:] = self.pair_norm.forward(x[c_mask, 2:] + x_origin[c_mask, 3:]) #TODO compute this correctly

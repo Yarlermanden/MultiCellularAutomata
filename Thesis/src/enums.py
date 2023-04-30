@@ -10,12 +10,13 @@ class EnvironmentType(Enum):
     Box = 7,
 
 class ModelType(Enum):
-    LocalOnly = 1, #only normal cell nodes
+    Local = 1, #only normal cell nodes
     WithGlobalNode = 2, #including global cell node
     SmallWorld = 3, #some cells with longer edges
-    LocalMedium = 4, #local but with longer cell radius
-    LocalLarge = 5, #Local but with large cell radius - global
-    Global = 6, #completely global - all cells have edges to all cells
+    Localx2 = 4, #local but with longer cell radius
+    Localx4 = 5, #Local but with large cell radius - global
+    Localx8 = 6, #Local but with large cell radius - global
+    Localx16 = 7, #Local but with large cell radius - global
 
 class ProblemSearcher(Enum):
     CMAES = 0, #distribution based
@@ -31,6 +32,6 @@ class NodeType(IntEnum):
 class EdgeType(IntEnum):
     FoodToCell = 0,
     CellToCell = 1,
-    GlobalAndCell = 2,
+    GlobalAndCell = 2, #TODO remove if we end up not using that model type
     #CellToGlobal = 3, #TODO maybe combine with the other one
     WallToCell = 4,
