@@ -24,7 +24,8 @@ class Visualizer():
         self.scatter_wall = None
         self.edge_plot = None
         self.axes = None
-        self.texts = None
+        self.text_food = None
+        self.text_time = None
         #point size = ppi of 72
         #figure ppi defaults to 100
         #1 point == fig.dpi/72. pixels
@@ -38,6 +39,7 @@ class Visualizer():
             self.rows = 1
             self.columns = self.batch_size
         self.datastructure = DataStructure(settings)
+        self.i = None
 
     def plot_organism(self, graph):
         any_edges = self.datastructure.add_edges(graph)
@@ -68,8 +70,9 @@ class Visualizer():
                 marker=".",
                 edgecolor="g",
             ) for ax in self.axes]
-            self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1/self.scale) for ax in self.axes]
-            self.texts = [self.axes[i].text(0.98, 0.98, '', horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
+            self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1/(self.scale**2)) for ax in self.axes]
+            self.text_food = [self.axes[i].text(0.98, 0.98, '', horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
+            self.text_time= [self.axes[i].text(0.98, 0.98, '', horizontalalignment='left', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
             plt.show()
 
         s_idx = 0
@@ -95,7 +98,7 @@ class Visualizer():
                 edges_x = [[]]
                 edges_y = [[]]
             #self.edge_plot[i] = self.axes[i//self.columns][i%self.columns].plot(edges_x, edges_y, linewidth=0.1)
-            self.edge_plot[i] = self.axes[i].plot(edges_x, edges_y, linewidth=0.1/self.scale)
+            self.edge_plot[i] = self.axes[i].plot(edges_x, edges_y, linewidth=0.1/(self.scale**2))
             #TODO set size of cells depending on energy level
             self.scatter_food[i].set_offsets(graph.x[foodIndices, :2])
             self.scatter_food[i].set_sizes(graph.x[foodIndices, 5]*10/(self.scale**2))
@@ -104,12 +107,15 @@ class Visualizer():
             self.scatter_cell[i].set_offsets(graph.x[cellIndices, :2])
             self.scatter_cell[i].set_sizes([self.cell_size]*len(cellIndices))
             #self.axes[i].text(0.98, 0.98, 'Food: ' + str(int(graph.food_reward[i].item())), horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes)
-            self.texts[i].set_text('Food: ' + str(int(graph.food_reward[i].item())))
+            self.text_food[i].set_text('Food: ' + str(int(graph.food_reward[i].item())))
+            self.text_time[i].set_text('Time: ' + str(self.i))
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
             s_idx = e_idx
+        self.i += 1
 
     def animate_organism(self, graph, model, interval=150):
+        self.i = 0
         self.graph = graph
         self.plot_organism(graph.clone().detach().cpu())
 

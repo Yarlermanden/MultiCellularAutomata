@@ -51,8 +51,12 @@ def add_labyrinth_food(graph, settings, food_env):
     ...
 
 def add_bottleneck_food(graph, settings, food_env):
-    #TODO
-    ...
+    rotation = random.uniform(0, 2*np.pi)
+    for _ in range(food_env.food_amount):
+        food = generate_bottleneck_food(settings.device, settings.scale, rotation=rotation)
+        add_food(graph, food)
+    walls = generate_bottleneck_walls(settings.device, settings.scale, food_env.wall_amount, rotation=rotation)
+    graph.x = torch.cat((graph.x, walls))
 
 def add_box_food(graph, settings, food_env):
     #TODO

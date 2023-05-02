@@ -104,3 +104,49 @@ def generate_spiral_walls(device, scale, wall_amount, spirals, rotation):
     walls[:, :2] = torch.stack((torch.tensor(x, device=device), torch.tensor(y, device=device)), dim=1)
     walls[:, 4] = NodeType.Wall
     return walls
+
+def generate_bottleneck_food(device, scale, rotation=0):
+    type = random.randint(1, 100)
+    if type < 30: #30% on start
+        x = random.uniform(-0.35, 0.35) * scale
+        y = random.uniform(-0.15, 0.15) * scale
+    elif type < 32: #2% in bottleneck
+        x = 0
+        y = random.uniform(0.15, 0.25) * scale
+    else: #65% in goal area
+        x = random.uniform(-0.35, 0.35) * scale
+        y = random.uniform(0.25, 0.55) * scale
+    food = generate_food(device, scale)
+    food[:, :2] = torch.tensor([x, y], device=device)
+    return food
+
+def generate_bottleneck_walls(device, scale, wall_amount, rotation=0):
+    x = np.linspace(-0.35*scale, 0.35*scale, 8*scale)
+    y = np.linspace(-0.15*scale, 0.55*scale, 8*scale)
+    
+    walls = [generate_food(device, scale) for _ in range(wall_amount)]
+    walls = torch.stack(walls).squeeze()
+    walls[:, 4] = NodeType.Wall
+
+    bottom_walls_y = np.zeros_like(x)-0.15*scale
+    bottom_walls_y2 = np.zeros_like(x)+0.15*scale
+    bottom_walls_y3 = np.zeros_like(x)+0.1833*scale
+    bottom_walls_y4 = np.zeros_like(x)+0.2166*scale
+
+    top_walls_y = np.zeros_like(x)+0.25*scale
+    top_walls_y2 = np.zeros_like(x)+0.55*scale
+    
+    walls[0:8*scale, :2] = torch.tensor([x, bottom_walls_y], device=device).transpose(0, 1)
+    walls[8*scale:16*scale, :2] = torch.tensor([x, bottom_walls_y2], device=device).transpose(0, 1)
+    walls[16*scale:24*scale, :2] = torch.tensor([x, bottom_walls_y3], device=device).transpose(0, 1)
+    walls[24*scale:32*scale, :2] = torch.tensor([x, bottom_walls_y4], device=device).transpose(0, 1)
+    walls[32*scale:40*scale, :2] = torch.tensor([x, top_walls_y], device=device).transpose(0,1)
+    walls[40*scale:48*scale, :2] = torch.tensor([x, top_walls_y2], device=device).transpose(0,1)
+
+    left_walls_x = np.zeros_like(y)-0.35*scale
+    right_walls_x = np.zeros_like(y)+0.35*scale
+
+    walls[48*scale:56*scale, :2] = torch.tensor([left_walls_x, y], device=device).transpose(0,1)
+    walls[56*scale:64*scale, :2] = torch.tensor([right_walls_x, y], device=device).transpose(0,1)
+
+    return walls
