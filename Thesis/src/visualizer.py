@@ -72,7 +72,7 @@ class Visualizer():
             ) for ax in self.axes]
             self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1/(self.scale**2)) for ax in self.axes]
             self.text_food = [self.axes[i].text(0.98, 0.98, '', horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
-            self.text_time= [self.axes[i].text(0.98, 0.98, '', horizontalalignment='left', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
+            self.text_time= [self.axes[i].text(0.02, 0.98, '', horizontalalignment='left', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
             plt.show()
 
         s_idx = 0

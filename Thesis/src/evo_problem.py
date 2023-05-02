@@ -25,17 +25,19 @@ class Custom_NEProblem(NEProblem):
             graph = network(batch, steps)
 
         #TODO could change to only optimize for time alive
-        food_reward = graph.food_reward.mean()
-        fitness1 = food_reward #food consumed - average of batch size
+        #food_reward = graph.food_reward.mean()
+        #fitness1 = food_reward #food consumed - average of batch size
 
-        cells = graph.x[cell_mask(graph.x)]
-        fitness2 = cells[:, 5].sum() / alive_start * 10 #energy left - for now always 0 as it ends when all cells die
+        #cells = graph.x[cell_mask(graph.x)]
+        #fitness2 = cells[:, 5].sum() / alive_start * 10 #energy left - for now always 0 as it ends when all cells die
         fitness3 = graph.cells_alive.mean() / self.settings.n #average ratio of cells alive across batch - between 0 and 1 pr timestep
-        fitness = fitness1 + fitness2 + fitness3 
+        #fitness = fitness1 + fitness2 + fitness3 
+        fitness = fitness3
 
-        if torch.any(torch.isnan(food_reward)):
-            print('fitness is nan')
-            fitness = 0
+        #if torch.any(torch.isnan(food_reward)):
+        #    print('fitness is nan')
+        #    fitness = 0
 
         ray.get(self.global_var.update_pool.remote(graph))
-        return torch.tensor([fitness, fitness1, fitness2, fitness3])
+        #return torch.tensor([fitness, fitness1, fitness2, fitness3])
+        return torch.tensor([fitness, fitness, fitness, fitness3])
