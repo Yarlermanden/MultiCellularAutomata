@@ -28,7 +28,9 @@ class Conv(GNCA):
         )
 
         self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
-        self.mean_conv = MeanEdgeConv(2, dim=self.edge_dim-1)
+        #self.mean_conv = MeanEdgeConv(2, dim=self.edge_dim-1)
+        self.edge_conv_food = EdgeConv(2, dim=self.edge_dim-1)
+        self.edge_conv_wall = EdgeConv(2, dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
             #self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
             self.conv_layer_global = GCN(self.hidden_size, self.hidden_size, 1, self.hidden_size)
@@ -71,8 +73,10 @@ class Conv(GNCA):
         wall_attr *= self.attrNorm
         
         x = x_origin
-        x_food = self.mean_conv(x=x, edge_index=food_edges, edge_attr=food_attr)
-        x_wall = self.mean_conv(x=x, edge_index=wall_edges, edge_attr=wall_attr)
+        #x_food = self.mean_conv(x=x, edge_index=food_edges, edge_attr=food_attr)
+        #x_wall = self.mean_conv(x=x, edge_index=wall_edges, edge_attr=wall_attr)
+        x_food = self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)
+        x_wall = self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)
         x_cell = torch.tanh(self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr))
         #having no edges in a specific type now results in these being 0 all across the board
         #x = x_food + x_cell #could consider catting this instead?
