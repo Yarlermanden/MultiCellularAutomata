@@ -39,7 +39,7 @@ class Visualizer():
             self.rows = 1
             self.columns = self.batch_size
         self.datastructure = DataStructure(settings)
-        self.i = None
+        self.i = 0
 
     def plot_organism(self, graph):
         any_edges = self.datastructure.add_edges(graph)

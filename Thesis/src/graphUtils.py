@@ -22,7 +22,7 @@ def add_random_food(graph, settings, food_env):
 def add_clusters_of_food(graph, settings, food_env):
     '''Generates and adds n clusters of food to the graph'''
     for _ in range(food_env.clusters):
-        cluster = generate_cluster(settings.device, food_env.cluster_size, 0.04, settings.scale)
+        cluster = generate_cluster(settings.device, food_env.cluster_size, 0.03, settings.scale)
         add_food(graph, cluster)
     for _ in range(food_env.wall_amount):
         wall = generate_food(settings.device, settings.scale, d=0.4)
@@ -33,8 +33,13 @@ def add_circular_food(graph, settings, food_env):
     for _ in range(food_env.food_amount):
         food = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles) #TODO implement with std... to randomize around circle
         add_food(graph, food)
-    for _ in range(food_env.wall_amount):
+    abnormal_walls = food_env.wall_amount//10
+    for _ in range(food_env.wall_amount-abnormal_walls):
         wall = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles, a=0.5)
+        wall[0, 4] = NodeType.Wall
+        add_food(graph, wall)
+    for _ in range(abnormal_walls):
+        wall = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles) #TODO implement with std... to randomize around circle
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
 
@@ -43,8 +48,13 @@ def add_spiral_food(graph, settings, food_env):
     for _ in range(food_env.food_amount):
         food = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=food_env.spirals, rotation=rotation)
         add_food(graph, food)
-    walls = generate_spiral_walls(settings.device, settings.scale, food_env.wall_amount, spirals=food_env.spirals, rotation=rotation)
+    abnormal_walls = food_env.wall_amount//40
+    walls = generate_spiral_walls(settings.device, settings.scale, food_env.wall_amount-abnormal_walls, spirals=food_env.spirals, rotation=rotation)
     graph.x = torch.cat((graph.x, walls))
+    for _ in range(abnormal_walls):
+        wall = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=food_env.spirals, rotation=rotation)
+        wall[0, 4] = NodeType.Wall
+        add_food(graph, wall)
 
 def add_labyrinth_food(graph, settings, food_env):
     #TODO
