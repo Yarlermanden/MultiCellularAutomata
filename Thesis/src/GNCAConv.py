@@ -8,6 +8,7 @@ from torch_geometric.nn.norm import pair_norm
 from custom_conv import *
 from enums import *
 from graphUtils import *
+from gat_edge_conv import *
 
 class Conv(GNCA):
     def __init__(self, **kwargs):
@@ -27,10 +28,14 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
-        self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
+        #self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
+        self.conv_layer_cell = GATConv(self.hidden_size, self.hidden_size, edge_dim=self.edge_dim-2)
+
         #self.mean_conv = MeanEdgeConv(2, dim=self.edge_dim-1)
-        self.edge_conv_food = EdgeConv(2, dim=self.edge_dim-1)
-        self.edge_conv_wall = EdgeConv(2, dim=self.edge_dim-1)
+        #self.edge_conv_food = EdgeConv(2, dim=self.edge_dim-1)
+        #self.edge_conv_wall = EdgeConv(2, dim=self.edge_dim-1)
+        self.edge_conv_food = GATEdgeConv(2, 2, edge_dim = 2)
+        self.edge_conv_wall = GATEdgeConv(2, 2, edge_dim = 2)
         if self.model_type == ModelType.WithGlobalNode:
             #self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
             self.conv_layer_global = GCN(self.hidden_size, self.hidden_size, 1, self.hidden_size)
@@ -110,6 +115,8 @@ class Conv(GNCA):
         self.H = None
         self.node_indices_to_keep = None
         self.conv_layer_cell = self.conv_layer_cell.to(self.device)
+        self.edge_conv_food = self.edge_conv_food.to(self.device)
+        self.edge_conv_wall = self.edge_conv_wall.to(self.device)
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = self.conv_layer_global.to(self.device)
         return super().forward(*args)
