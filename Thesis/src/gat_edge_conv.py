@@ -51,10 +51,12 @@ class GATEdgeConv(MessagePassing):
 
         out = self.propagate(edge_index, x=x, edge_attr=edge_attr,
                              size=None)
-        alpha = self._alpha
         self._alpha = None
 
         out = out.view(-1, self.out_channels)
+        if torch.any(torch.isnan(out)):
+            print('GATEdgeConv is nan')
+            out = torch.zeros_like(out)
 
         return out
 
@@ -64,7 +66,7 @@ class GATEdgeConv(MessagePassing):
         edge_attr = edge_attr.view(-1, 3)
 
         z = edge_attr
-        scale = 1/z[:, 0]
+        scale = 1/(z[:, 0]+0.0001)
         x = scale.view(-1, 1)*z[:, 1:3]
         x = self.lin_edge(x)
         x = x.view(-1, 1, self.out_channels)
@@ -88,7 +90,6 @@ class GATConv(MessagePassing):
         in_channels: Union[int, Tuple[int, int]],
         out_channels: int,
         negative_slope: float = 0.2,
-        dropout: float = 0.0,
         add_self_loops: bool = True,
         edge_dim: Optional[int] = None,
         fill_value: Union[float, Tensor, str] = 'mean',
@@ -99,7 +100,6 @@ class GATConv(MessagePassing):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.negative_slope = negative_slope
-        self.dropout = dropout
         self.add_self_loops = add_self_loops
         self.edge_dim = edge_dim
         self.fill_value = fill_value
@@ -121,20 +121,21 @@ class GATConv(MessagePassing):
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
                 edge_attr: OptTensor = None):
 
-        # propagate_type: (x: PairTensor, edge_attr: OptTensor)
         out = self.propagate(edge_index, x=x, edge_attr=edge_attr,
                              size=None)
         out = out.view(-1, self.out_channels)
+        if torch.any(torch.isnan(out)):
+            print('GATCONV is nan')
+            out = torch.zeros_like(out)
 
-        alpha = self._alpha
         self._alpha = None
-        return torch.tanh(out)
+        return out
 
     def message(self, x_j: Tensor, x_i: Tensor, edge_attr: OptTensor,
                 index: Tensor, ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
-        scale = 1/edge_attr[:, 0]
+        scale = 1/(edge_attr[:, 0]+0.0001)
         edge_attr = scale.view(-1, 1)*edge_attr[:, 1:3]
         z = torch.cat([x_i, x_j, edge_attr], dim=1)
 
@@ -143,7 +144,6 @@ class GATConv(MessagePassing):
         alpha = (x * self.att).sum(dim=-1)
         alpha = softmax(alpha, index, ptr, size_i)
         self._alpha = alpha
-        alpha = F.dropout(alpha, p=self.dropout, training=self.training)
         return x * alpha.unsqueeze(-1)
 
     def __repr__(self) -> str:

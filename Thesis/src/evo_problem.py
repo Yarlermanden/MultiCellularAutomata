@@ -37,6 +37,7 @@ class Custom_NEProblem(NEProblem):
         if torch.any(torch.isnan(fitness)):
             print('fitness is nan')
             fitness = 0
+            fitness3 = 0
 
         ray.get(self.global_var.update_pool.remote(graph))
         #return torch.tensor([fitness, fitness1, fitness2, fitness3])
