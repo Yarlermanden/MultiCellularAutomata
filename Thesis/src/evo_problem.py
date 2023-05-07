@@ -34,9 +34,9 @@ class Custom_NEProblem(NEProblem):
         #fitness = fitness1 + fitness2 + fitness3 
         fitness = fitness3
 
-        #if torch.any(torch.isnan(food_reward)):
-        #    print('fitness is nan')
-        #    fitness = 0
+        if torch.any(torch.isnan(fitness)):
+            print('fitness is nan')
+            fitness = 0
 
         ray.get(self.global_var.update_pool.remote(graph))
         #return torch.tensor([fitness, fitness1, fitness2, fitness3])
