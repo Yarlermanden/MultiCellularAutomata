@@ -80,8 +80,8 @@ class Conv(GNCA):
         x = x_origin
         #x_food = self.mean_conv(x=x, edge_index=food_edges, edge_attr=food_attr)
         #x_wall = self.mean_conv(x=x, edge_index=wall_edges, edge_attr=wall_attr)
-        x_food = self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)
-        x_wall = self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)
+        x_food = torch.tanh(self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr))
+        x_wall = torch.tanh(self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr))
         x_cell = torch.tanh(self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr))
         #having no edges in a specific type now results in these being 0 all across the board
         #x = x_food + x_cell #could consider catting this instead?
