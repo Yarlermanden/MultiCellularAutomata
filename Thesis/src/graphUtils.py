@@ -25,7 +25,7 @@ def add_clusters_of_food(graph, settings, food_env):
         cluster = generate_random_cluster(settings.device, food_env.cluster_size, 0.03, settings.scale)
         add_food(graph, cluster)
     for _ in range(food_env.wall_amount):
-        wall = generate_food(settings.device, settings.scale, d=0.4)
+        wall = generate_random_food(settings.device, settings.scale, d=0.4)
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
 
