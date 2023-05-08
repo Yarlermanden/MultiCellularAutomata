@@ -96,7 +96,7 @@ class EdgeConv(MessagePassing):
 
     def message(self, x_i, x_j, edge_attr: OptTensor) -> Tensor:
         z = edge_attr
-        scale = 1/z[:, 0]
+        scale = 1/(z[:, 0]+0.0001)
         z = z[:, 1:3]*scale.view(-1,1)
         return torch.tanh(self.mlp(z))
 

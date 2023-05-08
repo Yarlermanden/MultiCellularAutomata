@@ -35,7 +35,7 @@ def generate_food(device, scale, d=0.3):
 
 def generate_cluster(device, cluster_size, std_dev, scale):
     '''Generates a cluster of food with certain size and std_dev'''
-    d = 0.8*scale
+    d = 0.7*scale
     x,y = get_random_point_within(d)
     cluster = []
     for _ in range(cluster_size):

@@ -28,8 +28,8 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
-        #self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
-        self.conv_layer_cell = GATConv(self.hidden_size, self.hidden_size, edge_dim=self.edge_dim-2)
+        self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
+        #self.conv_layer_cell = GATConv(self.hidden_size, self.hidden_size, edge_dim=self.edge_dim-2)
 
         #self.mean_conv = MeanEdgeConv(2, dim=self.edge_dim-1)
         #self.edge_conv_food = EdgeConv(2, dim=self.edge_dim-1)
