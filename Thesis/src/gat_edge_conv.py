@@ -106,7 +106,13 @@ class GATConv(MessagePassing):
 
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
 
-        self.lin = Linear(in_channels*2+edge_dim, out_channels, weight_initializer='glorot')
+        input = in_channels*2+edge_dim
+        self.lin = torch.nn.Sequential(
+            Linear(input, input, weight_initializer='glorot'),
+            torch.nn.Tanh(),
+            Linear(input, out_channels, weight_initializer='glorot')
+        )
+        #self.lin = Linear(in_channels*2+edge_dim, out_channels, weight_initializer='glorot')
 
         self.register_parameter('bias', None)
 
@@ -115,7 +121,8 @@ class GATConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.lin.reset_parameters()
+        self.lin[0].reset_parameters()
+        self.lin[2].reset_parameters()
         glorot(self.att)
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
