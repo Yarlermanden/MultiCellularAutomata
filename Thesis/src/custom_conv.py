@@ -56,7 +56,7 @@ class CustomConv(MessagePassing):
         if edge_attr is None:
             z = torch.cat([x_i, x_j], dim=-1)
         else:
-            scale = 1/edge_attr[:, 0]
+            scale = 1/(edge_attr[:, 0]+0.0001)
             edge_attr = scale.view(-1, 1)*edge_attr[:, 1:3]
             z = torch.cat([x_i, x_j, edge_attr], dim=-1)
         return torch.tanh(self.mlp(z))
@@ -128,7 +128,7 @@ class MeanEdgeConv(MessagePassing):
 
     def message(self, x_i, x_j, edge_attr: OptTensor) -> Tensor:
         z = edge_attr
-        scale = 1/z[:, 0]
+        scale = 1/(z[:, 0]+0.0001)
         return torch.tanh(scale.view(-1, 1)*z[:, 1:3])
 
     def __repr__(self) -> str:

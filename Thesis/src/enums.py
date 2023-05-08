@@ -8,6 +8,7 @@ class EnvironmentType(Enum):
     Labyrinth = 5, 
     Bottleneck = 6,
     Box = 7,
+    Grid = 8,
 
 class ModelType(Enum):
     Local = 1, #only normal cell nodes

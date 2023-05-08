@@ -37,7 +37,7 @@ class Visualizer():
         self.columns = math.ceil(self.batch_size / 2)
         if self.batch_size < 4:
             self.rows = 1
-            self.columns = self.batch_size
+            self.columns = max(self.batch_size, 2)
         self.datastructure = DataStructure(settings)
         self.i = 0
 

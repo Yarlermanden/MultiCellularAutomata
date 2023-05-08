@@ -4,6 +4,8 @@ import torch
 from torch_geometric.data import Data
 from enums import *
 import random
+import numpy as np
+import math
 
 def set_default_metrics(graph):
     graph.velocity = 0.0
@@ -31,7 +33,7 @@ class Organism():
         self.device = settings.device
 
     def toGraph(self, food_env = None):
-        from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food, add_labyrinth_food, add_bottleneck_food, add_box_food
+        from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food, add_labyrinth_food, add_bottleneck_food, add_box_food, add_grid_food, cell_mask
         '''transforms all cells in organism to nodes in a graph'''
         hidden = [0, 0, 0, 0, 0]
         x = torch.tensor([[cell.pos[0], cell.pos[1], cell.vel[0], cell.vel[1], 1, 50, *hidden] for cell in self.cells], device=self.device)
@@ -59,8 +61,18 @@ class Organism():
                 add_bottleneck_food(graph, self.settings, food_env)
             case EnvironmentType.Box:
                 add_box_food(graph, self.settings, food_env)
+            case EnvironmentType.Grid:
+                add_grid_food(graph, self.settings, food_env)
             case _:
                 add_random_food(graph, self.settings, food_env)
+
+        #rotate environment
+        degrees = random.uniform(0, 359)
+        theta = math.radians(degrees)
+        rotation_matrix = torch.tensor([[math.cos(theta), -math.sin(theta)],
+                                        [math.sin(theta), math.cos(theta)]])
+        not_cells = torch.bitwise_not(cell_mask(graph.x))
+        graph.x[not_cells, :2] = torch.matmul(graph.x[not_cells, :2], rotation_matrix)
 
         set_default_metrics(graph)
         return graph

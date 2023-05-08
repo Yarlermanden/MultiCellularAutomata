@@ -30,8 +30,11 @@ class Spiral_Env(Food_Env):
 class Labyrinth_Env(Food_Env):
     #Testing environment to see if it can follow food and avoid walls
     #have a few places without food but still traped within walls and see if it can go forward to more food
-    def __init__(self, food_amount, wall_amount=0):
-        super().__init__(food_amount, wall_amount, EnvironmentType.Labyrinth)
+    def __init__(self, cluster_size, grid_size):
+        self.cluster_size = cluster_size
+        self.grid_size = grid_size
+        points = grid_size*((grid_size*3) // 2)
+        super().__init__(food_amount=points*cluster_size, wall_amount=points*5, env_type=EnvironmentType.Labyrinth)
 
 class Bottleneck_Env(Food_Env):
     def __init__(self, food_amount, wall_amount=0):
@@ -40,3 +43,10 @@ class Bottleneck_Env(Food_Env):
 class Box_Env(Food_Env):
     def __init__(self, food_amount, wall_amount=0):
         super().__init__(food_amount, wall_amount, EnvironmentType.Box)
+
+class Grid_Env(Food_Env):
+    def __init__(self, cluster_size, grid_size):
+        self.cluster_size = cluster_size
+        self.grid_size = grid_size
+        points = grid_size*grid_size // 2
+        super().__init__(food_amount=points*cluster_size, wall_amount=points, env_type=EnvironmentType.Grid)
