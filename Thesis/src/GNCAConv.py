@@ -16,7 +16,7 @@ class Conv(GNCA):
         self.velNorm = 1.0*self.settings.scale/self.velocity_scale
         self.attrNorm = 1.0*self.settings.scale/self.settings.radius_food
 
-        self.hidden_after_size = self.hidden_size + 2 + 2
+        self.hidden_after_size = self.hidden_size + 6
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
@@ -29,13 +29,13 @@ class Conv(GNCA):
         )
 
         #self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
-        self.conv_layer_cell = GATConv(self.hidden_size, self.hidden_size, edge_dim=self.edge_dim-2)
+        self.conv_layer_cell = GATConv(self.hidden_size, self.hidden_size, edge_dim=self.edge_dim-1)
 
         #self.mean_conv = MeanEdgeConv(2, dim=self.edge_dim-1)
         #self.edge_conv_food = EdgeConv(2, dim=self.edge_dim-1)
         #self.edge_conv_wall = EdgeConv(2, dim=self.edge_dim-1)
-        self.edge_conv_food = GATEdgeConv(2, 2, edge_dim = 2)
-        self.edge_conv_wall = GATEdgeConv(2, 2, edge_dim = 2)
+        self.edge_conv_food = GATEdgeConv(3, 3, edge_dim=self.edge_dim-1)
+        self.edge_conv_wall = GATEdgeConv(3, 3, edge_dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
             #self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
             self.conv_layer_global = GCN(self.hidden_size, self.hidden_size, 1, self.hidden_size)

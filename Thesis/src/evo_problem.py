@@ -39,5 +39,4 @@ class Custom_NEProblem(NEProblem):
             fitness3 = 0
 
         ray.get(self.global_var.update_pool.remote(graph))
-        #return torch.tensor([fitness, fitness1, fitness2, fitness3])
-        return torch.tensor([fitness, fitness, fitness, fitness3])
+        return torch.tensor([fitness])

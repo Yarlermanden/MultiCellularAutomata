@@ -7,7 +7,13 @@ import math
 from enums import *
 
 def get_random_point_within(d):
-    return random.uniform(-d, d), random.uniform(-d,d)
+    x = random.uniform(-d,d)
+    y = random.uniform(-d,d)
+    min_d = d/50
+    while(abs(x) < min_d and abs(y) < min_d):
+        x = random.uniform(-d,d)
+        y = random.uniform(-d,d)
+    return x,y
 
 def get_random_point_normal(center, std_dev):
     return np.random.normal(center, std_dev), np.random.normal(center, std_dev)
@@ -34,6 +40,10 @@ def generate_random_food(device, scale, d=0.3):
     '''Generate a random food'''
     #TODO consider making this not able in spawning food right in the center...
     x,y = get_random_point_normal(0, d*scale)
+    return generate_food(device, x, y)
+
+def generate_random_food_universal(device, scale, d):
+    x,y = get_random_point_within(d*scale)
     return generate_food(device, x, y)
 
 def generate_cluster(device, cluster_size, std_dev, scale, x, y):

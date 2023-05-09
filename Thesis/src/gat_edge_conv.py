@@ -31,16 +31,19 @@ class GATEdgeConv(MessagePassing):
         self.edge_dim = edge_dim
 
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
-        self.lin_edge = Linear(edge_dim, out_channels, bias=False,
-                                weight_initializer='glorot')
+        self.mlp_edge = torch.nn.Sequential(
+        #    Linear(edge_dim, edge_dim, weight_initializer='glorot'),
+        #    torch.nn.Tanh(),
+            Linear(edge_dim, out_channels, weight_initializer='glorot')
+        )
 
         self.register_parameter('bias', None)
         self._alpha = None
         self.reset_parameters()
 
     def reset_parameters(self):
-        if self.lin_edge is not None:
-            self.lin_edge.reset_parameters()
+        self.mlp_edge[0].reset_parameters()
+        #self.mlp_edge[2].reset_parameters()
         glorot(self.att)
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
@@ -65,11 +68,9 @@ class GATEdgeConv(MessagePassing):
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
 
-        z = edge_attr
-        scale = 1/(z[:, 0]+0.0001)
-        x = scale.view(-1, 1)*z[:, 1:3]
-        x = self.lin_edge(x)
-        x = x.view(-1, 1, self.out_channels)
+        scale = 1/(edge_attr[:, :1]+0.0001)
+        x = torch.concat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
+        x = self.mlp_edge(x).view(-1, 1, self.out_channels)
 
         x = F.leaky_relu(x, self.negative_slope)
         alpha = (x * self.att).sum(dim=-1)
@@ -107,12 +108,11 @@ class GATConv(MessagePassing):
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
 
         input = in_channels*2+edge_dim
-        self.lin = torch.nn.Sequential(
-            Linear(input, input, weight_initializer='glorot'),
-            torch.nn.Tanh(),
+        self.mlp = torch.nn.Sequential(
+            #Linear(input, input, weight_initializer='glorot'),
+            #torch.nn.Tanh(),
             Linear(input, out_channels, weight_initializer='glorot')
         )
-        #self.lin = Linear(in_channels*2+edge_dim, out_channels, weight_initializer='glorot')
 
         self.register_parameter('bias', None)
 
@@ -121,8 +121,8 @@ class GATConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.lin[0].reset_parameters()
-        self.lin[2].reset_parameters()
+        self.mlp[0].reset_parameters()
+        #self.mlp[2].reset_parameters()
         glorot(self.att)
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
@@ -142,11 +142,11 @@ class GATConv(MessagePassing):
                 index: Tensor, ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
-        scale = 1/(edge_attr[:, 0]+0.0001)
-        edge_attr = scale.view(-1, 1)*edge_attr[:, 1:3]
+        scale = 1/(edge_attr[:, :1]+0.0001)
+        edge_attr = torch.cat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
         z = torch.cat([x_i, x_j, edge_attr], dim=1)
 
-        x = self.lin(z).view(-1, 1, self.out_channels)
+        x = self.mlp(z).view(-1, 1, self.out_channels)
         x = F.leaky_relu(x, self.negative_slope)
         alpha = (x * self.att).sum(dim=-1)
         alpha = softmax(alpha, index, ptr, size_i)
