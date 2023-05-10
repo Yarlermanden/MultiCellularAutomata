@@ -101,8 +101,8 @@ class GNCA(nn.Module):
             dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
             x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
             if x5.isnan(): x5 = -0.00001
-            graph.food_search_movement += x5
-            graph.cells_alive += cell_mask(graph.x[s_idx:e_idx]).sum()
+            graph.food_search_movement[i] += x5
+            graph.cells_alive[i] += cell_mask(graph.x[s_idx:e_idx]).sum()
             if len(food_nodes_in_batch) == 0 and (cell_mask(graph.x[s_idx:e_idx])).sum() != 0: #no more food but still cells in batch
                 graph.food_reward[i] += 1
             s_idx = e_idx
@@ -120,8 +120,9 @@ class GNCA(nn.Module):
         wall_damage(graph, self.settings)
         self.compute_fitness_metrics(graph)
         self.remove_nodes(graph)
-        #TODO add a new cell node pr x graph energy
+        breed(graph, self.settings.energy_required_to_replicate)
         graph = graph.to(device=self.device)
+        graph.timesteps += 1.0
         return graph
 
     def forward(self, graph, time_steps = 1):

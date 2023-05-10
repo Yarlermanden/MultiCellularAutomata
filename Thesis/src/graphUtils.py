@@ -12,10 +12,10 @@ def add_food(graph, food):
 def add_random_food(graph, settings, food_env):
     '''Add n random food sources as nodes to the graph'''
     for _ in range(food_env.food_amount):
-        food = generate_food(settings.device, settings.scale)
+        food = generate_random_food(settings.device, settings.scale)
         add_food(graph, food)
     for _ in range(food_env.wall_amount):
-        wall = generate_food(settings.device, settings.scale)
+        wall = generate_random_food_universal(settings.device, settings.scale, d=0.6)
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
 
@@ -51,7 +51,7 @@ def add_spiral_food(graph, settings, food_env):
     for _ in range(food_env.food_amount):
         food = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=food_env.spirals)
         add_food(graph, food)
-    abnormal_walls = food_env.wall_amount//40
+    abnormal_walls = food_env.wall_amount//20
     walls = generate_spiral_walls(settings.device, settings.scale, food_env.wall_amount-abnormal_walls, spirals=food_env.spirals)
     graph.x = torch.cat((graph.x, walls))
     for _ in range(abnormal_walls):
@@ -158,6 +158,17 @@ def get_dead_cells_mask(graph, energy_required):
     e_mask = graph.x[:, 5] < energy_required
     mask = torch.bitwise_and(c_mask, e_mask)
     return mask
+
+def breed(graph, energy_required_to_replicate):
+    '''Creates new cells if enough energy'''
+    c_mask = cell_mask(graph.x)
+    enough_energy_mask = graph.x[:, 5] >= energy_required_to_replicate
+    breeding_mask = torch.bitwise_and(c_mask, enough_energy_mask)
+    graph.x[breeding_mask] -= 30
+
+    new_cells = graph.x[breeding_mask].clone()
+    #TODO optionally add some noise to the spawned nodes
+    graph.x = torch.cat((graph.x, new_cells), dim=0)
 
 def unbatch_nodes(graphs, batch_size):
     '''Unbatches nodes and returns a list of list of nodes in the minibatch'''

@@ -18,6 +18,7 @@ def set_default_metrics(graph):
     graph.food_search_movement = 0.0
     graph.cells_alive = 0.0
     graph.subsize=len(graph.x)
+    graph.timesteps = 0.0
 
 def toGraph(nodes, device):
     '''transforms an environment with given nodes into a graph'''
