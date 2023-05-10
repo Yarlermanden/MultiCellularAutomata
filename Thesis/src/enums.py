@@ -36,3 +36,12 @@ class EdgeType(IntEnum):
     GlobalAndCell = 2, #TODO remove if we end up not using that model type
     #CellToGlobal = 3, #TODO maybe combine with the other one
     WallToCell = 4,
+
+class SettingType(IntEnum):
+    Cells = 0, #cell count
+    Obstacles = 1,
+    FoodAmount = 2,
+    CellRadius = 3,
+    FoodRadiusScale = 4,
+    ObstacleRadiusScale = 5,
+    Noise = 6,
