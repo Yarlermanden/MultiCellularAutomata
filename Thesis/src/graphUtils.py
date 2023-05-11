@@ -168,15 +168,19 @@ def breed(graph, settings):
         enough_energy_mask = graph.x[s_idx:e_idx, 5] >= settings.energy_required_to_replicate
         breeding_mask = torch.nonzero(torch.bitwise_and(c_mask, enough_energy_mask)) + s_idx
         if breeding_mask.any():
-            graph.x[breeding_mask, 5] -= settings.energy_required_to_replicate // 0.66
+            graph.x[breeding_mask, 5] -= settings.energy_required_to_replicate // 2
             new_cells = graph.x[breeding_mask].clone().view(-1, graph.x.shape[1])
-            x_noise = (torch.rand(new_cells[:, 0].shape, device=settings.device)*2-1.0) * settings.noise
-            y_noise = (torch.rand(new_cells[:, 1].shape, device=settings.device)*2-1.0) * settings.noise
-            new_cells[:, 0] += x_noise
-            new_cells[:, 1] += y_noise
-            graph.subsize[i] += breeding_mask.shape[0]
-            graph.x = torch.cat((graph.x[:e_idx], new_cells, graph.x[e_idx:]), dim=0)
-            e_idx += breeding_mask.shape[0]
+            new_cells_survive = torch.rand(new_cells[:,0].shape) > 0.5
+            new_cells = new_cells[new_cells_survive].view(-1, graph.x.shape[1])
+
+            if new_cells.any():
+                x_noise = (torch.rand(new_cells[:, 0].shape, device=settings.device)*2-1.0) * settings.noise
+                y_noise = (torch.rand(new_cells[:, 1].shape, device=settings.device)*2-1.0) * settings.noise
+                new_cells[:, 0] += x_noise
+                new_cells[:, 1] += y_noise
+                graph.subsize[i] += new_cells.shape[0]
+                graph.x = torch.cat((graph.x[:e_idx], new_cells, graph.x[e_idx:]), dim=0)
+                e_idx += new_cells.shape[0]
         s_idx = e_idx
 
 def unbatch_nodes(graphs, batch_size):
