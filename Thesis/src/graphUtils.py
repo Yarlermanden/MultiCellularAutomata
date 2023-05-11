@@ -168,7 +168,7 @@ def breed(graph, settings):
         enough_energy_mask = graph.x[s_idx:e_idx, 5] >= settings.energy_required_to_replicate
         breeding_mask = torch.nonzero(torch.bitwise_and(c_mask, enough_energy_mask)) + s_idx
         if breeding_mask.any():
-            graph.x[breeding_mask, 5] -= settings.energy_required_to_replicate // 3
+            graph.x[breeding_mask, 5] -= settings.energy_required_to_replicate // 0.66
             new_cells = graph.x[breeding_mask].clone().view(-1, graph.x.shape[1])
             x_noise = (torch.rand(new_cells[:, 0].shape, device=settings.device)*2-1.0) * settings.noise
             y_noise = (torch.rand(new_cells[:, 1].shape, device=settings.device)*2-1.0) * settings.noise

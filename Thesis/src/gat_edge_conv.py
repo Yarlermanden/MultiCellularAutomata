@@ -68,7 +68,7 @@ class GATEdgeConv(MessagePassing):
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
 
-        scale = 1/(edge_attr[:, :1]+0.001)
+        scale = 1/(edge_attr[:, :1]+0.0001)
         x = torch.concat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
         x = self.mlp_edge(x).view(-1, 1, self.out_channels)
 
@@ -142,7 +142,7 @@ class GATConv(MessagePassing):
                 index: Tensor, ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
-        scale = 1/(edge_attr[:, :1]+0.001)
+        scale = 1/(edge_attr[:, :1]+0.0001)
         edge_attr = torch.cat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
         z = torch.cat([x_i, x_j, edge_attr], dim=1)
 
