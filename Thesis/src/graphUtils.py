@@ -159,16 +159,25 @@ def get_dead_cells_mask(graph, energy_required):
     mask = torch.bitwise_and(c_mask, e_mask)
     return mask
 
-def breed(graph, energy_required_to_replicate):
+def breed(graph, settings):
     '''Creates new cells if enough energy'''
-    c_mask = cell_mask(graph.x)
-    enough_energy_mask = graph.x[:, 5] >= energy_required_to_replicate
-    breeding_mask = torch.bitwise_and(c_mask, enough_energy_mask)
-    graph.x[breeding_mask] -= 30
-
-    new_cells = graph.x[breeding_mask].clone()
-    #TODO optionally add some noise to the spawned nodes
-    graph.x = torch.cat((graph.x, new_cells), dim=0)
+    s_idx = 0
+    for i in range(settings.batch_size):
+        e_idx = s_idx + graph.subsize[i]
+        c_mask = cell_mask(graph.x[s_idx:e_idx])
+        enough_energy_mask = graph.x[s_idx:e_idx, 5] >= settings.energy_required_to_replicate
+        breeding_mask = torch.nonzero(torch.bitwise_and(c_mask, enough_energy_mask)) + s_idx
+        if breeding_mask.any():
+            graph.x[breeding_mask, 5] -= settings.energy_required_to_replicate // 3
+            new_cells = graph.x[breeding_mask].clone().view(-1, graph.x.shape[1])
+            x_noise = (torch.rand(new_cells[:, 0].shape, device=settings.device)*2-1.0) * settings.noise
+            y_noise = (torch.rand(new_cells[:, 1].shape, device=settings.device)*2-1.0) * settings.noise
+            new_cells[:, 0] += x_noise
+            new_cells[:, 1] += y_noise
+            graph.subsize[i] += breeding_mask.shape[0]
+            graph.x = torch.cat((graph.x[:e_idx], new_cells, graph.x[e_idx:]), dim=0)
+            e_idx += breeding_mask.shape[0]
+        s_idx = e_idx
 
 def unbatch_nodes(graphs, batch_size):
     '''Unbatches nodes and returns a list of list of nodes in the minibatch'''

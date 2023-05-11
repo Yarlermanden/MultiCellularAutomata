@@ -120,7 +120,7 @@ class GNCA(nn.Module):
         wall_damage(graph, self.settings)
         self.compute_fitness_metrics(graph)
         self.remove_nodes(graph)
-        breed(graph, self.settings.energy_required_to_replicate)
+        breed(graph, self.settings)
         graph = graph.to(device=self.device)
         graph.timesteps += 1.0
         return graph
