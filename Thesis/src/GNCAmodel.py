@@ -69,7 +69,7 @@ class GNCA(nn.Module):
                 des = nx.descendants(G, x.item())
                 if len(des) > 0:
                     graph.x[list(des), 5] += graph.x[x, 5]/1.5 #all of their energy should be increased according to energy in food
-        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=self.settings.energy_required_to_replicate)
+        #graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=self.settings.energy_required_to_replicate)
 
         start_index = 0
         for i in range(self.settings.batch_size): #update metrics

@@ -34,7 +34,8 @@ class GATEdgeConv(MessagePassing):
         self.mlp_edge = torch.nn.Sequential(
         #    Linear(edge_dim, edge_dim, weight_initializer='glorot'),
         #    torch.nn.Tanh(),
-            Linear(edge_dim, out_channels, weight_initializer='glorot')
+            #Linear(edge_dim, out_channels, weight_initializer='glorot')
+            Linear(edge_dim, out_channels)
         )
 
         self.register_parameter('bias', None)
@@ -44,7 +45,7 @@ class GATEdgeConv(MessagePassing):
     def reset_parameters(self):
         self.mlp_edge[0].reset_parameters()
         #self.mlp_edge[2].reset_parameters()
-        glorot(self.att)
+        #glorot(self.att)
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
                 edge_attr: OptTensor = None):
@@ -68,7 +69,7 @@ class GATEdgeConv(MessagePassing):
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
 
-        scale = 1/(edge_attr[:, :1]+1.0)
+        scale = 1/(edge_attr[:, :1]+0.0001)
         x = torch.concat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
         x = self.mlp_edge(x).view(-1, 1, self.out_channels)
 
@@ -111,7 +112,8 @@ class GATConv(MessagePassing):
         self.mlp = torch.nn.Sequential(
             #Linear(input, input, weight_initializer='glorot'),
             #torch.nn.Tanh(),
-            Linear(input, out_channels, weight_initializer='glorot')
+            #Linear(input, out_channels, weight_initializer='glorot')
+            Linear(input, out_channels)
         )
 
         self.register_parameter('bias', None)
@@ -123,7 +125,7 @@ class GATConv(MessagePassing):
     def reset_parameters(self):
         self.mlp[0].reset_parameters()
         #self.mlp[2].reset_parameters()
-        glorot(self.att)
+        #glorot(self.att)
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
                 edge_attr: OptTensor = None):
@@ -142,11 +144,17 @@ class GATConv(MessagePassing):
                 index: Tensor, ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
-        scale = 1/(edge_attr[:, :1]+1.0)
+        scale = 1/(edge_attr[:, :1]+0.0001)
         edge_attr = torch.cat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
         z = torch.cat([x_i, x_j, edge_attr], dim=1)
 
         x = self.mlp(z).view(-1, 1, self.out_channels)
+        if torch.any(torch.isnan(x)):
+            print("mlp return nan")
+            print('z contain nan: ', torch.any(torch.isnan(z)))
+            print(edge_attr)
+            print(scale)
+
         x = F.leaky_relu(x, self.negative_slope)
         alpha = (x * self.att).sum(dim=-1)
         alpha = softmax(alpha, index, ptr, size_i)

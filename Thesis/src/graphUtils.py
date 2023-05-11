@@ -170,7 +170,7 @@ def breed(graph, settings):
         if breeding_mask.any():
             graph.x[breeding_mask, 5] -= settings.energy_required_to_replicate // 2
             new_cells = graph.x[breeding_mask].clone().view(-1, graph.x.shape[1])
-            new_cells_survive = torch.rand(new_cells[:,0].shape) > 0.5
+            new_cells_survive = torch.rand(new_cells[:,0].shape) > 0.7
             new_cells = new_cells[new_cells_survive].view(-1, graph.x.shape[1])
 
             if new_cells.any():
