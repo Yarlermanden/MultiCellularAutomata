@@ -32,10 +32,12 @@ class GATEdgeConv(MessagePassing):
 
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
         self.mlp_edge = torch.nn.Sequential(
-        #    Linear(edge_dim, edge_dim, weight_initializer='glorot'),
-        #    torch.nn.Tanh(),
+            #Linear(edge_dim, edge_dim, weight_initializer='glorot'),
+            Linear(edge_dim, edge_dim),
+            torch.nn.Tanh(),
             #Linear(edge_dim, out_channels, weight_initializer='glorot')
-            Linear(edge_dim, out_channels)
+            Linear(edge_dim, out_channels),
+            torch.nn.Tanh(),
         )
 
         self.register_parameter('bias', None)
@@ -43,7 +45,8 @@ class GATEdgeConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.mlp_edge[0].reset_parameters()
+        ...
+        #self.mlp_edge[0].reset_parameters()
         #self.mlp_edge[2].reset_parameters()
         #glorot(self.att)
 
@@ -111,9 +114,11 @@ class GATConv(MessagePassing):
         input = in_channels*2+edge_dim
         self.mlp = torch.nn.Sequential(
             #Linear(input, input, weight_initializer='glorot'),
-            #torch.nn.Tanh(),
+            Linear(input, input),
+            torch.nn.Tanh(),
             #Linear(input, out_channels, weight_initializer='glorot')
-            Linear(input, out_channels)
+            Linear(input, out_channels),
+            torch.nn.Tanh(),
         )
 
         self.register_parameter('bias', None)
@@ -123,9 +128,10 @@ class GATConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.mlp[0].reset_parameters()
+        #self.mlp[0].reset_parameters()
         #self.mlp[2].reset_parameters()
         #glorot(self.att)
+        ...
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
                 edge_attr: OptTensor = None):
@@ -152,8 +158,13 @@ class GATConv(MessagePassing):
         if torch.any(torch.isnan(x)):
             print("mlp return nan")
             print('z contain nan: ', torch.any(torch.isnan(z)))
+            print('scale contains nan: ' + torch.any(torch.isnan(scale)))
+            print('x_i contains nan: ', torch.any(torch.isnan(x_i)))
+            print('x_j contains nan: ', torch.any(torch.isnan(x_j)))
             print(edge_attr)
             print(scale)
+            print(x_i)
+            print(x_j)
 
         x = F.leaky_relu(x, self.negative_slope)
         alpha = (x * self.att).sum(dim=-1)

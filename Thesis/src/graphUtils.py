@@ -60,7 +60,6 @@ def add_spiral_food(graph, settings, food_env):
         add_food(graph, wall)
 
 def add_labyrinth_food(graph, settings, food_env):
-    #TODO
     x_points = np.linspace(-0.8*settings.scale, 0.8*settings.scale, (food_env.grid_size*3)//2)
     y_points = np.linspace(-0.8*settings.scale, 0.8*settings.scale, food_env.grid_size)
     for i, x in enumerate(x_points):

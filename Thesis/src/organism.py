@@ -68,7 +68,7 @@ class Organism():
                 add_random_food(graph, self.settings, food_env)
 
         #rotate environment
-        degrees = random.uniform(0, 359)
+        degrees = random.uniform(0, 360)
         theta = math.radians(degrees)
         rotation_matrix = torch.tensor([[math.cos(theta), -math.sin(theta)],
                                         [math.sin(theta), math.cos(theta)]])

@@ -168,10 +168,18 @@ def generate_bottleneck_walls(device, scale, wall_amount):
 
 def generate_half_circle_wall(device, x, y):
     #generate 5 or 7 walls in half circle
-    walls = [generate_food(device) for _ in range(7)]
+    degrees = random.uniform(0, 360)
+    theta = math.radians(degrees)
+    rotation_matrix = torch.tensor([[math.cos(theta), -math.sin(theta)],
+                                    [math.sin(theta), math.cos(theta)]], device=device)
+
+    #walls = [generate_food(device) for _ in range(7)]
+    walls = [generate_food(device) for _ in range(5)]
     walls = torch.stack(walls).squeeze()
     walls[:, 4] = NodeType.Wall
-    coords = torch.tensor([[-0.04, -0.2], [0.05, -0.16], [0.12, -0.08], [0.16, 0], [0.12, 0.08], [0.05, 0.16], [-0.04, 0.2]], device=device, dtype = torch.float)
+    #coords = torch.tensor([[-0.04, -0.2], [0.05, -0.16], [0.12, -0.08], [0.16, 0], [0.12, 0.08], [0.05, 0.16], [-0.04, 0.2]], device=device, dtype = torch.float)
+    coords = torch.tensor([[0.12, -0.08], [0.16, 0], [0.12, 0.08], [0.05, 0.16], [-0.04, 0.2]], device=device, dtype = torch.float)
+    coords = torch.matmul(coords, rotation_matrix)
     walls[:, :2] = coords+torch.tensor([x, y], device=device)
     return walls
 
