@@ -16,30 +16,35 @@ class Conv(GNCA):
         self.velNorm = 1.0*self.settings.scale/self.velocity_scale
         self.attrNorm = 1.0*self.settings.scale/self.settings.radius_food
 
-        self.hidden_after_size = self.hidden_size + 6
+        self.hidden_after_size = self.hidden_size + 4
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(self.hidden_after_size, self.hidden_size+4),
+            nn.Linear(5, 5),
             nn.Tanh(),
-            #nn.Linear(self.hidden_after_size, self.hidden_after_size),
-            #nn.Tanh(),
-            nn.Linear(self.hidden_size+4, self.output_channels),
+            nn.Linear(5, 2),
             nn.Tanh(),
         )
 
         #self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
-        self.conv_layer_cell = GATConv(self.hidden_size, self.hidden_size, edge_dim=self.edge_dim-1)
+        self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
 
         #self.mean_conv = MeanEdgeConv(2, dim=self.edge_dim-1)
         #self.edge_conv_food = EdgeConv(2, dim=self.edge_dim-1)
         #self.edge_conv_wall = EdgeConv(2, dim=self.edge_dim-1)
-        self.edge_conv_food = GATEdgeConv(3, 3, edge_dim=self.edge_dim-1)
-        self.edge_conv_wall = GATEdgeConv(3, 3, edge_dim=self.edge_dim-1)
+        self.edge_conv_food = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
+        self.edge_conv_wall = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
             #self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
             self.conv_layer_global = GCN(self.hidden_size, self.hidden_size, 1, self.hidden_size)
         #self.gConvGRU = gconv_gru.GConvGRU(in_channels=2, out_channels=2, K=1).to(self.device)
+
+        self.mlp_x = nn.Sequential(
+            nn.Linear(self.hidden_size-1, self.hidden_size-1),
+            nn.Tanh(),
+            nn.Linear(self.hidden_size-1, 1),
+            nn.Tanh(),
+        )
 
         self.H = None
         self.pair_norm = pair_norm.PairNorm()
@@ -80,9 +85,16 @@ class Conv(GNCA):
         x = x_origin
         #x_food = self.mean_conv(x=x, edge_index=food_edges, edge_attr=food_attr)
         #x_wall = self.mean_conv(x=x, edge_index=wall_edges, edge_attr=wall_attr)
-        x_food = torch.tanh(self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr))
-        x_wall = torch.tanh(self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr))
-        x_cell = torch.tanh(self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr))
+        #TODO use cell mask already here to limit computations
+        x_food = torch.tanh(self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)[c_mask])
+        x_wall = torch.tanh(self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)[c_mask])
+        x_cell = torch.tanh(self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)[c_mask])
+
+        x_x = self.mlp_x( torch.cat( (torch.norm(x[c_mask, :2], dim=1).unsqueeze(dim=1), x[c_mask, 2:]), dim=1)) * x[c_mask, :2]
+
+        #h = x_cell[c_mask, 2:] + x_origin[c_mask, 3:]
+        h = x_cell[:, 2:] + x_origin[c_mask, 3:]
+
         #having no edges in a specific type now results in these being 0 all across the board
         #x = x_food + x_cell #could consider catting this instead?
         if self.model_type == ModelType.WithGlobalNode:
@@ -92,16 +104,64 @@ class Conv(GNCA):
             g_mask = graph.x[:, 4] == NodeType.GlobalCell
             graph.x[g_mask, 2:4] = x_global[g_mask, :2] #update global
             graph.x[g_mask, 5:] = x_global[g_mask, 2:] #update global
-            x = torch.concat((x_food, x_cell, x_wall, x_global), dim=1)
-        else: x = torch.concat((x_food, x_cell, x_wall), dim=1)
+            x = torch.concat((x_food, x_cell[:, :2], x_wall, x_global), dim=1)
+        else: 
+            #x = torch.concat((x_food, x_cell[:, :2], x_wall), dim=1)
+            #x = torch.concat((
+            #    torch.norm(x_food, dim=1).unsqueeze(dim=1), 
+            #    torch.norm(x_cell[:, :2], dim=1).unsqueeze(dim=1), 
+            #    torch.norm(x_wall, dim=1).unsqueeze(dim=1), 
+            #    torch.norm(x_x, dim=1).unsqueeze(dim=1)
+            #), dim=1)
+            ...
 
         output = torch.zeros((x.shape[0], self.output_channels), device=self.device)
-        output[c_mask] = self.mlp_after(x[c_mask])
+
+        #somehow subtract the direction from each type - give the magnitude of each - how important is each
+        #compute the relative direction of each - something like the dot...
+        #give mlp the magnitudes and relative direction of food and obstacle compared to the cell
+        #let mlp output direction - that is output of size 2
+        #multiply this with direction of cells
+        #cell_dir, food_dir, obstacle_dir
+        #cell_magni, food_magni, obstacle_magni, cell_food_rot, cell_obstacle_rot
+        #where do we want to go - invariant...
+        #multiply by cell_dir
+        x_cell_vel = x_x+x_cell[:, :2]
+        cell_magnitude = torch.norm(x_cell_vel, dim=1, keepdim=True)
+        food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
+        wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
+        cell_norm = F.normalize(x_cell_vel, dim=1)
+        food_norm = F.normalize(x_food, dim=1)
+        wall_norm = F.normalize(x_wall, dim=1)
+        #cell_norm = x_cell_vel / cell_magnitude #would need to handle case of 0
+        #food_norm = x_food / food_magnitude
+        #wall_norm = x_wall / wall_magnitude
+
+        #cell_food_angle = torch.acos(torch.dot(cell_norm, food_norm))
+        #cell_wall_angle = torch.acos(torch.dot(cell_norm, wall_norm))
+        cell_food_angle = torch.acos(torch.clamp(torch.sum(cell_norm * food_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1) #sum is only used to broadcast here...
+        cell_wall_angle = torch.acos(torch.clamp(torch.sum(cell_norm * wall_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1)
+        input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, cell_food_angle, cell_wall_angle), dim=1)
+        output[c_mask, :2] = self.mlp_after(input) * x_cell_vel
+
+
+        #could we rotate all of them in some way to make the output E(n) variant before rotating them back?
+        #could we take them norm of each type and input to the MLP
+        #then take the output and multiply with each of them - 3 input, 6 output
+        #and then sum all of them together
+
+        #x_scale = self.mlp_after(x[c_mask])
+        #output[c_mask, :2] = torch.tanh(x_scale[:, :1]*x_food[c_mask] + 
+        #                                x_scale[:, 1:2]*x_cell[c_mask, :2] + 
+        #                                x_scale[:, 2:3]*x_wall[c_mask] + 
+        #                                x_scale[:, 3:4]*x_x[c_mask]
+        #                                )
+        #output[c_mask, :2] = self.mlp_after(x[c_mask])
         x = output
         #x[:, :2] += self.gru(cell_edges, x[:, :2])
 
         #... and normalize hidden features H
-        h = x[c_mask, 2:] + x_origin[c_mask, 3:]
+        #h = x[c_mask, 2:] + x_origin[c_mask, 3:]
         x[c_mask, 2:] = self.nodeNorm(h)
         #x[c_mask, 2:] = torch.tanh(x[c_mask, 2:]/10 + x_origin[c_mask, 3:]*0.75)
 

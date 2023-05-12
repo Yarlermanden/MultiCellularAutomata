@@ -33,12 +33,13 @@ class GATEdgeConv(MessagePassing):
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
         self.mlp_edge = torch.nn.Sequential(
             #Linear(edge_dim, edge_dim, weight_initializer='glorot'),
-            Linear(edge_dim, edge_dim),
+            Linear(6, 6),
             torch.nn.Tanh(),
             #Linear(edge_dim, out_channels, weight_initializer='glorot')
-            Linear(edge_dim, out_channels),
+            Linear(6, 1),
             torch.nn.Tanh(),
         )
+        self.lin = Linear(1, 1)
 
         self.register_parameter('bias', None)
         self._alpha = None
@@ -52,7 +53,6 @@ class GATEdgeConv(MessagePassing):
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
                 edge_attr: OptTensor = None):
-
         if isinstance(x, Tensor):
             x: PairTensor = (x, x)
 
@@ -64,23 +64,28 @@ class GATEdgeConv(MessagePassing):
         if torch.any(torch.isnan(out)):
             print('GATEdgeConv is nan')
             out = torch.zeros_like(out)
-
         return out
 
     def message(self, x_i, x_j, edge_attr: OptTensor,
                 index: Tensor, ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
+        #x_i is the cell
         edge_attr = edge_attr.view(-1, 3)
+        input = torch.cat((edge_attr[:, :1], x_i[:, -5:]), dim=1)
 
-        scale = 1/(edge_attr[:, :1]+0.0001)
-        x = torch.concat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
-        x = self.mlp_edge(x).view(-1, 1, self.out_channels)
+        #scale = 1/(edge_attr[:, :1]+0.0001)
+        #x = torch.concat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
+        #x = torch.abs(x)
+        #mij = self.mlp_edge(x).view(-1, 1, self.out_channels)
+        mij = self.mlp_edge(input)
 
+        x = self.lin(mij).unsqueeze(dim=1)
         x = F.leaky_relu(x, self.negative_slope)
         alpha = (x * self.att).sum(dim=-1)
         alpha = softmax(alpha, index, ptr, size_i)
         self._alpha = alpha
-        return x * alpha.unsqueeze(-1)
+        x = (mij * alpha).view(-1, 1) * edge_attr[:, 1:3]
+        return x.unsqueeze(dim=1)
 
     def __repr__(self) -> str:
         return (f'{self.__class__.__name__}({self.in_channels}, '
@@ -109,17 +114,18 @@ class GATConv(MessagePassing):
         self.edge_dim = edge_dim
         self.fill_value = fill_value
 
-        self.att = Parameter(torch.Tensor(1, 1, out_channels))
+        self.att = Parameter(torch.Tensor(1, 1, 6))
 
-        input = in_channels*2+edge_dim
+        input = in_channels*2+1
         self.mlp = torch.nn.Sequential(
             #Linear(input, input, weight_initializer='glorot'),
             Linear(input, input),
             torch.nn.Tanh(),
             #Linear(input, out_channels, weight_initializer='glorot')
-            Linear(input, out_channels),
+            Linear(input, 6),
             torch.nn.Tanh(),
         )
+        self.lin = Linear(6, 6)
 
         self.register_parameter('bias', None)
 
@@ -135,10 +141,10 @@ class GATConv(MessagePassing):
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
                 edge_attr: OptTensor = None):
-
         out = self.propagate(edge_index, x=x, edge_attr=edge_attr,
                              size=None)
         out = out.view(-1, self.out_channels)
+        #TODO should we add conv on x_i itself on top of this?
         if torch.any(torch.isnan(out)):
             print('GATCONV is nan')
             out = torch.zeros_like(out)
@@ -150,27 +156,33 @@ class GATConv(MessagePassing):
                 index: Tensor, ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
-        scale = 1/(edge_attr[:, :1]+0.0001)
-        edge_attr = torch.cat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
-        z = torch.cat([x_i, x_j, edge_attr], dim=1)
+        #scale = 1/(edge_attr[:, :1]+0.0001)
+        #edge_attr1 = torch.cat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
+        #edge_attr1 = torch.abs(edge_attr1)
+        #z = torch.cat([x_i, x_j, edge_attr1], dim=1)
+        z = torch.cat([x_i, x_j, edge_attr[:, :1]], dim=1)
 
-        x = self.mlp(z).view(-1, 1, self.out_channels)
-        if torch.any(torch.isnan(x)):
+        mij = self.mlp(z)
+        if torch.any(torch.isnan(mij)):
             print("mlp return nan")
             print('z contain nan: ', torch.any(torch.isnan(z)))
-            print('scale contains nan: ' + torch.any(torch.isnan(scale)))
+            #print('scale contains nan: ' + torch.any(torch.isnan(scale)))
             print('x_i contains nan: ', torch.any(torch.isnan(x_i)))
             print('x_j contains nan: ', torch.any(torch.isnan(x_j)))
             print(edge_attr)
-            print(scale)
+            #print(scale)
             print(x_i)
             print(x_j)
 
+        x = self.lin(mij).unsqueeze(dim=1)
         x = F.leaky_relu(x, self.negative_slope)
         alpha = (x * self.att).sum(dim=-1)
         alpha = softmax(alpha, index, ptr, size_i)
         self._alpha = alpha
-        return x * alpha.unsqueeze(-1)
+
+        x = mij * alpha
+        x = torch.cat((x[:, :1] * edge_attr[:, 1:3], x[:, 1:]), dim=1)
+        return x.unsqueeze(dim=1)
 
     def __repr__(self) -> str:
         return (f'{self.__class__.__name__}({self.in_channels}, '
