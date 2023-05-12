@@ -131,18 +131,21 @@ class Conv(GNCA):
         food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
         wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
         cell_norm = F.normalize(x_cell_vel, dim=1)
-        food_norm = F.normalize(x_food, dim=1)
-        wall_norm = F.normalize(x_wall, dim=1)
+        #food_norm = F.normalize(x_food, dim=1)
+        #wall_norm = F.normalize(x_wall, dim=1)
+
         #cell_norm = x_cell_vel / cell_magnitude #would need to handle case of 0
         #food_norm = x_food / food_magnitude
         #wall_norm = x_wall / wall_magnitude
 
         #cell_food_angle = torch.acos(torch.dot(cell_norm, food_norm))
         #cell_wall_angle = torch.acos(torch.dot(cell_norm, wall_norm))
-        cell_food_angle = torch.acos(torch.clamp(torch.sum(cell_norm * food_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1) #sum is only used to broadcast here...
-        cell_wall_angle = torch.acos(torch.clamp(torch.sum(cell_norm * wall_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1)
+        #cell_food_angle = torch.acos(torch.clamp(torch.sum(cell_norm * food_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1) #sum is only used to broadcast here...
+        #cell_wall_angle = torch.acos(torch.clamp(torch.sum(cell_norm * wall_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1)
+        cell_food_angle = torch.acos(torch.clamp((x_cell_vel * x_food).sum(dim=1, keepdim=True) / (cell_magnitude * food_magnitude + 1e-7), -1.0, 1.0))
+        cell_wall_angle = torch.acos(torch.clamp((x_cell_vel * x_wall).sum(dim=1, keepdim=True) / (cell_magnitude * wall_magnitude + 1e-7), -1.0, 1.0))
         input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, cell_food_angle, cell_wall_angle), dim=1)
-        output[c_mask, :2] = self.mlp_after(input) * x_cell_vel
+        output[c_mask, :2] = self.mlp_after(input) * cell_norm
 
 
         #could we rotate all of them in some way to make the output E(n) variant before rotating them back?
