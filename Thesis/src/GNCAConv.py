@@ -172,6 +172,10 @@ class Conv(GNCA):
         #x[:, 2:] = self.pair_norm(x[:, 2:] + x_origin[:, 3:])
         #x[c_mask, 2:] = self.pair_norm.forward(x[c_mask, 2:] + x_origin[c_mask, 3:]) #TODO compute this correctly
 
+        if(torch.any(torch.isnan(x))):
+            print('conv results in nan...')
+            x[torch.isnan(x)] = 0
+
         return x 
 
     def forward(self, *args):
