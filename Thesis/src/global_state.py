@@ -33,7 +33,7 @@ class GlobalState():
 
     def set_global_var(self):
         self.i += 1
-        if self.i % 2000 == 0:
+        if self.i % 100 == 0:
             self.steps += 10
             print(self.steps)
         self.time_steps = np.random.randint(self.steps, self.steps+20)
