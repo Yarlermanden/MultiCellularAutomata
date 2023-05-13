@@ -63,7 +63,7 @@ class GATEdgeConv(MessagePassing):
         out = out.view(-1, self.out_channels)
         if torch.any(torch.isnan(out)):
             print('GATEdgeConv is nan')
-            out = torch.zeros_like(out)
+            out[torch.isnan(out)] = 0
         return out
 
     def message(self, x_i, x_j, edge_attr: OptTensor,
@@ -147,7 +147,7 @@ class GATConv(MessagePassing):
         #TODO should we add conv on x_i itself on top of this?
         if torch.any(torch.isnan(out)):
             print('GATCONV is nan')
-            out = torch.zeros_like(out)
+            out[torch.isnan(out)] = 0
 
         self._alpha = None
         return out

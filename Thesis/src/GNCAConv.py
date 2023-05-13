@@ -10,6 +10,26 @@ from enums import *
 from graphUtils import *
 from gat_edge_conv import *
 
+class NodeNorm(nn.Module):
+    def __init__(
+        self,
+        unbiased: Optional[bool] = False,
+        eps: Optional[float] = 1e-5,
+        root_power: Optional[float] =3
+    ):
+        super(NodeNorm, self).__init__()
+        self.unbiased = unbiased
+        self.eps = eps
+        self.power = 1 / root_power
+
+    def forward(self, x: torch.Tensor):
+        std = (torch.var(x, unbiased=self.unbiased, dim=-1, keepdim=True) + self.eps).sqrt()
+        x = x / torch.pow(std, self.power)
+        return x
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}()'
+
 class Conv(GNCA):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -25,6 +45,12 @@ class Conv(GNCA):
             nn.Linear(7, 2),
             nn.Tanh(),
         )
+
+        self.mlp_hidden = nn.Sequential(
+            nn.Linear(10, 5),
+            nn.Tanh(),
+        )
+
 
         #self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
         self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
@@ -48,6 +74,7 @@ class Conv(GNCA):
 
         self.H = None
         self.pair_norm = pair_norm.PairNorm()
+        self.node_norm = NodeNorm(root_power=2.0)
         for param in self.parameters():
             param.grad = None
 
@@ -93,7 +120,7 @@ class Conv(GNCA):
         x_x = self.mlp_x( torch.cat( (torch.norm(x[c_mask, :2], dim=1).unsqueeze(dim=1), x[c_mask, 2:]), dim=1)) * x[c_mask, :2]
 
         #h = x_cell[c_mask, 2:] + x_origin[c_mask, 3:]
-        h = x_cell[:, 2:] + x_origin[c_mask, 3:]
+        h = self.mlp_hidden(torch.cat((x_cell[:, 2:], x_origin[c_mask, 3:]), dim=1)) + x_origin[c_mask, 3:]
 
         #having no edges in a specific type now results in these being 0 all across the board
         #x = x_food + x_cell #could consider catting this instead?
@@ -135,16 +162,17 @@ class Conv(GNCA):
         rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
         inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
 
-        food_rotated = torch.bmm(rotation_matrices, x_food.unsqueeze(-1)).squeeze(-1)
-        wall_rotated = torch.bmm(rotation_matrices, x_wall.unsqueeze(-1)).squeeze(-1)
-
         cell_magnitude = torch.norm(x_cell_vel, dim=1, keepdim=True)
         food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
         wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
         #cell_norm = F.normalize(x_cell_vel, dim=1)
+        food_norm = F.normalize(x_food, dim=1)
+        wall_norm = F.normalize(x_wall, dim=1)
 
-        #food_norm = F.normalize(x_food, dim=1)
-        #wall_norm = F.normalize(x_wall, dim=1)
+        #food_rotated = torch.bmm(rotation_matrices, x_food.unsqueeze(-1)).squeeze(-1)
+        #wall_rotated = torch.bmm(rotation_matrices, x_wall.unsqueeze(-1)).squeeze(-1)
+        food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
+        wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
 
         #cell_norm = x_cell_vel / cell_magnitude #would need to handle case of 0
         #food_norm = x_food / food_magnitude
@@ -159,6 +187,9 @@ class Conv(GNCA):
         #cell_wall_angle = torch.acos(torch.clamp((x_cell_vel * x_wall).sum(dim=1, keepdim=True) / (cell_magnitude * wall_magnitude + 1e-7), -1.0, 1.0))
         #input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, cell_food_angle, cell_wall_angle), dim=1)
         input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated), dim=1)
+        if(torch.any(torch.isnan(input))):
+            print('norm and rotation causes nan')
+            input[torch.isnan(input)] = 0
         output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
 
 
@@ -179,7 +210,8 @@ class Conv(GNCA):
 
         #... and normalize hidden features H
         #h = x[c_mask, 2:] + x_origin[c_mask, 3:]
-        x[c_mask, 2:] = self.nodeNorm(h)
+        #x[c_mask, 2:] = self.nodeNorm(h)
+        x[c_mask, 2:] = self.node_norm(h)
         #x[c_mask, 2:] = torch.tanh(x[c_mask, 2:]/10 + x_origin[c_mask, 3:]*0.75)
 
         #x[:, 2:] = torch.tanh(self.pair_norm(x[:, 2:] + x_origin[:, 3:]))

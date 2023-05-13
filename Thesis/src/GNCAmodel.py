@@ -93,18 +93,23 @@ class GNCA(nn.Module):
         s_idx = 0
         for i in range(self.settings.batch_size):
             e_idx = s_idx + graph.subsize[i]
-            food_nodes_in_batch = torch.nonzero(food_mask(graph.x[s_idx:e_idx])) + s_idx
-            food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
-            edge_attr = graph.edge_attr[food_edges_in_batch]
-            nodes = graph.x[graph.edge_index[1, food_edges_in_batch]]
-            dist = torch.abs(edge_attr[:, 1:3])
-            dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
-            x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
-            if x5.isnan(): x5 = -0.00001
-            graph.food_search_movement[i] += x5
+            nodes = graph.x[s_idx:e_idx]
+            cells = nodes[cell_mask(nodes)]
+            #food_nodes_in_batch = torch.nonzero(food_mask(graph.x[s_idx:e_idx])) + s_idx
+            #food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
+            #edge_attr = graph.edge_attr[food_edges_in_batch]
+            #nodes = graph.x[graph.edge_index[1, food_edges_in_batch]]
+            
+            #dist = torch.abs(edge_attr[:, 1:3])
+            #dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
+            #x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
+            #if x5.isnan(): x5 = -0.00001
+            #graph.food_search_movement[i] += x5
+            graph.velocity[i] += torch.norm(cells[:, 2:4], dim=1).mean()
+            graph.pos_reward[i] += torch.norm(cells[:, 0:2], dim=1).mean()
             graph.cells_alive[i] += cell_mask(graph.x[s_idx:e_idx]).sum()
-            if len(food_nodes_in_batch) == 0 and (cell_mask(graph.x[s_idx:e_idx])).sum() != 0: #no more food but still cells in batch
-                graph.food_reward[i] += 1
+            #if len(food_nodes_in_batch) == 0 and (cell_mask(graph.x[s_idx:e_idx])).sum() != 0: #no more food but still cells in batch
+            #    graph.food_reward[i] += 1
             s_idx = e_idx
 
     def update(self, graph):

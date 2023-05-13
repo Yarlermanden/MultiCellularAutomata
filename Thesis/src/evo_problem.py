@@ -33,6 +33,11 @@ class Custom_NEProblem(NEProblem):
         #fitness = fitness1 + fitness2 + fitness3 
         fitness = fitness3
 
+        #movement = torch.max(graph.velocity.sum() / self.settings.batch_size * 4, 20)
+        pos = torch.clamp(graph.pos_reward.mean()*5, max=10)
+        if not torch.isnan(pos):
+            fitness += pos
+
         if torch.any(torch.isnan(fitness)):
             print('fitness is nan')
             fitness = 0
