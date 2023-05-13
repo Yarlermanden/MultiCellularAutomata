@@ -20,9 +20,9 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(5, 5),
+            nn.Linear(7, 7),
             nn.Tanh(),
-            nn.Linear(5, 2),
+            nn.Linear(7, 2),
             nn.Tanh(),
         )
 
@@ -126,11 +126,23 @@ class Conv(GNCA):
         #cell_magni, food_magni, obstacle_magni, cell_food_rot, cell_obstacle_rot
         #where do we want to go - invariant...
         #multiply by cell_dir
+
         x_cell_vel = x_x+x_cell[:, :2]
+
+        cell_angle = torch.atan2(x_cell_vel[:, 0], x_cell_vel[:, 1])
+        cos_angle = torch.cos(cell_angle)
+        sin_angle = torch.sin(cell_angle)
+        rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
+        inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
+
+        food_rotated = torch.bmm(rotation_matrices, x_food.unsqueeze(-1)).squeeze(-1)
+        wall_rotated = torch.bmm(rotation_matrices, x_wall.unsqueeze(-1)).squeeze(-1)
+
         cell_magnitude = torch.norm(x_cell_vel, dim=1, keepdim=True)
         food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
         wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
-        cell_norm = F.normalize(x_cell_vel, dim=1)
+        #cell_norm = F.normalize(x_cell_vel, dim=1)
+
         #food_norm = F.normalize(x_food, dim=1)
         #wall_norm = F.normalize(x_wall, dim=1)
 
@@ -142,10 +154,12 @@ class Conv(GNCA):
         #cell_wall_angle = torch.acos(torch.dot(cell_norm, wall_norm))
         #cell_food_angle = torch.acos(torch.clamp(torch.sum(cell_norm * food_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1) #sum is only used to broadcast here...
         #cell_wall_angle = torch.acos(torch.clamp(torch.sum(cell_norm * wall_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1)
-        cell_food_angle = torch.acos(torch.clamp((x_cell_vel * x_food).sum(dim=1, keepdim=True) / (cell_magnitude * food_magnitude + 1e-7), -1.0, 1.0))
-        cell_wall_angle = torch.acos(torch.clamp((x_cell_vel * x_wall).sum(dim=1, keepdim=True) / (cell_magnitude * wall_magnitude + 1e-7), -1.0, 1.0))
-        input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, cell_food_angle, cell_wall_angle), dim=1)
-        output[c_mask, :2] = self.mlp_after(input) * cell_norm
+
+        #cell_food_angle = torch.acos(torch.clamp((x_cell_vel * x_food).sum(dim=1, keepdim=True) / (cell_magnitude * food_magnitude + 1e-7), -1.0, 1.0))
+        #cell_wall_angle = torch.acos(torch.clamp((x_cell_vel * x_wall).sum(dim=1, keepdim=True) / (cell_magnitude * wall_magnitude + 1e-7), -1.0, 1.0))
+        #input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, cell_food_angle, cell_wall_angle), dim=1)
+        input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated), dim=1)
+        output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
 
 
         #could we rotate all of them in some way to make the output E(n) variant before rotating them back?
