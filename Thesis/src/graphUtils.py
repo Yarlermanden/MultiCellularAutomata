@@ -151,7 +151,7 @@ def wall_damage(graph, settings):
 
         c_edges_below_distance = torch.bitwise_and(graph.edge_attr[:, 3] == EdgeType.CellToCell, graph.edge_attr[:, 0] < settings.radius)
         cell_edge_indices = torch.nonzero(c_edges_below_distance).flatten()
-        cell_edge_count = torch.bincount(graph.edge_index[0, cell_edge_indices], minlength=graph.x.shape[0])
+        cell_edge_count = torch.bincount(graph.edge_index[1, cell_edge_indices], minlength=graph.x.shape[0])
         graph.x[cell_indices, 5] -= settings.wall_damage / torch.clamp(cell_edge_count[cell_indices], max=settings.max_degree)
 
 def degree_below_radius(graph, settings):

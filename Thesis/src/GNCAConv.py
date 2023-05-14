@@ -47,10 +47,9 @@ class Conv(GNCA):
         )
 
         self.mlp_hidden = nn.Sequential(
-            nn.Linear(10, 5),
+            nn.Linear(17, 5),
             nn.Tanh(),
         )
-
 
         #self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
         self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
@@ -120,7 +119,6 @@ class Conv(GNCA):
         x_x = self.mlp_x( torch.cat( (torch.norm(x[c_mask, :2], dim=1).unsqueeze(dim=1), x[c_mask, 2:]), dim=1)) * x[c_mask, :2]
 
         #h = x_cell[c_mask, 2:] + x_origin[c_mask, 3:]
-        h = self.mlp_hidden(torch.cat((x_cell[:, 2:], x_origin[c_mask, 3:]), dim=1)) + x_origin[c_mask, 3:]
 
         #having no edges in a specific type now results in these being 0 all across the board
         #x = x_food + x_cell #could consider catting this instead?
@@ -144,17 +142,10 @@ class Conv(GNCA):
 
         output = torch.zeros((x.shape[0], self.output_channels), device=self.device)
 
-        #somehow subtract the direction from each type - give the magnitude of each - how important is each
-        #compute the relative direction of each - something like the dot...
-        #give mlp the magnitudes and relative direction of food and obstacle compared to the cell
-        #let mlp output direction - that is output of size 2
-        #multiply this with direction of cells
-        #cell_dir, food_dir, obstacle_dir
-        #cell_magni, food_magni, obstacle_magni, cell_food_rot, cell_obstacle_rot
-        #where do we want to go - invariant...
-        #multiply by cell_dir
-
         x_cell_vel = x_x+x_cell[:, :2]
+
+        #input = torch.cat((x_cell_vel, x_food, x_wall), dim=1)
+        #output[c_mask, :2] = self.mlp_after(input)
 
         cell_angle = torch.atan2(x_cell_vel[:, 0], x_cell_vel[:, 1])
         cos_angle = torch.cos(cell_angle)
@@ -174,29 +165,15 @@ class Conv(GNCA):
         food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
         wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
 
-        #cell_norm = x_cell_vel / cell_magnitude #would need to handle case of 0
-        #food_norm = x_food / food_magnitude
-        #wall_norm = x_wall / wall_magnitude
-
-        #cell_food_angle = torch.acos(torch.dot(cell_norm, food_norm))
-        #cell_wall_angle = torch.acos(torch.dot(cell_norm, wall_norm))
-        #cell_food_angle = torch.acos(torch.clamp(torch.sum(cell_norm * food_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1) #sum is only used to broadcast here...
-        #cell_wall_angle = torch.acos(torch.clamp(torch.sum(cell_norm * wall_norm, dim=1), -0.99999, 0.99999)).unsqueeze(dim=1)
-
-        #cell_food_angle = torch.acos(torch.clamp((x_cell_vel * x_food).sum(dim=1, keepdim=True) / (cell_magnitude * food_magnitude + 1e-7), -1.0, 1.0))
-        #cell_wall_angle = torch.acos(torch.clamp((x_cell_vel * x_wall).sum(dim=1, keepdim=True) / (cell_magnitude * wall_magnitude + 1e-7), -1.0, 1.0))
-        #input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, cell_food_angle, cell_wall_angle), dim=1)
         input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated), dim=1)
         if(torch.any(torch.isnan(input))):
             print('norm and rotation causes nan')
             input[torch.isnan(input)] = 0
         output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
 
+        h = self.mlp_hidden(torch.cat((x_cell[:, 2:], x_origin[c_mask, 3:], input), dim=1)) + x_origin[c_mask, 3:]
 
-        #could we rotate all of them in some way to make the output E(n) variant before rotating them back?
-        #could we take them norm of each type and input to the MLP
-        #then take the output and multiply with each of them - 3 input, 6 output
-        #and then sum all of them together
+
 
         #x_scale = self.mlp_after(x[c_mask])
         #output[c_mask, :2] = torch.tanh(x_scale[:, :1]*x_food[c_mask] + 

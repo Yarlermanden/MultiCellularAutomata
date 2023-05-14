@@ -33,10 +33,10 @@ class GATEdgeConv(MessagePassing):
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
         self.mlp_edge = torch.nn.Sequential(
             #Linear(edge_dim, edge_dim, weight_initializer='glorot'),
-            Linear(6, 6),
+            Linear(7, 7),
             torch.nn.Tanh(),
             #Linear(edge_dim, out_channels, weight_initializer='glorot')
-            Linear(6, 1),
+            Linear(7, 1),
             torch.nn.Tanh(),
         )
         self.lin = Linear(1, 1)
@@ -71,7 +71,9 @@ class GATEdgeConv(MessagePassing):
                 size_i: Optional[int]) -> Tensor:
         #x_i is the cell
         edge_attr = edge_attr.view(-1, 3)
-        input = torch.cat((edge_attr[:, :1], x_i[:, -5:]), dim=1)
+        v_ij = x_i[:, :2] - x_j[:, :2]
+        dot_product = (v_ij[:, 0] * edge_attr[:, 1] + v_ij[:, 1] * edge_attr[:, 2]).unsqueeze(1) #negativ means moving towards each other - positiv means away
+        input = torch.cat((dot_product, edge_attr[:, :1], x_i[:, -5:]), dim=1)
 
         #scale = 1/(edge_attr[:, :1]+0.0001)
         #x = torch.concat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
@@ -117,7 +119,7 @@ class GATConv(MessagePassing):
         self.att_x = Parameter(torch.Tensor(1, 1, 1))
         self.att_h = Parameter(torch.Tensor(1, 1, 5))
 
-        input = in_channels*2+1
+        input = (in_channels-2)*2+1+3
         self.mlp = torch.nn.Sequential(
             #Linear(input, input, weight_initializer='glorot'),
             Linear(input, input),
@@ -162,7 +164,14 @@ class GATConv(MessagePassing):
         #edge_attr1 = torch.cat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
         #edge_attr1 = torch.abs(edge_attr1)
         #z = torch.cat([x_i, x_j, edge_attr1], dim=1)
-        z = torch.cat([x_i, x_j, edge_attr[:, :1]], dim=1)
+
+        v_ij = x_i[:, :2] - x_j[:, :2]
+        dot_product = (v_ij[:, 0] * edge_attr[:, 1] + v_ij[:, 1] * edge_attr[:, 2]).unsqueeze(1) #negativ means moving towards each other - positiv means away
+
+        vel_i = torch.norm(x_i[:, :2], dim=1, keepdim=True)
+        vel_j = torch.norm(x_j[:, :2], dim=1, keepdim=True)
+
+        z = torch.cat([x_i[:, 2:], x_j[:, 2:], dot_product, vel_i, vel_j, edge_attr[:, :1]], dim=1)
 
         mij = self.mlp(z)
         if torch.any(torch.isnan(mij)):
