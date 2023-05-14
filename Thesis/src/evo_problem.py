@@ -32,8 +32,11 @@ class Custom_NEProblem(NEProblem):
         fitness3 = graph.cells_alive.mean() / self.settings.n #average ratio of cells alive across batch - between 0 and 1 pr timestep
         fitness = fitness3
 
+        timesteps = graph.timesteps.mean()
+        fitness += timesteps
+
         #movement = torch.max(graph.velocity.sum() / self.settings.batch_size * 4, 20)
-        #pos = torch.clamp(graph.pos_reward.mean()/2, max=10)
+        #pos = torch.clamp(graph.pos_reward.mean()/5, max=10)
         #if not torch.isnan(pos):
         #    fitness += pos
 

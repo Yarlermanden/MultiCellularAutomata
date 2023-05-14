@@ -114,7 +114,8 @@ class GATConv(MessagePassing):
         self.edge_dim = edge_dim
         self.fill_value = fill_value
 
-        self.att = Parameter(torch.Tensor(1, 1, 6))
+        self.att_x = Parameter(torch.Tensor(1, 1, 1))
+        self.att_h = Parameter(torch.Tensor(1, 1, 5))
 
         input = in_channels*2+1
         self.mlp = torch.nn.Sequential(
@@ -125,7 +126,8 @@ class GATConv(MessagePassing):
             Linear(input, 6),
             torch.nn.Tanh(),
         )
-        self.lin = Linear(6, 6)
+        self.lin_x = Linear(6, 1)
+        self.lin_h = Linear(6, 5)
 
         self.register_parameter('bias', None)
 
@@ -174,14 +176,20 @@ class GATConv(MessagePassing):
             print(x_i)
             print(x_j)
 
-        x = self.lin(mij).unsqueeze(dim=1)
-        x = F.leaky_relu(x, self.negative_slope)
-        alpha = (x * self.att).sum(dim=-1)
-        alpha = softmax(alpha, index, ptr, size_i)
-        self._alpha = alpha
+        x_x = self.lin_x(mij).unsqueeze(dim=1)
+        x_h = self.lin_h(mij).unsqueeze(dim=1)
+        x_x = F.leaky_relu(x_x, self.negative_slope)
+        x_h = F.leaky_relu(x_h, self.negative_slope)
+        alpha_x = (x_x * self.att_x).sum(dim=-1)
+        alpha_x = softmax(alpha_x, index, ptr, size_i)
+        alpha_h = (x_h * self.att_h).sum(dim=-1)
+        alpha_h = softmax(alpha_h, index, ptr, size_i)
+        self._alpha = alpha_x
 
-        x = mij * alpha
-        x = torch.cat((x[:, :1] * edge_attr[:, 1:3], x[:, 1:]), dim=1)
+        x_x = (x_x.squeeze(1) * alpha_x) * edge_attr[:, 1:3] #equivariant
+        x_h = x_h.squeeze(1) * alpha_h #invariant
+        #x = torch.cat((x[:, :1] * edge_attr[:, 1:3], x[:, 1:]), dim=1)
+        x = torch.cat((x_x, x_h), dim=1)
         return x.unsqueeze(dim=1)
 
     def __repr__(self) -> str:
