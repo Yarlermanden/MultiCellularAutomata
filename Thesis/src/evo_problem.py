@@ -24,13 +24,13 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph = network(batch, steps)
 
-        #food_reward = graph.food_reward.mean()
-        #fitness1 = food_reward #food consumed - average of batch size
+        food_reward = graph.food_reward.mean()#food consumed - average of batch size
+        fitness1 = food_reward / 4
 
         #cells = graph.x[cell_mask(graph.x)]
         #fitness2 = cells[:, 5].sum() / alive_start * 10 #energy left - for now always 0 as it ends when all cells die
         fitness3 = graph.cells_alive.mean() / self.settings.n #average ratio of cells alive across batch - between 0 and 1 pr timestep
-        fitness = fitness3
+        fitness = fitness1 + fitness3
 
         timesteps = graph.timesteps.mean()
         fitness += timesteps / 2
