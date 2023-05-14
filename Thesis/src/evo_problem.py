@@ -36,9 +36,9 @@ class Custom_NEProblem(NEProblem):
         fitness += timesteps
 
         #movement = torch.max(graph.velocity.sum() / self.settings.batch_size * 4, 20)
-        #pos = torch.clamp(graph.pos_reward.mean()/5, max=10)
-        #if not torch.isnan(pos):
-        #    fitness += pos
+        pos = torch.clamp(graph.pos_reward.mean()/5, max=10)
+        if not torch.isnan(pos):
+            fitness += pos
 
         if torch.any(torch.isnan(fitness)):
             print('fitness is nan')
