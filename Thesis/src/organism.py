@@ -35,7 +35,7 @@ class Organism():
         self.device = settings.device
 
     def toGraph(self, food_env = None):
-        from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food, add_labyrinth_food, add_bottleneck_food, add_box_food, add_grid_food, cell_mask
+        from graphUtils import add_random_food, add_global_node, add_clusters_of_food, add_circular_food, add_spiral_food, add_labyrinth_food, add_bottleneck_food, add_box_food, add_grid_food, cell_mask, add_food_grid_food
         '''transforms all cells in organism to nodes in a graph'''
         #hidden = [0, 0, 0, 0, 0]
         hidden = [1, 1, 1, 1, 1]
@@ -66,6 +66,8 @@ class Organism():
                 add_box_food(graph, self.settings, food_env)
             case EnvironmentType.Grid:
                 add_grid_food(graph, self.settings, food_env)
+            case EnvironmentType.Food_Grid:
+                add_food_grid_food(graph, self.settings, food_env)
             case _:
                 add_random_food(graph, self.settings, food_env)
 

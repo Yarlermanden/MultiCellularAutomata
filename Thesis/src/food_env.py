@@ -50,3 +50,10 @@ class Grid_Env(Food_Env):
         self.grid_size = grid_size
         points = grid_size*grid_size // 2
         super().__init__(food_amount=points*cluster_size, wall_amount=points, env_type=EnvironmentType.Grid)
+
+class Food_Grid_Env(Food_Env):
+    def __init__(self, cluster_size, grid_size):
+        self.cluster_size = cluster_size
+        self.grid_size = grid_size
+        points = grid_size*grid_size
+        super().__init__(food_amount=points*cluster_size, wall_amount=0 , env_type=EnvironmentType.Food_Grid)

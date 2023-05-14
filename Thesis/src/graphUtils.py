@@ -66,7 +66,7 @@ def add_labyrinth_food(graph, settings, food_env):
         for j, y in enumerate(y_points):
             walls = generate_half_circle_wall(settings.device, x, y)
             add_food(graph, walls)
-            cluster = generate_cluster(settings.device, food_env.cluster_size, 0.01, settings.scale, x, y)
+            cluster = generate_cluster(settings.device, food_env.cluster_size, 0.015, settings.scale, x, y)
             add_food(graph, cluster)
 
 def add_bottleneck_food(graph, settings, food_env):
@@ -88,12 +88,20 @@ def add_grid_food(graph, settings, food_env):
             #even = ((i**2+j**2) % 4) == 0
             even = i % 2 == 1 and (i+j) % 2 == 0
             if even:
-                cluster = generate_cluster(settings.device, food_env.cluster_size, 0.01, settings.scale, x, y)
+                cluster = generate_cluster(settings.device, food_env.cluster_size, 0.010, settings.scale, x, y)
                 add_food(graph, cluster)
             else:
                 wall = generate_food(settings.device, x, y)
                 wall[0, 4] = NodeType.Wall
                 add_food(graph, wall)
+
+def add_food_grid_food(graph, settings, food_env):
+    x_points = np.linspace(-0.8*settings.scale, 0.8*settings.scale, food_env.grid_size)
+    y_points = np.linspace(-0.8*settings.scale, 0.8*settings.scale, food_env.grid_size)
+    for i, x in enumerate(x_points):
+        for j, y in enumerate(y_points):
+            cluster = generate_cluster(settings.device, food_env.cluster_size, 0.015, settings.scale, x, y)
+            add_food(graph, cluster)
 
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 

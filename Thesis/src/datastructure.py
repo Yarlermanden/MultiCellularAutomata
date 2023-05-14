@@ -77,11 +77,13 @@ class DataStructure(object):
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
                        if i!=j]
                 
-                frnn_wall = FixedRadiusNearestNeighbors2(walls, False)
-                indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
-                indices_walls = [wall_indices[x] for x in indices_walls]
-                edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), EdgeType.WallToCell]
-                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_walls[ii])]
+                edges_walls = []
+                if walls.any():
+                    frnn_wall = FixedRadiusNearestNeighbors2(walls, False)
+                    indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
+                    indices_walls = [wall_indices[x] for x in indices_walls]
+                    edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), EdgeType.WallToCell]
+                            for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_walls[ii])]
 
                 if len(edges_food) > 0:
                     edges.extend(edges_food)

@@ -9,6 +9,7 @@ class EnvironmentType(Enum):
     Bottleneck = 6,
     Box = 7,
     Grid = 8,
+    Food_Grid = 9,
 
 class ModelType(Enum):
     Local = 1, #only normal cell nodes
