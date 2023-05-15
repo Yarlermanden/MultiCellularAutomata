@@ -40,9 +40,9 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(7, 7),
+            nn.Linear(7, 15),
             nn.Tanh(),
-            nn.Linear(7, 2),
+            nn.Linear(15, 2),
             nn.Tanh(),
         )
 
@@ -51,18 +51,12 @@ class Conv(GNCA):
             nn.Tanh(),
         )
 
-        #self.conv_layer_cell = CustomConv(self.hidden_size, dim=self.edge_dim-2, aggr='mean')
         self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
 
-        #self.mean_conv = MeanEdgeConv(2, dim=self.edge_dim-1)
-        #self.edge_conv_food = EdgeConv(2, dim=self.edge_dim-1)
-        #self.edge_conv_wall = EdgeConv(2, dim=self.edge_dim-1)
         self.edge_conv_food = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         self.edge_conv_wall = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
-            #self.conv_layer_global = CustomConvSimple(self.hidden_size, dim=self.edge_dim-1, aggr='mean')
             self.conv_layer_global = GCN(self.hidden_size, self.hidden_size, 1, self.hidden_size)
-        #self.gConvGRU = gconv_gru.GConvGRU(in_channels=2, out_channels=2, K=1).to(self.device)
 
         self.mlp_x = nn.Sequential(
             nn.Linear(self.hidden_size-1, self.hidden_size-1),
@@ -109,19 +103,12 @@ class Conv(GNCA):
         wall_attr *= self.attrNorm
         
         x = x_origin
-        #x_food = self.mean_conv(x=x, edge_index=food_edges, edge_attr=food_attr)
-        #x_wall = self.mean_conv(x=x, edge_index=wall_edges, edge_attr=wall_attr)
-        #TODO use cell mask already here to limit computations
         x_food = torch.tanh(self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)[c_mask])
         x_wall = torch.tanh(self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)[c_mask])
         x_cell = torch.tanh(self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)[c_mask])
-
         x_x = self.mlp_x( torch.cat( (torch.norm(x[c_mask, :2], dim=1).unsqueeze(dim=1), x[c_mask, 2:]), dim=1)) * x[c_mask, :2]
 
-        #h = x_cell[c_mask, 2:] + x_origin[c_mask, 3:]
-
         #having no edges in a specific type now results in these being 0 all across the board
-        #x = x_food + x_cell #could consider catting this instead?
         if self.model_type == ModelType.WithGlobalNode:
             #c_mask = torch.bitwise_or(c_mask, graph.x[:,4] == NodeType.GlobalCell)
             #x_global = self.conv_layer_global(x=x, edge_index=global_edges, edge_attr=global_attr)
@@ -131,13 +118,6 @@ class Conv(GNCA):
             graph.x[g_mask, 5:] = x_global[g_mask, 2:] #update global
             x = torch.concat((x_food, x_cell[:, :2], x_wall, x_global), dim=1)
         else: 
-            #x = torch.concat((x_food, x_cell[:, :2], x_wall), dim=1)
-            #x = torch.concat((
-            #    torch.norm(x_food, dim=1).unsqueeze(dim=1), 
-            #    torch.norm(x_cell[:, :2], dim=1).unsqueeze(dim=1), 
-            #    torch.norm(x_wall, dim=1).unsqueeze(dim=1), 
-            #    torch.norm(x_x, dim=1).unsqueeze(dim=1)
-            #), dim=1)
             ...
 
         output = torch.zeros((x.shape[0], self.output_channels), device=self.device)
@@ -156,7 +136,6 @@ class Conv(GNCA):
         cell_magnitude = torch.norm(x_cell_vel, dim=1, keepdim=True)
         food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
         wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
-        #cell_norm = F.normalize(x_cell_vel, dim=1)
         food_norm = F.normalize(x_food, dim=1)
         wall_norm = F.normalize(x_wall, dim=1)
 
@@ -175,19 +154,7 @@ class Conv(GNCA):
 
 
 
-        #x_scale = self.mlp_after(x[c_mask])
-        #output[c_mask, :2] = torch.tanh(x_scale[:, :1]*x_food[c_mask] + 
-        #                                x_scale[:, 1:2]*x_cell[c_mask, :2] + 
-        #                                x_scale[:, 2:3]*x_wall[c_mask] + 
-        #                                x_scale[:, 3:4]*x_x[c_mask]
-        #                                )
-        #output[c_mask, :2] = self.mlp_after(x[c_mask])
         x = output
-        #x[:, :2] += self.gru(cell_edges, x[:, :2])
-
-        #... and normalize hidden features H
-        #h = x[c_mask, 2:] + x_origin[c_mask, 3:]
-        #x[c_mask, 2:] = self.nodeNorm(h)
         x[c_mask, 2:] = self.node_norm(h)
         #x[c_mask, 2:] = torch.tanh(x[c_mask, 2:]/10 + x_origin[c_mask, 3:]*0.75)
 
