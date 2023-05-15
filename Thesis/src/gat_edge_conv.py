@@ -120,8 +120,7 @@ class GATConv(MessagePassing):
         )
         self.lin_x = Linear(11, 1)
         self.lin_h = Linear(11, 10)
-
-        self.register_parameter('bias', None)
+        self.bias = Parameter(torch.Tensor(2))
         self._alpha = None
         self.reset_parameters()
 
@@ -133,6 +132,7 @@ class GATConv(MessagePassing):
         out = self.propagate(edge_index, x=x, edge_attr=edge_attr,
                              size=None)
         out = out.view(-1, self.out_channels)
+        out[:, :2] += self.bias
         #TODO should we add conv on x_i itself on top of this?
         if torch.any(torch.isnan(out)):
             print('GATCONV is nan')
