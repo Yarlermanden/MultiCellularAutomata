@@ -32,7 +32,7 @@ def generate_organism(settings):
 
 def generate_food(device, x=0, y=0):
     val = random.randint(1,4)
-    hidden = [0,0,0,0,0]
+    hidden = [0,0,0,0,0,0,0,0,0,0]
     food = torch.tensor([[x,y, 0, 0, NodeType.Food, val, *hidden]], device=device, dtype=torch.float)
     return food
 

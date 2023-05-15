@@ -14,8 +14,8 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.settings = settings
         self.edge_dim=4
-        self.input_channels = 8
-        self.output_channels = 7
+        self.input_channels = 13
+        self.output_channels = 12
         self.hidden_size = self.input_channels*1
         self.velocity_scale = 0.02
         self.max_pos = 1

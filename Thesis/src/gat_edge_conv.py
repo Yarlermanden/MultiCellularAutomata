@@ -4,7 +4,6 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import Parameter
-from torch_sparse import SparseTensor, set_diag
 
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.dense.linear import Linear
@@ -32,11 +31,9 @@ class GATEdgeConv(MessagePassing):
 
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
         self.mlp_edge = torch.nn.Sequential(
-            #Linear(edge_dim, edge_dim, weight_initializer='glorot'),
-            Linear(7, 7),
+            Linear(12, 6),
             torch.nn.Tanh(),
-            #Linear(edge_dim, out_channels, weight_initializer='glorot')
-            Linear(7, 1),
+            Linear(6, 1),
             torch.nn.Tanh(),
         )
         self.lin = Linear(1, 1)
@@ -47,9 +44,6 @@ class GATEdgeConv(MessagePassing):
 
     def reset_parameters(self):
         ...
-        #self.mlp_edge[0].reset_parameters()
-        #self.mlp_edge[2].reset_parameters()
-        #glorot(self.att)
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
                 edge_attr: OptTensor = None):
@@ -71,14 +65,12 @@ class GATEdgeConv(MessagePassing):
                 size_i: Optional[int]) -> Tensor:
         #x_i is the cell
         edge_attr = edge_attr.view(-1, 3)
+        scale = 1/(edge_attr[:, :1]+1e-7)
+
         v_ij = x_i[:, :2] - x_j[:, :2]
         dot_product = (v_ij[:, 0] * edge_attr[:, 1] + v_ij[:, 1] * edge_attr[:, 2]).unsqueeze(1) #negativ means moving towards each other - positiv means away
-        input = torch.cat((dot_product, edge_attr[:, :1], x_i[:, -5:]), dim=1)
+        input = torch.cat((dot_product, scale, x_i[:, -10:]), dim=1)
 
-        #scale = 1/(edge_attr[:, :1]+0.0001)
-        #x = torch.concat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
-        #x = torch.abs(x)
-        #mij = self.mlp_edge(x).view(-1, 1, self.out_channels)
         mij = self.mlp_edge(input)
 
         x = self.lin(mij).unsqueeze(dim=1)
@@ -117,30 +109,23 @@ class GATConv(MessagePassing):
         self.fill_value = fill_value
 
         self.att_x = Parameter(torch.Tensor(1, 1, 1))
-        self.att_h = Parameter(torch.Tensor(1, 1, 5))
+        self.att_h = Parameter(torch.Tensor(1, 1, 10))
 
         input = (in_channels-2)*2+1+3
         self.mlp = torch.nn.Sequential(
-            #Linear(input, input, weight_initializer='glorot'),
             Linear(input, input),
             torch.nn.Tanh(),
-            #Linear(input, out_channels, weight_initializer='glorot')
-            Linear(input, 6),
+            Linear(input, 11),
             torch.nn.Tanh(),
         )
-        self.lin_x = Linear(6, 1)
-        self.lin_h = Linear(6, 5)
+        self.lin_x = Linear(11, 1)
+        self.lin_h = Linear(11, 10)
 
         self.register_parameter('bias', None)
-
         self._alpha = None
-
         self.reset_parameters()
 
     def reset_parameters(self):
-        #self.mlp[0].reset_parameters()
-        #self.mlp[2].reset_parameters()
-        #glorot(self.att)
         ...
 
     def forward(self, x: Union[Tensor, PairTensor], edge_index: Adj,
@@ -160,10 +145,7 @@ class GATConv(MessagePassing):
                 index: Tensor, ptr: OptTensor,
                 size_i: Optional[int]) -> Tensor:
         edge_attr = edge_attr.view(-1, 3)
-        #scale = 1/(edge_attr[:, :1]+0.0001)
-        #edge_attr1 = torch.cat([edge_attr[:, :1], scale*edge_attr[:, 1:3]], dim=1)
-        #edge_attr1 = torch.abs(edge_attr1)
-        #z = torch.cat([x_i, x_j, edge_attr1], dim=1)
+        scale = 1/(edge_attr[:, :1]+1e-7)
 
         v_ij = x_i[:, :2] - x_j[:, :2]
         dot_product = (v_ij[:, 0] * edge_attr[:, 1] + v_ij[:, 1] * edge_attr[:, 2]).unsqueeze(1) #negativ means moving towards each other - positiv means away
@@ -171,19 +153,8 @@ class GATConv(MessagePassing):
         vel_i = torch.norm(x_i[:, :2], dim=1, keepdim=True)
         vel_j = torch.norm(x_j[:, :2], dim=1, keepdim=True)
 
-        z = torch.cat([x_i[:, 2:], x_j[:, 2:], dot_product, vel_i, vel_j, edge_attr[:, :1]], dim=1)
-
+        z = torch.cat([x_i[:, 2:], x_j[:, 2:], dot_product, vel_i, vel_j, scale], dim=1)
         mij = self.mlp(z)
-        if torch.any(torch.isnan(mij)):
-            print("mlp return nan")
-            print('z contain nan: ', torch.any(torch.isnan(z)))
-            #print('scale contains nan: ' + torch.any(torch.isnan(scale)))
-            print('x_i contains nan: ', torch.any(torch.isnan(x_i)))
-            print('x_j contains nan: ', torch.any(torch.isnan(x_j)))
-            print(edge_attr)
-            #print(scale)
-            print(x_i)
-            print(x_j)
 
         x_x = self.lin_x(mij).unsqueeze(dim=1)
         x_h = self.lin_h(mij).unsqueeze(dim=1)
@@ -197,7 +168,6 @@ class GATConv(MessagePassing):
 
         x_x = (x_x.squeeze(1) * alpha_x) * edge_attr[:, 1:3] #equivariant
         x_h = x_h.squeeze(1) * alpha_h #invariant
-        #x = torch.cat((x[:, :1] * edge_attr[:, 1:3], x[:, 1:]), dim=1)
         x = torch.cat((x_x, x_h), dim=1)
         return x.unsqueeze(dim=1)
 

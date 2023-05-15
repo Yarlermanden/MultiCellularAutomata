@@ -40,19 +40,18 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(7, 15),
+            nn.Linear(17, 17),
             nn.Tanh(),
-            nn.Linear(15, 2),
+            nn.Linear(17, 2),
             nn.Tanh(),
         )
 
         self.mlp_hidden = nn.Sequential(
-            nn.Linear(17, 5),
+            nn.Linear(27, 10),
             nn.Tanh(),
         )
 
         self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
-
         self.edge_conv_food = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         self.edge_conv_wall = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
@@ -103,9 +102,9 @@ class Conv(GNCA):
         wall_attr *= self.attrNorm
         
         x = x_origin
-        x_food = torch.tanh(self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)[c_mask])
-        x_wall = torch.tanh(self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)[c_mask])
-        x_cell = torch.tanh(self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)[c_mask])
+        x_food = self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)[c_mask]
+        x_wall = self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)[c_mask]
+        x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)[c_mask]
         x_x = self.mlp_x( torch.cat( (torch.norm(x[c_mask, :2], dim=1).unsqueeze(dim=1), x[c_mask, 2:]), dim=1)) * x[c_mask, :2]
 
         #having no edges in a specific type now results in these being 0 all across the board
@@ -139,20 +138,16 @@ class Conv(GNCA):
         food_norm = F.normalize(x_food, dim=1)
         wall_norm = F.normalize(x_wall, dim=1)
 
-        #food_rotated = torch.bmm(rotation_matrices, x_food.unsqueeze(-1)).squeeze(-1)
-        #wall_rotated = torch.bmm(rotation_matrices, x_wall.unsqueeze(-1)).squeeze(-1)
         food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
         wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
 
-        input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated), dim=1)
+        input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
         if(torch.any(torch.isnan(input))):
             print('norm and rotation causes nan')
             input[torch.isnan(input)] = 0
         output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
 
-        h = self.mlp_hidden(torch.cat((x_cell[:, 2:], x_origin[c_mask, 3:], input), dim=1)) + x_origin[c_mask, 3:]
-
-
+        h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
 
         x = output
         x[c_mask, 2:] = self.node_norm(h)
