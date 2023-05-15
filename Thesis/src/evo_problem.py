@@ -38,9 +38,9 @@ class Custom_NEProblem(NEProblem):
         #movement = torch.max(graph.velocity.sum() / self.settings.batch_size * 4, 20)
 
         if fitness1 > 0.0:
-            fitness += 50
+            fitness += 20
         else:
-            pos = torch.clamp(graph.pos_reward.mean(), max=50)
+            pos = torch.clamp(graph.pos_reward.mean(), max=20)
             if not torch.isnan(pos):
                 fitness += pos
 
