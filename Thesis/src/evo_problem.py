@@ -25,7 +25,7 @@ class Custom_NEProblem(NEProblem):
             graph = network(batch, steps)
 
         food_reward = graph.food_reward.mean()#food consumed - average of batch size
-        fitness1 = food_reward / 10
+        fitness1 = food_reward / 20
 
         #cells = graph.x[cell_mask(graph.x)]
         #fitness2 = cells[:, 5].sum() / alive_start * 10 #energy left - for now always 0 as it ends when all cells die
@@ -37,7 +37,7 @@ class Custom_NEProblem(NEProblem):
 
         #movement = torch.max(graph.velocity.sum() / self.settings.batch_size * 4, 20)
 
-        if fitness1 > 0.1:
+        if fitness1 > 0.0:
             fitness += 50
         else:
             pos = torch.clamp(graph.pos_reward.mean(), max=50)
