@@ -107,6 +107,7 @@ class GATConv(MessagePassing):
         self.add_self_loops = add_self_loops
         self.edge_dim = edge_dim
         self.fill_value = fill_value
+        self.register_parameter('bias', None)
 
         self.att_x = Parameter(torch.Tensor(1, 1, 1))
         self.att_h = Parameter(torch.Tensor(1, 1, 10))
@@ -120,7 +121,6 @@ class GATConv(MessagePassing):
         )
         self.lin_x = Linear(11, 1)
         self.lin_h = Linear(11, 10)
-        self.bias = Parameter(torch.Tensor(2))
         self._alpha = None
         self.reset_parameters()
 
@@ -132,7 +132,6 @@ class GATConv(MessagePassing):
         out = self.propagate(edge_index, x=x, edge_attr=edge_attr,
                              size=None)
         out = out.view(-1, self.out_channels)
-        out[:, :2] += self.bias
         #TODO should we add conv on x_i itself on top of this?
         if torch.any(torch.isnan(out)):
             print('GATCONV is nan')
@@ -153,7 +152,7 @@ class GATConv(MessagePassing):
         vel_i = torch.norm(x_i[:, :2], dim=1, keepdim=True)
         vel_j = torch.norm(x_j[:, :2], dim=1, keepdim=True)
 
-        z = torch.cat([x_i[:, 2:], x_j[:, 2:], dot_product, vel_i, vel_j, scale], dim=1)
+        z = torch.cat((x_i[:, 2:], x_j[:, 2:], dot_product, vel_i, vel_j, scale), dim=1)
         mij = self.mlp(z)
 
         x_x = self.lin_x(mij).unsqueeze(dim=1)

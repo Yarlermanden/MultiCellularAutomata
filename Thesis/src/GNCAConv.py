@@ -40,18 +40,21 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(17, 17),
+            nn.Linear(18, 18),
             nn.Tanh(),
-            nn.Linear(17, 2),
+            nn.Linear(18, 2),
             nn.Tanh(),
         )
 
         self.mlp_hidden = nn.Sequential(
-            nn.Linear(27, 10),
+            nn.Linear(18, 10),
             nn.Tanh(),
         )
 
-        self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
+        self.gConvGRU = gconv_gru.GConvGRU(in_channels=8, out_channels=8, K=1).to(self.device)
+
+        #self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
+        self.conv_layer_cell = EnequivariantCellConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
         self.edge_conv_food = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         self.edge_conv_wall = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
@@ -75,7 +78,13 @@ class Conv(GNCA):
             self.H = torch.zeros_like(x, device=self.device)
         if self.node_indices_to_keep is not None:
             self.H = self.H[self.node_indices_to_keep].view(self.node_indices_to_keep.shape[0], self.H.shape[1])
+        if self.node_indices_to_create is not None:
+            ...
+            self.node_indices_to_create = None
         self.H = torch.tanh(self.gConvGRU(x, edges, H=self.H))
+        #TODO find some way of allowing a new mask for adding nodes inbetween the others...
+        #index the new nodes?
+        #index of all the old nodes?
         return self.H
 
     def nodeNorm(self, x):
@@ -102,10 +111,10 @@ class Conv(GNCA):
         wall_attr *= self.attrNorm
         
         x = x_origin
-        x_food = self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)[c_mask]
-        x_wall = self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)[c_mask]
-        x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)[c_mask]
-        x_x = self.mlp_x( torch.cat( (torch.norm(x[c_mask, :2], dim=1).unsqueeze(dim=1), x[c_mask, 2:]), dim=1)) * x[c_mask, :2]
+        x_food = self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)
+        x_wall = self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)
+        x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)
+        x_x = self.mlp_x( torch.cat( (torch.norm(x[:, :2], dim=1).unsqueeze(dim=1), x[:, 2:]), dim=1)) * x[:, :2]
 
         #having no edges in a specific type now results in these being 0 all across the board
         if self.model_type == ModelType.WithGlobalNode:
@@ -121,33 +130,35 @@ class Conv(GNCA):
 
         output = torch.zeros((x.shape[0], self.output_channels), device=self.device)
 
-        x_cell_vel = x_x+x_cell[:, :2]
+        #x_cell_vel = x_x+x_cell[:, :2]
 
-        #input = torch.cat((x_cell_vel, x_food, x_wall), dim=1)
-        #output[c_mask, :2] = self.mlp_after(input)
+        input = torch.cat((x_x, x_cell[:, :2], x_food, x_wall), dim=1)
+        #x = self.gru(cell_edges, input)[c_mask]
+        x = input[c_mask]
+        output[c_mask, :2] = self.mlp_after(torch.cat((x, x_origin[c_mask, 3:]), dim=1))
 
-        cell_angle = torch.atan2(x_cell_vel[:, 0], x_cell_vel[:, 1])
-        cos_angle = torch.cos(cell_angle)
-        sin_angle = torch.sin(cell_angle)
-        rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
-        inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
+        #cell_angle = torch.atan2(x_cell_vel[:, 0], x_cell_vel[:, 1])
+        #cos_angle = torch.cos(cell_angle)
+        #sin_angle = torch.sin(cell_angle)
+        #rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
+        #inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
 
-        cell_magnitude = torch.norm(x_cell_vel, dim=1, keepdim=True)
-        food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
-        wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
-        food_norm = F.normalize(x_food, dim=1)
-        wall_norm = F.normalize(x_wall, dim=1)
+        #cell_magnitude = torch.norm(x_cell_vel, dim=1, keepdim=True)
+        #food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
+        #wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
+        #food_norm = F.normalize(x_food, dim=1)
+        #wall_norm = F.normalize(x_wall, dim=1)
 
-        food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
-        wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
+        #food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
+        #wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
 
-        input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
-        if(torch.any(torch.isnan(input))):
-            print('norm and rotation causes nan')
-            input[torch.isnan(input)] = 0
-        output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
+        #input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
+        #if(torch.any(torch.isnan(input))):
+        #    print('norm and rotation causes nan')
+        #    input[torch.isnan(input)] = 0
+        #output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
 
-        h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
+        h = self.mlp_hidden(torch.cat((x_cell[c_mask, 2:], input[c_mask]), dim=1)) + x_origin[c_mask, 3:]
 
         x = output
         x[c_mask, 2:] = self.node_norm(h)
@@ -166,6 +177,7 @@ class Conv(GNCA):
     def forward(self, *args):
         self.H = None
         self.node_indices_to_keep = None
+        self.node_indices_to_create = None
         self.conv_layer_cell = self.conv_layer_cell.to(self.device)
         self.edge_conv_food = self.edge_conv_food.to(self.device)
         self.edge_conv_wall = self.edge_conv_wall.to(self.device)
