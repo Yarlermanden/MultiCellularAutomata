@@ -42,7 +42,7 @@ class Conv(GNCA):
         self.mlp_after = nn.Sequential(
             nn.Linear(20, 20),
             nn.Tanh(),
-            nn.Linear(20, 2),
+            nn.Linear(20, 4),
             nn.Tanh(),
         )
 
@@ -53,8 +53,8 @@ class Conv(GNCA):
 
         self.gConvGRU = gconv_gru.GConvGRU(in_channels=8, out_channels=8, K=1).to(self.device)
 
-        #self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
-        self.conv_layer_cell = EnequivariantCellConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
+        self.conv_layer_cell = GATConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
+        #self.conv_layer_cell = EnequivariantCellConv(self.hidden_size, self.output_channels, edge_dim=self.edge_dim-1)
         self.edge_conv_food = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         self.edge_conv_wall = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
@@ -68,7 +68,7 @@ class Conv(GNCA):
         )
 
         self.H = None
-        self.pair_norm = pair_norm.PairNorm()
+        self.pair_norm = pair_norm.PairNorm(scale=1.0)
         self.node_norm = NodeNorm(root_power=2.0)
         for param in self.parameters():
             param.grad = None
@@ -159,12 +159,16 @@ class Conv(GNCA):
         if(torch.any(torch.isnan(input))):
             print('norm and rotation causes nan')
             input[torch.isnan(input)] = 0
-        output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
+        #output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
+        x = self.mlp_after(input)
+        output[c_mask, :2] = x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall
 
         h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
 
         x = output
-        x[c_mask, 2:] = self.node_norm(h)
+        #x[c_mask, 2:] = self.node_norm(h)
+        x[c_mask, 2:] = self.pair_norm(h)
+
         #x[c_mask, 2:] = torch.tanh(x[c_mask, 2:]/10 + x_origin[c_mask, 3:]*0.75)
 
         #x[:, 2:] = torch.tanh(self.pair_norm(x[:, 2:] + x_origin[:, 3:]))
