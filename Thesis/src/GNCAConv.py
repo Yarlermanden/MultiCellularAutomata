@@ -42,7 +42,7 @@ class Conv(GNCA):
         self.mlp_after = nn.Sequential(
             nn.Linear(20, 20),
             nn.Tanh(),
-            nn.Linear(20, 4),
+            nn.Linear(20, 6),
             nn.Tanh(),
         )
 
@@ -59,6 +59,8 @@ class Conv(GNCA):
         self.edge_conv_wall = GATEdgeConv(3, 2, edge_dim=self.edge_dim-1)
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = GCN(self.hidden_size, self.hidden_size, 1, self.hidden_size)
+        
+        self.bias = Parameter(torch.Tensor(1, 2))
 
         self.mlp_x = nn.Sequential(
             nn.Linear(self.hidden_size-1, self.hidden_size-1),
@@ -161,13 +163,13 @@ class Conv(GNCA):
             input[torch.isnan(input)] = 0
         #output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
         x = self.mlp_after(input)
-        output[c_mask, :2] = x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall
+        output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:6] * self.bias)
 
         h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
 
         x = output
-        #x[c_mask, 2:] = self.node_norm(h)
-        x[c_mask, 2:] = self.pair_norm(h)
+        x[c_mask, 2:] = self.node_norm(h)
+        #x[c_mask, 2:] = self.pair_norm(h)
 
         #x[c_mask, 2:] = torch.tanh(x[c_mask, 2:]/10 + x_origin[c_mask, 3:]*0.75)
 
