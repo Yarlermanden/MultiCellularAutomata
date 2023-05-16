@@ -40,14 +40,14 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(18, 18),
+            nn.Linear(20, 20),
             nn.Tanh(),
-            nn.Linear(18, 2),
+            nn.Linear(20, 2),
             nn.Tanh(),
         )
 
         self.mlp_hidden = nn.Sequential(
-            nn.Linear(18, 10),
+            nn.Linear(30, 10),
             nn.Tanh(),
         )
 
@@ -111,10 +111,10 @@ class Conv(GNCA):
         wall_attr *= self.attrNorm
         
         x = x_origin
-        x_food = self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)
-        x_wall = self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)
-        x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)
-        x_x = self.mlp_x( torch.cat( (torch.norm(x[:, :2], dim=1).unsqueeze(dim=1), x[:, 2:]), dim=1)) * x[:, :2]
+        x_food = self.edge_conv_food(x=x, edge_index=food_edges, edge_attr=food_attr)[c_mask]
+        x_wall = self.edge_conv_wall(x=x, edge_index=wall_edges, edge_attr=wall_attr)[c_mask]
+        x_cell = self.conv_layer_cell(x=x, edge_index=cell_edges, edge_attr=cell_attr)[c_mask]
+        x_x = self.mlp_x( torch.cat( (torch.norm(x[c_mask, :2], dim=1).unsqueeze(dim=1), x[c_mask, 2:]), dim=1)) * x[c_mask, :2]
 
         #having no edges in a specific type now results in these being 0 all across the board
         if self.model_type == ModelType.WithGlobalNode:
@@ -132,33 +132,36 @@ class Conv(GNCA):
 
         #x_cell_vel = x_x+x_cell[:, :2]
 
-        input = torch.cat((x_x, x_cell[:, :2], x_food, x_wall), dim=1)
-        #x = self.gru(cell_edges, input)[c_mask]
-        x = input[c_mask]
-        output[c_mask, :2] = self.mlp_after(torch.cat((x, x_origin[c_mask, 3:]), dim=1))
+        #input = torch.cat((x_x, x_cell[:, :2], x_food, x_wall), dim=1)
+        ##x = self.gru(cell_edges, input)[c_mask]
+        #x = input[c_mask]
+        #output[c_mask, :2] = self.mlp_after(torch.cat((x, x_origin[c_mask, 3:]), dim=1))
 
-        #cell_angle = torch.atan2(x_cell_vel[:, 0], x_cell_vel[:, 1])
-        #cos_angle = torch.cos(cell_angle)
-        #sin_angle = torch.sin(cell_angle)
-        #rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
-        #inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
+        cell_angle = torch.atan2(x_x[:, 0], x_x[:, 1])
+        cos_angle = torch.cos(cell_angle)
+        sin_angle = torch.sin(cell_angle)
+        rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
+        inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
 
-        #cell_magnitude = torch.norm(x_cell_vel, dim=1, keepdim=True)
-        #food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
-        #wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
-        #food_norm = F.normalize(x_food, dim=1)
-        #wall_norm = F.normalize(x_wall, dim=1)
+        x_magnitude = torch.norm(x_x, dim=1, keepdim=True)
+        cell_magnitude = torch.norm(x_cell[:, :2], dim=1, keepdim=True)
+        food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
+        wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
+        cell_norm = F.normalize(x_cell[:, :2], dim=1)
+        food_norm = F.normalize(x_food, dim=1)
+        wall_norm = F.normalize(x_wall, dim=1)
 
-        #food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
-        #wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
+        cell_rotated = torch.bmm(rotation_matrices, cell_norm.unsqueeze(-1)).squeeze(-1)
+        food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
+        wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
 
-        #input = torch.cat((cell_magnitude, food_magnitude, wall_magnitude, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
-        #if(torch.any(torch.isnan(input))):
-        #    print('norm and rotation causes nan')
-        #    input[torch.isnan(input)] = 0
-        #output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
+        input = torch.cat((x_magnitude, cell_magnitude, food_magnitude, wall_magnitude, cell_rotated, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
+        if(torch.any(torch.isnan(input))):
+            print('norm and rotation causes nan')
+            input[torch.isnan(input)] = 0
+        output[c_mask, :2] = torch.bmm(inverse_rotation_matrices, self.mlp_after(input).unsqueeze(-1)).squeeze(-1)
 
-        h = self.mlp_hidden(torch.cat((x_cell[c_mask, 2:], input[c_mask]), dim=1)) + x_origin[c_mask, 3:]
+        h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
 
         x = output
         x[c_mask, 2:] = self.node_norm(h)
