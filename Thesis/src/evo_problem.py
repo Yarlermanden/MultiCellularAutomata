@@ -25,22 +25,23 @@ class Custom_NEProblem(NEProblem):
             graph = network(batch, steps)
 
         food_reward = graph.food_reward.mean()#food consumed - average of batch size
-        fitness1 = food_reward / 20
+        fitness1 = food_reward / 10
 
         #cells = graph.x[cell_mask(graph.x)]
         #fitness2 = cells[:, 5].sum() / alive_start * 10 #energy left - for now always 0 as it ends when all cells die
-        fitness3 = graph.cells_alive.mean() / self.settings.n #average ratio of cells alive across batch - between 0 and 1 pr timestep
-        fitness = fitness1 + fitness3
 
-        #timesteps = graph.timesteps.mean()
-        #fitness += timesteps / 2
+        fitness3 = graph.cells_alive.mean() / self.settings.n #average ratio of cells alive across batch - between 0 and 1 pr timestep
+        fitness = fitness1 #+ fitness3
+
+        timesteps = graph.timesteps.mean()
+        fitness += timesteps
 
         #movement = torch.max(graph.velocity.sum() / self.settings.batch_size * 4, 20)
 
         if fitness1 > 0.0:
-            fitness += 20
+            fitness += 50
         else:
-            pos = torch.clamp(graph.pos_reward.mean(), max=20)
+            pos = torch.clamp(graph.pos_reward.mean(), max=50)
             if not torch.isnan(pos):
                 fitness += pos
 
