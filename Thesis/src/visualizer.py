@@ -62,13 +62,15 @@ class Visualizer():
                 [],
                 [],
                 marker=".",
-                edgecolor="r",
+                c='g',
+                edgecolor="g",
             ) for ax in self.axes]
             self.scatter_wall = [ax.scatter(
                 [],
                 [],
                 marker=".",
-                edgecolor="g",
+                c='r',
+                edgecolor="r",
             ) for ax in self.axes]
             self.edge_plot = [ax.plot([[],[]], [[],[]], linewidth=0.1/(self.scale**2)) for ax in self.axes]
             self.text_food = [self.axes[i].text(0.98, 0.98, '', horizontalalignment='right', verticalalignment='top', transform=self.axes[i].transAxes) for i in range(self.batch_size)]
@@ -165,9 +167,9 @@ class Visualizer():
         for cell_idx in cells:
             node_color[cell_idx] = 'tab:blue'
         for food_idx in food:
-            node_color[food_idx] = 'tab:red'
+            node_color[food_idx] = 'tab:green'
         for wall_idx in walls:
-            node_color[wall_idx] = 'tab:green'
+            node_color[wall_idx] = 'tab:red'
 
         # Define node sizes
         node_sizes = [1e3 // N] * N
