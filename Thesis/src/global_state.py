@@ -42,9 +42,10 @@ class GlobalState():
             self.batch = self.sample_pool.sample(self.batch_size)
             self.graphs = [toGraph(torch.tensor(x, device=self.device), self.device) for x in self.batch.x.values()]
         else: 
-            random_number = random.randint(0, len(self.settings.food_envs)-1)
-            food_env = self.settings.food_envs[random_number]
-            self.graphs = [generate_organism(self.settings).toGraph(food_env) for _ in range(self.batch_size)]
+            #random_number = random.randint(0, len(self.settings.food_envs)-1)
+            #food_env = self.settings.food_envs[random_number]
+            #self.graphs = [generate_organism(self.settings).toGraph(food_env) for _ in range(self.batch_size)]
+            self.graphs = [generate_organism(self.settings).toGraph() for _ in range(self.batch_size)]
         self.graphs = DataLoader(self.graphs, batch_size=self.settings.batch_size)
         self.in_population = 0
 

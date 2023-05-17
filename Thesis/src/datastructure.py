@@ -4,14 +4,20 @@ import torch
 import time
 from torch import Tensor
 from sklearn.neighbors import KDTree
+from enums import *
 
 from graphUtils import *
 
 class FixedRadiusNearestNeighbors2(object):
-    def __init__(self, nodes, dense):
+    def __init__(self, nodes, node_type):
         nodes = nodes.detach().cpu().numpy()
-        if dense: self.tree = KDTree(nodes, leaf_size=40)
-        else: self.tree = KDTree(nodes, leaf_size=20)
+        match node_type:
+            case NodeType.Cell:
+                self.tree = KDTree(nodes, leaf_size=40)
+            case NodeType.Food:
+                self.tree = KDTree(nodes, leaf_size=20)
+            case NodeType.Wall:
+                self.tree = KDTree(nodes, leaf_size=5)
 
     def get_neighbors(self, node, radius):
         return self.tree.query_radius(node.detach().cpu().numpy(), radius, return_distance=True)
@@ -63,14 +69,14 @@ class DataStructure(object):
                 food_indices = food_indices.detach().cpu().numpy()
                 wall_indices = wall_indices.detach().cpu().numpy()
 
-                frnn_food = FixedRadiusNearestNeighbors2(food, False)
+                frnn_food = FixedRadiusNearestNeighbors2(food, NodeType.Food)
                 indices_food, dists_food = frnn_food.get_neighbors(cells, self.settings.radius_food)
                 indices_food = [food_indices[x] for x in indices_food]
                 edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), EdgeType.FoodToCell]
                             for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
 
                 radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius_cell)
-                frnn_cell = FixedRadiusNearestNeighbors2(cells, True)
+                frnn_cell = FixedRadiusNearestNeighbors2(cells, NodeType.Cell)
                 indices_cells, dists_cells = frnn_cell.get_neighbors(cells, radius_cell.detach().cpu().numpy())                       
                 indices_cells = [cell_indices[x] for x in indices_cells]
                 edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), EdgeType.CellToCell]
@@ -79,7 +85,7 @@ class DataStructure(object):
                 
                 edges_walls = []
                 if walls.any():
-                    frnn_wall = FixedRadiusNearestNeighbors2(walls, False)
+                    frnn_wall = FixedRadiusNearestNeighbors2(walls, NodeType.Wall)
                     indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
                     indices_walls = [wall_indices[x] for x in indices_walls]
                     edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), EdgeType.WallToCell]
