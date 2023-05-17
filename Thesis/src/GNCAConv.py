@@ -40,15 +40,15 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(22, 22),
+            nn.Linear(24, 24),
             nn.Tanh(),
-            nn.Linear(22, 6),
+            nn.Linear(24, 5),
             #nn.Tanh(),
             nn.Softmax(dim=1)
         )
 
         self.mlp_hidden = nn.Sequential(
-            nn.Linear(32, 10),
+            nn.Linear(34, 10),
             nn.Tanh(),
         )
 
@@ -140,27 +140,28 @@ class Conv(GNCA):
         #x = input[c_mask]
         #output[c_mask, :2] = self.mlp_after(torch.cat((x, x_origin[c_mask, 3:]), dim=1))
 
-        cell_angle = torch.atan2(self.bias[:, 0], self.bias[:, 1]).expand(x_x.shape[0], -1)
-        cos_angle = torch.cos(cell_angle)
-        sin_angle = torch.sin(cell_angle)
-        rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
-        inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
+        #cell_angle = torch.atan2(self.bias[:, 0], self.bias[:, 1]).expand(x_x.shape[0], -1)
+        #cos_angle = torch.cos(cell_angle)
+        #sin_angle = torch.sin(cell_angle)
+        #rotation_matrices = torch.stack((cos_angle, -sin_angle, sin_angle, cos_angle), dim=1).view(-1, 2, 2)
+        #inverse_rotation_matrices = rotation_matrices.transpose(1, 2)
 
         x_magnitude = torch.norm(x_x, dim=1, keepdim=True)
         cell_magnitude = torch.norm(x_cell[:, :2], dim=1, keepdim=True)
         food_magnitude = torch.norm(x_food, dim=1, keepdim=True)
         wall_magnitude = torch.norm(x_wall, dim=1, keepdim=True)
-        x_x_norm = F.normalize(x_x, dim=1)
-        cell_norm = F.normalize(x_cell[:, :2], dim=1)
-        food_norm = F.normalize(x_food, dim=1)
-        wall_norm = F.normalize(x_wall, dim=1)
+        #x_x_norm = F.normalize(x_x, dim=1)
+        #cell_norm = F.normalize(x_cell[:, :2], dim=1)
+        #food_norm = F.normalize(x_food, dim=1)
+        #wall_norm = F.normalize(x_wall, dim=1)
 
-        x_x_rotated = torch.bmm(rotation_matrices, x_x_norm.unsqueeze(-1)).squeeze(-1)
-        cell_rotated = torch.bmm(rotation_matrices, cell_norm.unsqueeze(-1)).squeeze(-1)
-        food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
-        wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
+        #x_x_rotated = torch.bmm(rotation_matrices, x_x_norm.unsqueeze(-1)).squeeze(-1)
+        #cell_rotated = torch.bmm(rotation_matrices, cell_norm.unsqueeze(-1)).squeeze(-1)
+        #food_rotated = torch.bmm(rotation_matrices, food_norm.unsqueeze(-1)).squeeze(-1)
+        #wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
 
-        input = torch.cat((x_magnitude, cell_magnitude, food_magnitude, wall_magnitude, x_x_rotated, cell_rotated, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
+        #input = torch.cat((x_magnitude, cell_magnitude, food_magnitude, wall_magnitude, x_x_rotated, cell_rotated, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
+        input = torch.cat((x_magnitude, cell_magnitude, food_magnitude, wall_magnitude, x_x, x_cell[:, :2], x_food, x_wall, self.bias.expand_as(x_food), x_origin[c_mask, 3:]), dim=1)
         if(torch.any(torch.isnan(input))):
             print('norm and rotation causes nan')
             input[torch.isnan(input)] = 0
@@ -170,7 +171,7 @@ class Conv(GNCA):
 
         x = self.mlp_after(input)
         #output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:6] * self.bias)
-        output[c_mask, :2] = x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:6] * torch.clamp(self.bias, -1., 1.)
+        output[c_mask, :2] = x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:5] * torch.clamp(self.bias, -1., 1.)
 
         h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
 
