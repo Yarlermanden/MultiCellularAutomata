@@ -19,6 +19,30 @@ def add_random_food(graph, settings, food_env):
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
 
+def add_walls(graph, settings):
+    amount = (settings.scale*2) // settings.radius_wall_damage
+    x = np.linspace(-settings.scale, settings.scale, int(amount))
+    zeros = np.zeros_like(x)
+    y0 = zeros.copy()-settings.scale
+    y1 = zeros.copy()+settings.scale
+
+    walls = [generate_food(settings.device) for _ in range(int(amount))]
+    walls = torch.stack(walls).squeeze()
+    walls[:, 4] = NodeType.Wall
+
+    x0_walls = walls.clone()
+    x1_walls = walls.clone()
+    y0_walls = walls.clone()
+    y1_walls = walls.clone()
+
+    x0_walls[:, :2] = torch.tensor([x, y0], device=settings.device).transpose(0, 1)
+    x1_walls[:, :2] = torch.tensor([x, y1], device=settings.device).transpose(0, 1)
+    y0_walls[:, :2] = torch.tensor([y0, x], device=settings.device).transpose(0, 1)
+    y1_walls[:, :2] = torch.tensor([y1, x], device=settings.device).transpose(0, 1)
+
+    walls = torch.cat((x0_walls, x1_walls, y0_walls, y1_walls), dim=0)
+    graph.x = torch.cat((graph.x, walls), dim=0)
+
 def add_clusters_of_food(graph, settings, food_env):
     '''Generates and adds n clusters of food to the graph'''
     for _ in range(food_env.clusters):
@@ -28,6 +52,7 @@ def add_clusters_of_food(graph, settings, food_env):
         wall = generate_random_food_universal(settings.device, settings.scale, d=0.8)
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
+    #add_walls(graph, settings)
 
 def add_circular_food(graph, settings, food_env):
     for _ in range(food_env.food_amount):
@@ -37,6 +62,8 @@ def add_circular_food(graph, settings, food_env):
         wall = generate_random_food_universal(settings.device, settings.scale, d=0.8)
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
+    #add_walls(graph, settings)
+
     #abnormal_walls = food_env.wall_amount//10
     #for _ in range(food_env.wall_amount-abnormal_walls):
     #    wall = generate_circular_food(settings.device, settings.scale, std_dev=0, circles=food_env.circles, a=0.5)
@@ -58,6 +85,7 @@ def add_spiral_food(graph, settings, food_env):
         wall = generate_spiral_food(settings.device, settings.scale, std_dev=0, spirals=food_env.spirals)
         wall[0, 4] = NodeType.Wall
         add_food(graph, wall)
+    #add_walls(graph, settings)
 
 def add_labyrinth_food(graph, settings, food_env):
     x_points = np.linspace(-0.8*settings.scale, 0.8*settings.scale, (food_env.grid_size*3)//2)
@@ -68,6 +96,7 @@ def add_labyrinth_food(graph, settings, food_env):
             add_food(graph, walls)
             cluster = generate_cluster(settings.device, food_env.cluster_size, 0.015, settings.scale, x, y)
             add_food(graph, cluster)
+    #add_walls(graph, settings)
 
 def add_bottleneck_food(graph, settings, food_env):
     for _ in range(food_env.food_amount):
@@ -75,6 +104,7 @@ def add_bottleneck_food(graph, settings, food_env):
         add_food(graph, food)
     walls = generate_bottleneck_walls(settings.device, settings.scale, food_env.wall_amount)
     add_food(graph, walls)
+    #add_walls(graph, settings)
 
 def add_box_food(graph, settings, food_env):
     #TODO
@@ -94,6 +124,7 @@ def add_grid_food(graph, settings, food_env):
                 wall = generate_food(settings.device, x, y)
                 wall[0, 4] = NodeType.Wall
                 add_food(graph, wall)
+    #add_walls(graph, settings)
 
 def add_food_grid_food(graph, settings, food_env):
     x_points = np.linspace(-0.8*settings.scale, 0.8*settings.scale, food_env.grid_size)
@@ -102,6 +133,7 @@ def add_food_grid_food(graph, settings, food_env):
         for j, y in enumerate(y_points):
             cluster = generate_cluster(settings.device, food_env.cluster_size, 0.015, settings.scale, x, y)
             add_food(graph, cluster)
+    #add_walls(graph, settings)
 
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 
