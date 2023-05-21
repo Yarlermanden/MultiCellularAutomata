@@ -17,7 +17,7 @@ class GNCA(nn.Module):
         self.input_channels = 13
         self.output_channels = 12
         self.hidden_size = self.input_channels*1
-        self.velocity_scale = 0.02
+        self.velocity_scale = 0.03
         self.max_pos = 1
 
         self.device = settings.device
@@ -119,7 +119,11 @@ class GNCA(nn.Module):
         else: any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
             c_mask = cell_mask(graph.x)
-            graph.x[c_mask, 5] = 0 #Remove energy
+            graph.x[c_mask, 5] = -1 #Remove energy
+            dead_cells_mask = get_dead_cells_mask(graph, 0)
+            node_indices_to_keep = torch.nonzero(dead_cells_mask.bitwise_not()).flatten()
+            self.node_indices_to_keep = node_indices_to_keep
+            graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
             return graph
         self.update_graph(graph)
         wall_damage(graph, self.settings)

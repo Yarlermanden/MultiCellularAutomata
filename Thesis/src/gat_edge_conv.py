@@ -31,12 +31,13 @@ class GATEdgeConv(MessagePassing):
 
         self.att = Parameter(torch.Tensor(1, 1, out_channels))
         self.mlp_edge = torch.nn.Sequential(
+            Linear(12, 12),
+            torch.nn.Tanh(),
             Linear(12, 6),
             torch.nn.Tanh(),
-            Linear(6, 1),
-            torch.nn.Tanh(),
         )
-        self.lin = Linear(1, 1)
+        self.lin = Linear(6, 1)
+        self.lin1 = Linear(6, 1)
 
         self.register_parameter('bias', None)
         self._alpha = None
@@ -78,8 +79,9 @@ class GATEdgeConv(MessagePassing):
         alpha = (x * self.att).sum(dim=-1)
         alpha = softmax(alpha, index, ptr, size_i)
         self._alpha = alpha
-        x = (mij * alpha).view(-1, 1) * edge_attr[:, 1:3]
-        return x.unsqueeze(dim=1)
+        #x = (mij * alpha).view(-1, 1) * edge_attr[:, 1:3]
+        x = (self.lin1(mij) * alpha).view(-1, 1) * edge_attr[:, 1:3]
+        return torch.tanh(x.unsqueeze(dim=1))
 
     def __repr__(self) -> str:
         return (f'{self.__class__.__name__}({self.in_channels}, '
@@ -122,6 +124,8 @@ class GATConv(MessagePassing):
         self.lin_x = Linear(11, 1)
         self.lin_h = Linear(11, 10)
         self._alpha = None
+        self.lin_x1 = Linear(11, 1)
+        self.lin_h1 = Linear(11, 10)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -165,10 +169,12 @@ class GATConv(MessagePassing):
         alpha_h = softmax(alpha_h, index, ptr, size_i)
         self._alpha = alpha_x
 
-        x_x = (x_x.squeeze(1) * alpha_x) * edge_attr[:, 1:3] #equivariant
-        x_h = x_h.squeeze(1) * alpha_h #invariant
+        #x_x = (x_x.squeeze(1) * alpha_x) * edge_attr[:, 1:3] #equivariant
+        x_x = (self.lin_x1(mij) * alpha_x) * edge_attr[:, 1:3] #equivariant
+        #x_h = x_h.squeeze(1) * alpha_h #invariant
+        x_h = self.lin_h1(mij) * alpha_h #invariant
         x = torch.cat((x_x, x_h), dim=1)
-        return x.unsqueeze(dim=1)
+        return torch.tanh(x.unsqueeze(dim=1))
 
     def __repr__(self) -> str:
         return (f'{self.__class__.__name__}({self.in_channels}, '

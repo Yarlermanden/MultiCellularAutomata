@@ -44,7 +44,7 @@ class Conv(GNCA):
             nn.Tanh(),
             nn.Linear(24, 5),
             #nn.Tanh(),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1)
         )
 
         self.mlp_hidden = nn.Sequential(
@@ -171,7 +171,7 @@ class Conv(GNCA):
 
         x = self.mlp_after(input)
         #output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:6] * self.bias)
-        output[c_mask, :2] = x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:5] * torch.clamp(self.bias, -1., 1.)
+        output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:5] * torch.clamp(self.bias, -1., 1.))
 
         h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
 
