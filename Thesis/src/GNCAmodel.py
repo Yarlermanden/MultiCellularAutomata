@@ -17,7 +17,7 @@ class GNCA(nn.Module):
         self.input_channels = 13
         self.output_channels = 12
         self.hidden_size = self.input_channels*1
-        self.velocity_scale = 0.03
+        self.velocity_scale = 0.02
         self.max_pos = 1
 
         self.device = settings.device

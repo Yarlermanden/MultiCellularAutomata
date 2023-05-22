@@ -40,15 +40,15 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
         self.mlp_after = nn.Sequential(
-            nn.Linear(24, 24),
+            nn.Linear(22, 22),
             nn.Tanh(),
-            nn.Linear(24, 5),
+            nn.Linear(22, 7),
             #nn.Tanh(),
             #nn.Softmax(dim=1)
         )
 
         self.mlp_hidden = nn.Sequential(
-            nn.Linear(34, 10),
+            nn.Linear(32, 10),
             nn.Tanh(),
         )
 
@@ -61,7 +61,7 @@ class Conv(GNCA):
         if self.model_type == ModelType.WithGlobalNode:
             self.conv_layer_global = GCN(self.hidden_size, self.hidden_size, 1, self.hidden_size)
         
-        self.bias = Parameter(torch.Tensor(1, 2))
+        #self.bias = Parameter(torch.Tensor(1, 2))
 
         self.mlp_x = nn.Sequential(
             nn.Linear(self.hidden_size-1, self.hidden_size-1),
@@ -161,7 +161,7 @@ class Conv(GNCA):
         #wall_rotated = torch.bmm(rotation_matrices, wall_norm.unsqueeze(-1)).squeeze(-1)
 
         #input = torch.cat((x_magnitude, cell_magnitude, food_magnitude, wall_magnitude, x_x_rotated, cell_rotated, food_rotated, wall_rotated, x_origin[c_mask, 3:]), dim=1)
-        input = torch.cat((x_magnitude, cell_magnitude, food_magnitude, wall_magnitude, x_x, x_cell[:, :2], x_food, x_wall, self.bias.expand_as(x_food), x_origin[c_mask, 3:]), dim=1)
+        input = torch.cat((x_magnitude, cell_magnitude, food_magnitude, wall_magnitude, x_x, x_cell[:, :2], x_food, x_wall, x_origin[c_mask, 3:]), dim=1)
         if(torch.any(torch.isnan(input))):
             print('norm and rotation causes nan')
             input[torch.isnan(input)] = 0
@@ -171,7 +171,8 @@ class Conv(GNCA):
 
         x = self.mlp_after(input)
         #output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:6] * self.bias)
-        output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:5] * torch.clamp(self.bias, -1., 1.))
+        #output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:5] * torch.clamp(self.bias, -1., 1.))
+        output[c_mask, :2] = torch.tanh(x[:, 0:1] * x_x + x[:, 1:2] * x_cell[:, :2] + x[:, 2:3] * x_food + x[:, 3:4] * x_wall + x[:, 4:5] * torch.clamp(x[:, 5:6], -1., 1.))
 
         h = self.mlp_hidden(torch.cat((x_cell[:, 2:], input), dim=1)) + x_origin[c_mask, 3:]
 
