@@ -31,7 +31,7 @@ class Custom_NEProblem(NEProblem):
         #fitness2 = cells[:, 5].sum() / alive_start * 10 #energy left - for now always 0 as it ends when all cells die
 
         fitness3 = graph.cells_alive.mean() / self.settings.n #average ratio of cells alive across batch - between 0 and 1 pr timestep
-        fitness = fitness1 + fitness3 / 2
+        fitness = fitness1 + fitness3 / 5
 
         timesteps = graph.timesteps.mean()
         fitness += timesteps
