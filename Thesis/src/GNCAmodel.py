@@ -14,17 +14,14 @@ class GNCA(nn.Module):
         super(GNCA, self).__init__()
         self.settings = settings
         self.edge_dim=4
-        self.input_channels = 8
-        self.output_channels = 7
+        self.input_channels = 13
+        self.output_channels = 12
         self.hidden_size = self.input_channels*1
+        self.velocity_scale = 0.02
+        self.max_pos = 1
 
         self.device = settings.device
         self.model_type = settings.model_type
-
-        self.acceleration_scale = 0.02
-        self.max_velocity = 0.02
-        self.max_pos = 1
-
         self.node_indices_to_keep = None
         self.datastructure = DataStructure(settings)
 
@@ -42,51 +39,44 @@ class GNCA(nn.Module):
     def update_graph(self, graph):
         '''Updates the graph using convolution to compute acceleration and update velocity and positions'''
         c_mask = cell_mask(graph.x)
-        moveable_mask = torch.bitwise_or(c_mask, graph.x[:,4] == NodeType.GlobalCell)
         
-        h = self.message_pass(graph) * moveable_mask.view(-1,1)
-        acceleration = h[:, :2] * self.acceleration_scale
+        h = self.message_pass(graph) * c_mask.view(-1,1)
         graph.x[:, 6:] = h[:, 2:]
-        velocity = update_velocity(graph, acceleration, self.max_velocity, moveable_mask)
-        positions = update_positions(graph, velocity, self.settings.wrap_around, moveable_mask, self.settings.scale)
-        graph.x[moveable_mask, 2:4] = velocity[moveable_mask]
-        graph.x[moveable_mask, :2] = positions
-        graph.x[c_mask, 5] -= 1 #Energy cost
-            #could consider decreasing energy more slowly when not moving and depending on size of subgraph...    
-            #cost x amount of energy for being an individual organism - decrease depending on subgraph
+        velocity = h[:, :2] * self.velocity_scale
+        positions = update_positions(graph, velocity, self.settings.wrap_around, c_mask, self.settings.scale)
+        graph.x[c_mask, 2:4] = velocity[c_mask]
+        graph.x[c_mask, :2] = positions
+        graph.x[c_mask, 5] -= 0.04*100/(degree_below_radius(graph, self.settings)[c_mask] ** 0.5)*0.8 #Energy cost
         self.add_noise(graph, c_mask)
         graph.velocity += velocity.abs().mean()
 
     def remove_nodes(self, graph):
         '''Removes dead cells and consumed food nodes from the graph. Most be called after update_graph and as late as possible'''
-        consumed_mask = get_consume_food_mask(graph, self.settings.consume_radius, self.settings.consumption_edge_required)
-
+        consumed_mask = get_consume_food_mask(graph, self.settings.consume_radius)
         dead_cells_mask = get_dead_cells_mask(graph, 0)
-
         remove_mask = torch.bitwise_or(dead_cells_mask, consumed_mask)
         node_indices_to_keep = torch.nonzero(remove_mask.bitwise_not()).flatten()
         self.node_indices_to_keep = node_indices_to_keep
 
-        if torch.any(consumed_mask):
-            edges = graph.edge_index[:, graph.edge_attr[:, 3] != 2]
+        if torch.any(consumed_mask): #distribute energy
+            c_edges_beyond_dist = torch.bitwise_and(graph.edge_attr[:, 3] == EdgeType.CellToCell, graph.edge_attr[:, 0] > self.settings.radius)
+            edge_mask = torch.bitwise_not(torch.bitwise_or(c_edges_beyond_dist, graph.edge_attr[:, 3] == EdgeType.GlobalAndCell))
+            edges = graph.edge_index[:, edge_mask] #remove global edges
             graph1 = Data(x=graph.x, edge_index=edges)
             G = to_networkx(graph1, to_undirected=False)
             food_in_nx = torch.nonzero(consumed_mask).flatten()
             for x in food_in_nx:
                 des = nx.descendants(G, x.item())
                 if len(des) > 0:
-                    graph.x[list(des), 5] += 2 #all of their energy should be increased -  #TODO could even adjust this to be higher depending on the food energy size...
-            #could it possibly be faster to make the entire subgraphs as they are supported to 
-            # and then from there create sets of each subgraph
-            # then we check which subgraph a node belongs to and easily index on entire subgraph
-        graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=10)
+                    graph.x[list(des), 5] += graph.x[x, 5]/1.5 #all of their energy should be increased according to energy in food
+        #graph.x[:, 5] = torch.clamp(graph.x[:, 5], max=self.settings.energy_required_to_replicate)
 
         start_index = 0
-        for i in range(self.settings.batch_size):
+        for i in range(self.settings.batch_size): #update metrics
             end_index = start_index + graph.subsize[i]
             graph.subsize[i] -= remove_mask[start_index:end_index].sum()
             graph.dead_cost[i] += dead_cells_mask[start_index:end_index].sum()
-            food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 2].sum()
+            food_val = graph.x[torch.nonzero(consumed_mask[start_index:end_index])+start_index, 5].sum()
             graph.food_reward[i] += food_val
             start_index = end_index
 
@@ -94,8 +84,6 @@ class GNCA(nn.Module):
 
     def compute_fitness_metrics(self, graph):
         '''Computes the fitness metrics of each batch used for evaluating the network'''
-        #compute_border_cost(graph)
-
         #visible_food = (graph.edge_attr[:, 3] == 0).sum()
         #count_visible_food = len(torch.nonzero(graph.edge_attr[:, 3] == 0).flatten())
         #graph.food_avg_degree += visible_food/count_visible_food
@@ -105,32 +93,45 @@ class GNCA(nn.Module):
         s_idx = 0
         for i in range(self.settings.batch_size):
             e_idx = s_idx + graph.subsize[i]
-            food_nodes_in_batch = torch.nonzero(food_mask(graph.x[s_idx:e_idx])) + s_idx
-            food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
-            edge_attr = graph.edge_attr[food_edges_in_batch]
-            nodes = graph.x[graph.edge_index[1, food_edges_in_batch]]
-            dist = torch.abs(edge_attr[:, 1:3])
-            dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
-            x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
-            if x5.isnan(): x5 = -0.00001
-            graph.food_search_movement += x5
-            if len(food_nodes_in_batch) == 0 and (cell_mask(graph.x[s_idx:e_idx])).sum() != 0: #no more food but still cells in batch
-                graph.food_reward[i] += 1
+            nodes = graph.x[s_idx:e_idx]
+            cells = nodes[cell_mask(nodes)]
+            #food_nodes_in_batch = torch.nonzero(food_mask(graph.x[s_idx:e_idx])) + s_idx
+            #food_edges_in_batch = torch.nonzero(torch.isin(graph.edge_index[0], food_nodes_in_batch)).view(-1)
+            #edge_attr = graph.edge_attr[food_edges_in_batch]
+            #nodes = graph.x[graph.edge_index[1, food_edges_in_batch]]
+            
+            #dist = torch.abs(edge_attr[:, 1:3])
+            #dist_and_movement = torch.abs(edge_attr[:, 1:3] + nodes[:, 2:4])
+            #x5 = ((dist-dist_and_movement) * nodes[:,4].view(-1,1)).mean() #positive is good and negative is bad
+            #if x5.isnan(): x5 = -0.00001
+            #graph.food_search_movement[i] += x5
+            graph.velocity[i] += torch.norm(cells[:, 2:4], dim=1).mean()
+            graph.pos_reward[i] += torch.norm(cells[:, 0:2], dim=1).mean()
+            graph.cells_alive[i] += cell_mask(graph.x[s_idx:e_idx]).sum()
+            #if len(food_nodes_in_batch) == 0 and (cell_mask(graph.x[s_idx:e_idx])).sum() != 0: #no more food but still cells in batch
+            #    graph.food_reward[i] += 1
             s_idx = e_idx
 
     def update(self, graph):
         '''Update the graph a single time step'''
         any_edges = False
-        if self.model_type == ModelType.WithGlobalNode: any_edges = self.datastructure.add_edges_with_global_node(graph)
+        if self.model_type == ModelType.WithGlobalNode: any_edges = self.datastructure.add_edges_with_global_node(graph) #TODO change this once refactored
         else: any_edges = self.datastructure.add_edges(graph)
         if not any_edges:
+            c_mask = cell_mask(graph.x)
+            graph.x[c_mask, 5] = -1 #Remove energy
+            dead_cells_mask = get_dead_cells_mask(graph, 0)
+            node_indices_to_keep = torch.nonzero(dead_cells_mask.bitwise_not()).flatten()
+            self.node_indices_to_keep = node_indices_to_keep
+            graph.x = graph.x[node_indices_to_keep].view(node_indices_to_keep.shape[0], graph.x.shape[1])
             return graph
         self.update_graph(graph)
-        wall_damage(graph, self.settings.radius_wall_damage, self.settings.wall_damage)
+        wall_damage(graph, self.settings)
         self.compute_fitness_metrics(graph)
         self.remove_nodes(graph)
-        #TODO add a new cell node pr x graph energy
+        breed(graph, self.settings)
         graph = graph.to(device=self.device)
+        graph.timesteps += 1.0
         return graph
 
     def forward(self, graph, time_steps = 1):

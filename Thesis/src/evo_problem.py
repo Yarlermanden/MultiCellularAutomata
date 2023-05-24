@@ -24,20 +24,31 @@ class Custom_NEProblem(NEProblem):
         with torch.no_grad():
             graph = network(batch, steps)
 
-        food_reward = graph.food_reward.mean()
-        fitness1 = food_reward
+        food_reward = graph.food_reward.mean()#food consumed - average of batch size
+        fitness1 = food_reward / 8
 
-        cells = graph.x[cell_mask(graph.x)]
-        fitness2 = cells[:, 5].sum() / alive_start * 10
+        #cells = graph.x[cell_mask(graph.x)]
+        #fitness2 = cells[:, 5].sum() / alive_start * 10 #energy left - for now always 0 as it ends when all cells die
 
-        fitness3 = graph.food_search_movement.mean() * 500
+        fitness3 = graph.cells_alive.mean() / self.settings.n #average ratio of cells alive across batch - between 0 and 1 pr timestep
+        fitness = fitness1 + fitness3 / 4
 
-        fitness = fitness1 + fitness2 + fitness3 
-        #print('fitness1: ', fitness1, 'fitness2: ', fitness2, 'fitness3', fitness3)
+        timesteps = graph.timesteps.mean()
+        fitness += timesteps
 
-        if torch.any(torch.isnan(food_reward)):
+        #movement = torch.max(graph.velocity.sum() / self.settings.batch_size * 4, 20)
+
+        if fitness1 > 0.0:
+            fitness += 50
+        else:
+            pos = torch.clamp(graph.pos_reward.mean(), max=50)
+            if not torch.isnan(pos):
+                fitness += pos
+
+        if torch.any(torch.isnan(fitness)):
             print('fitness is nan')
             fitness = 0
+            fitness3 = 0
 
         ray.get(self.global_var.update_pool.remote(graph))
-        return torch.tensor([fitness, fitness1, fitness2, fitness3])
+        return torch.tensor([fitness])

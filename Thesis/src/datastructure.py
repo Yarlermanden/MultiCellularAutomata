@@ -4,30 +4,20 @@ import torch
 import time
 from torch import Tensor
 from sklearn.neighbors import KDTree
+from enums import *
 
 from graphUtils import *
 
-class FixedRadiusNearestNeighbors(object):
-    def __init__(self, nodes, radius, batch_size, scale):
-        Lbox = float(scale)
-        #blocks = int(2.0*scale/radius) # 10x10 - more efficient to create a bit larger boxes than 
-        #blocks = int(10) # 10x10 - more efficient to create a bit larger boxes than 
-        blocks = int(1) # 10x10 - more efficient to create a bit larger boxes than 
-        periodic = {0: (-Lbox, Lbox), 1: (-Lbox, Lbox)}
-        self.grid = gsp.GriSPy(nodes.detach().cpu().numpy(), periodic=periodic, N_cells=blocks)
-
-    def get_neighbors(self, node, radius):
-        bubble_dist, bubble_ind = self.grid.bubble_neighbors(
-            #TODO could experiment with changing distance_upper_bound radius to 3D and low z so it doesn't combine batches
-            node.detach().cpu(), distance_upper_bound=radius
-        )
-        return bubble_dist, bubble_ind
-
 class FixedRadiusNearestNeighbors2(object):
-    def __init__(self, nodes, radius, batch_size, scale, dense):
+    def __init__(self, nodes, node_type):
         nodes = nodes.detach().cpu().numpy()
-        if dense: self.tree = KDTree(nodes, leaf_size=40)
-        else: self.tree = KDTree(nodes, leaf_size=20)
+        match node_type:
+            case NodeType.Cell:
+                self.tree = KDTree(nodes, leaf_size=40)
+            case NodeType.Food:
+                self.tree = KDTree(nodes, leaf_size=20)
+            case NodeType.Wall:
+                self.tree = KDTree(nodes, leaf_size=5)
 
     def get_neighbors(self, node, radius):
         return self.tree.query_radius(node.detach().cpu().numpy(), radius, return_distance=True)
@@ -79,25 +69,27 @@ class DataStructure(object):
                 food_indices = food_indices.detach().cpu().numpy()
                 wall_indices = wall_indices.detach().cpu().numpy()
 
-                frnn_food = FixedRadiusNearestNeighbors2(food, self.settings.radius_food, self.batch_size, self.scale, False)
+                frnn_food = FixedRadiusNearestNeighbors2(food, NodeType.Food)
                 indices_food, dists_food = frnn_food.get_neighbors(cells, self.settings.radius_food)
                 indices_food = [food_indices[x] for x in indices_food]
-                edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), 0]
+                edges_food = [[j, i, dists_food[ii][jj], *(x[i]-x[j]), EdgeType.FoodToCell]
                             for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_food[ii])]
 
-                radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius)
-                frnn_cell = FixedRadiusNearestNeighbors2(cells, self.settings.radius, self.batch_size, self.scale, True)
+                radius_cell = torch.where(graph.x[cell_indices, 3] == 3, self.settings.radius_long, self.settings.radius_cell)
+                frnn_cell = FixedRadiusNearestNeighbors2(cells, NodeType.Cell)
                 indices_cells, dists_cells = frnn_cell.get_neighbors(cells, radius_cell.detach().cpu().numpy())                       
                 indices_cells = [cell_indices[x] for x in indices_cells]
-                edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), 1]
+                edges_cells = [[j, i, dists_cells[ii][jj], *(x[i]-x[j]), EdgeType.CellToCell]
                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_cells[ii])
                        if i!=j]
                 
-                frnn_wall = FixedRadiusNearestNeighbors2(walls, self.settings.radius_wall, self.batch_size, self.scale, False)
-                indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
-                indices_walls = [wall_indices[x] for x in indices_walls]
-                edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), 4]
-                        for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_walls[ii])]
+                edges_walls = []
+                if walls.any():
+                    frnn_wall = FixedRadiusNearestNeighbors2(walls, NodeType.Wall)
+                    indices_walls, dists_walls = frnn_wall.get_neighbors(cells, self.settings.radius_wall)
+                    indices_walls = [wall_indices[x] for x in indices_walls]
+                    edges_walls = [[j, i, dists_walls[ii][jj], *(x[i]-x[j]), EdgeType.WallToCell]
+                            for ii, i in enumerate(cell_indices) for jj, j in enumerate(indices_walls[ii])]
 
                 if len(edges_food) > 0:
                     edges.extend(edges_food)
@@ -140,11 +132,10 @@ class DataStructure(object):
             cell_idx+=s_idx
             global_node_idx+=s_idx
 
-            #TODO should we add attributes depending on the nodes position as well? and in that case, should we update the node during model as well?
             tup = [([cell_idx[i], global_node_idx], 
-                    [0, global_node[0]-cells[i, 0], global_node[1]-cells[i,1], 2],
+                    [0, 0, 0, EdgeType.GlobalAndCell],
                     [global_node_idx, cell_idx[i]], 
-                    [0, -global_node[0]+cells[i, 0], -global_node[1]+cells[i,1], 2])
+                    [0, 0, 0, EdgeType.GlobalAndCell])
                    for i in range(len(cells))]
             l = [list(t) for t in zip(*tup)]
             if len(l) > 0:

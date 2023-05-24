@@ -5,8 +5,9 @@ class OnlineTracker(object):
         self.config = {
                 'settings': settings.__dict__,
                 'train_config': settings.train_config.__dict__,
-                'food_env': settings.food_env.__dict__
             }
+        for i in range(len(settings.food_envs)):
+            self.config['food_envs' + str(i)] = settings.food_envs[i].__dict__
         wandb.init(
             project="gnca",
             config=self.config

@@ -7,5 +7,6 @@ class Custom_Logger(PandasLogger):
 
     def _log(self, status):
         super()._log(status)
-        status['stepsize'] = status['stepsize'].detach().cpu().item()
+        if 'stepsize' in status:
+            status['stepsize'] = status['stepsize'].detach().cpu().item()
         self.online_tracker.log(**status)

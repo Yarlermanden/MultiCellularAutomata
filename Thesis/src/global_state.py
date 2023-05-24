@@ -3,6 +3,7 @@ import ray
 import torch
 from torch_geometric.loader import DataLoader
 from torch_geometric.utils import unbatch
+import random
 
 from sample_pool import SamplePool
 from generator import generate_organism
@@ -27,12 +28,12 @@ class GlobalState():
         self.set_global_var()
 
         self.cell_threshold = settings.n // 5 #if below threshold - generate new env instead of committing
-        self.food_threshold = settings.food_env.food_amount // 10 # -||-
+        self.food_threshold = settings.food_envs[0].food_amount // 10 # -||-
         self.in_population = 0
 
     def set_global_var(self):
         self.i += 1
-        if self.i % 2000 == 0:
+        if self.i % 100 == 0:
             self.steps += 10
             print(self.steps)
         self.time_steps = np.random.randint(self.steps, self.steps+20)
@@ -41,6 +42,9 @@ class GlobalState():
             self.batch = self.sample_pool.sample(self.batch_size)
             self.graphs = [toGraph(torch.tensor(x, device=self.device), self.device) for x in self.batch.x.values()]
         else: 
+            #random_number = random.randint(0, len(self.settings.food_envs)-1)
+            #food_env = self.settings.food_envs[random_number]
+            #self.graphs = [generate_organism(self.settings).toGraph(food_env) for _ in range(self.batch_size)]
             self.graphs = [generate_organism(self.settings).toGraph() for _ in range(self.batch_size)]
         self.graphs = DataLoader(self.graphs, batch_size=self.settings.batch_size)
         self.in_population = 0

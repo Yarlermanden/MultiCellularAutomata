@@ -28,7 +28,7 @@ class Evo_Trainer():
             settings=settings,
             global_var=self.global_var,
             device=cpu,
-            objective_sense=['max', 'max', 'max', 'max'],
+            objective_sense=['max'],
             network=Conv,
             network_args={'settings' : settings},
             num_actors='max',

@@ -28,6 +28,32 @@ class Spiral_Env(Food_Env):
         super().__init__(food_amount, wall_amount, EnvironmentType.Spiral)
 
 class Labyrinth_Env(Food_Env):
-    #consist of walls and food in such a pattern that the organism will be able to track through it
-    #could even make it so energy isn't lost unless inside a wall
-    ...
+    #Testing environment to see if it can follow food and avoid walls
+    #have a few places without food but still traped within walls and see if it can go forward to more food
+    def __init__(self, cluster_size, grid_size):
+        self.cluster_size = cluster_size
+        self.grid_size = grid_size
+        points = grid_size*((grid_size*3) // 2)
+        super().__init__(food_amount=points*cluster_size, wall_amount=points*5, env_type=EnvironmentType.Labyrinth)
+
+class Bottleneck_Env(Food_Env):
+    def __init__(self, food_amount, wall_amount=0):
+        super().__init__(food_amount, wall_amount, EnvironmentType.Bottleneck)
+
+class Box_Env(Food_Env):
+    def __init__(self, food_amount, wall_amount=0):
+        super().__init__(food_amount, wall_amount, EnvironmentType.Box)
+
+class Grid_Env(Food_Env):
+    def __init__(self, cluster_size, grid_size):
+        self.cluster_size = cluster_size
+        self.grid_size = grid_size
+        points = grid_size*grid_size // 2
+        super().__init__(food_amount=points*cluster_size, wall_amount=points, env_type=EnvironmentType.Grid)
+
+class Food_Grid_Env(Food_Env):
+    def __init__(self, cluster_size, grid_size):
+        self.cluster_size = cluster_size
+        self.grid_size = grid_size
+        points = grid_size*grid_size
+        super().__init__(food_amount=points*cluster_size, wall_amount=0 , env_type=EnvironmentType.Food_Grid)
