@@ -66,7 +66,8 @@ class GATEdgeConv(MessagePassing):
                 size_i: Optional[int]) -> Tensor:
         #x_i is the cell
         edge_attr = edge_attr.view(-1, 3)
-        scale = 1/(edge_attr[:, :1]+1e-7)
+        #scale = 1/(edge_attr[:, :1]+1e-7)
+        scale = 1/(1 + edge_attr[:, :1])
 
         v_ij = x_i[:, :2] - x_j[:, :2]
         dot_product = (v_ij[:, 0] * edge_attr[:, 1] + v_ij[:, 1] * edge_attr[:, 2]).unsqueeze(1) #negativ means moving towards each other - positiv means away
