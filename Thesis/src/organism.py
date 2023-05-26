@@ -50,7 +50,7 @@ class Organism():
         elif self.settings.model_type == ModelType.WithGlobalNode: add_global_node(graph, self.device)
 
         if food_env == None:
-            random_number = random.randint(0, 3)
+            random_number = random.randint(0, len(self.settings.food_envs)-1)
             food_env = self.settings.food_envs[random_number]
         
         match food_env.env_type:
