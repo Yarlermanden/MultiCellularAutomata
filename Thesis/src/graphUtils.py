@@ -138,7 +138,7 @@ def add_food_grid_food(graph, settings, food_env):
 def add_global_node(graph, device):
     '''Adds a global node to the graph. 
     Call this before creating batches to ensure a global node exists in all batches'''
-    hidden = [0,0,0,0,0]
+    hidden = [0,0,0,0,0,0,0,0,0,0]
     global_node = torch.tensor([[0, 0, 0, 0, NodeType.GlobalCell, 0, *hidden]], dtype=torch.float, device=device)
     graph.x = torch.cat((graph.x, global_node))
 

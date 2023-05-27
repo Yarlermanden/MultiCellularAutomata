@@ -133,24 +133,20 @@ class DataStructure(object):
             global_node_idx+=s_idx
 
             tup = [([cell_idx[i], global_node_idx], 
-                    [0, 0, 0, EdgeType.GlobalAndCell],
-                    [global_node_idx, cell_idx[i]], 
                     [0, 0, 0, EdgeType.GlobalAndCell])
                    for i in range(len(cells))]
             l = [list(t) for t in zip(*tup)]
             if len(l) > 0:
                 edges.extend(l[0])
-                edges.extend(l[2])
                 attributes.extend(l[1])
-                attributes.extend(l[3])
             s_idx = e_idx
 
         if len(edges) == 0:
             return False
         edge_attributes = np.array(attributes)
-        edge_attributes[:, 0] = np.linalg.norm(edge_attributes[:, 1:3], axis=1)
-        edge_attributes[:, 0] = vcompute_dist(edge_attributes[:, 0])
-        edge_attributes[:, 1:3] = vupdate(edge_attributes[:, 1:3]) #restrict to match wraparound
+        #edge_attributes[:, 0] = np.linalg.norm(edge_attributes[:, 1:3], axis=1)
+        #edge_attributes[:, 0] = vcompute_dist(edge_attributes[:, 0])
+        #edge_attributes[:, 1:3] = vupdate(edge_attributes[:, 1:3]) #restrict to match wraparound
 
         graph.edge_index = torch.concat((torch.tensor(np.array(edges), dtype=torch.long, device=self.device).T, graph.edge_index), dim=1)
         graph.edge_attr = torch.concat((torch.tensor(edge_attributes, dtype=torch.float, device=self.device), graph.edge_attr), dim=0)
