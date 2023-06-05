@@ -19,6 +19,8 @@ class ModelType(Enum):
     Localx4 = 5, #Local but with large cell radius - global
     Localx8 = 6, #Local but with large cell radius - global
     Localx16 = 7, #Local but with large cell radius - global
+    Localx64 = 8, 
+    LocalxGlobal = 9 #all cells connected at all times
 
 class ProblemSearcher(Enum):
     CMAES = 0, #distribution based

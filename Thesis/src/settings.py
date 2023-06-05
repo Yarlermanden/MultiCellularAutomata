@@ -45,6 +45,8 @@ class Settings(object):
         self.radius_cell = radius #radius of cell to cell communication
         self.edge_dropout = 0.0
         match self.model_type:
+            case ModelType.LocalxGlobal: self.radius_cell = radius*1024
+            case ModelType.Localx64: self.radius_cell = radius*64
             case ModelType.Localx16: self.radius_cell = radius*16
             case ModelType.Localx8: self.radius_cell = radius*8
             case ModelType.Localx4: self.radius_cell = radius*4
