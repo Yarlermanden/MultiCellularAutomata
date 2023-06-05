@@ -43,6 +43,7 @@ class Settings(object):
         self.noise = noise #amount of random noise added to cells at each time step
         self.energy_required_to_replicate = energy_required_to_replicate #required energy for splitting/replicating
         self.radius_cell = radius #radius of cell to cell communication
+        self.edge_dropout = 0.0
         match self.model_type:
             case ModelType.Localx16: self.radius_cell = radius*16
             case ModelType.Localx8: self.radius_cell = radius*8

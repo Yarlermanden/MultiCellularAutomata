@@ -46,3 +46,4 @@ class SettingType(IntEnum):
     FoodRadiusScale = 4,
     ObstacleRadiusScale = 5,
     Noise = 6,
+    EdgeDropout = 7,

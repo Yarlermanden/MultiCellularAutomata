@@ -36,6 +36,8 @@ class Conv(GNCA):
         self.velNorm = 1.0*self.settings.scale/self.velocity_scale
         self.attrNorm = 1.0*self.settings.scale/self.settings.radius_food
 
+        self.edge_dropout = self.settings.edge_dropout
+
         self.hidden_after_size = self.hidden_size + 4
         #if self.model_type == ModelType.WithGlobalNode: self.hidden_after_size += self.hidden_size
 
@@ -93,12 +95,15 @@ class Conv(GNCA):
         return torch.tanh(((x-x_mean) / x_std)*2 - 1)
 
     def message_pass(self, graph):
+        edge_mask = torch.rand(graph.edge_attr.shape[0])
+        edges = edge_mask > self.edge_dropout
+
         food_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()]
         food_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 0).flatten()][:, :3]
-        cell_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()]
-        cell_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 1).flatten()][:, :3]
+        cell_edges = graph.edge_index[:, torch.nonzero(torch.bitwise_and(graph.edge_attr[:, 3] == 1, edges)).flatten()]
+        cell_attr = graph.edge_attr[torch.nonzero(torch.bitwise_and(graph.edge_attr[:, 3] == 1, edges)).flatten()][:, :3]
         if self.model_type == ModelType.WithGlobalNode:
-            global_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 2).flatten()]
+            global_edges = graph.edge_index[:, torch.nonzero(torch.bitwise_and(graph.edge_attr[:, 3] == 2, edges)).flatten()]
         wall_edges = graph.edge_index[:, torch.nonzero(graph.edge_attr[:, 3] == 4).flatten()]
         wall_attr = graph.edge_attr[torch.nonzero(graph.edge_attr[:, 3] == 4).flatten()][:, :3]
         c_mask = cell_mask(graph.x)
